@@ -165,9 +165,13 @@ export function buildWorld(scene, level, tileTypes, assets) {
   // --- floor (one texture repeat per tile)
   const cobAsset = assets['textures/cobblestone'];
   const cob = cobAsset.texture;
-  cob.repeat.set(width, depth);
+  const floorScale = level.floorScale ?? 2; // tiles covered by one repeat of the texture
+  cob.repeat.set(width / floorScale, depth / floorScale);
   const bump = cobAsset.height || cob; // dedicated height map if present
-  bump.repeat.set(width, depth);
+  bump.repeat.set(width / floorScale, depth / floorScale);
+  // The floor is seen at grazing angles: use full anisotropic filtering so the
+  // painted detail stays crisp instead of smearing.
+  cob.anisotropy = bump.anisotropy = 16;
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
     new THREE.MeshStandardMaterial({

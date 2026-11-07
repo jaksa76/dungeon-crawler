@@ -12,11 +12,11 @@ import * as THREE from 'three';
 
 export function addInkLines(material, {
   color = '#140a10',
-  strength = 0.85,
+  strength = 0.95,
   level = 0.3,      // height of the contour (0 = mortar, 1 = stone top): on the rim, inside the painted mortar
-  width = 0.6,      // half-width in screen pixels
-  fadeNear = 14,    // texels per screen pixel where lines start to fade...
-  fadeFar = 30,     // ...and where they are gone
+  width = 1.1,      // half-width in screen pixels
+  fadeNear = 10,    // texels per screen pixel where lines start to fade...
+  fadeFar = 24,     // ...and where they are gone
 } = {}) {
   const uniforms = {
     uInkColor: { value: new THREE.Color(color) },
