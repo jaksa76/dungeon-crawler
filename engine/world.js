@@ -125,13 +125,6 @@ export function buildWorld(scene, level, tileTypes, assets) {
   floor.position.set((width - 1) / 2, 0, (depth - 1) / 2);
   scene.add(floor);
 
-  const outer = new THREE.Mesh(
-    new THREE.CircleGeometry(500, 48),
-    new THREE.MeshLambertMaterial({ color: 0x141020 }),
-  );
-  outer.rotation.x = -Math.PI / 2;
-  outer.position.set(width / 2, -0.02, depth / 2);
-  scene.add(outer);
 
   // --- lights
   const lights = [];

@@ -108,14 +108,14 @@ export const town = {
     moonlight: { color: '#b8a8ff', intensity: 0.45, bearing: 20, elevation: 35 },
     fog: { color: '#1e1838', near: 8, far: 34 },
     layers: [
-      { image: 'backdrop/sky', radius: 300, from: -8, to: 70, repeat: 2, follow: 1 },
-      { image: 'backdrop/hills', radius: 160, from: -10, to: 26, repeat: 3, follow: 0.97 },
-      { image: 'backdrop/treeline', radius: 90, from: -6, to: 14, repeat: 5, follow: 0.9 },
+      { image: 'backdrop/sky', radius: 300, from: -6, to: 42, follow: 1 },
+      { image: 'backdrop/hills', radius: 160, from: -6, peak: 9, follow: 0.97 },
+      { image: 'backdrop/treeline', radius: 90, from: -6, peak: 5, follow: 0.9 },
     ],
     landmarks: [
       { image: 'backdrop/moon', radius: 280, bearing: 22, elevation: 16, size: 12, follow: 1 },
-      { image: 'backdrop/castle', radius: 140, bearing: 10, elevation: -3, size: 30, follow: 0.97 },
-      { image: 'backdrop/waterfall', radius: 120, bearing: 38, elevation: -3, size: 18, follow: 0.95 },
+      { image: 'backdrop/castle', radius: 140, bearing: -5, elevation: -3, size: 30, follow: 0.97 },
+      { image: 'backdrop/waterfall', radius: 70, bearing: 11, elevation: -4, size: 14, follow: 0.88 },
     ],
   },
 };
