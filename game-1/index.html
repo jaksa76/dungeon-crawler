@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Town Square Demo</title>
+  <style>
+    :root { --bg: #08060c; --fg: #b8aecb; --dim: #6f6684; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.4 monospace; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+    .frame { position: relative; box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
+    .frame canvas { display: block; image-rendering: pixelated; }
+    .message {
+      position: absolute; left: 0; right: 0; top: 10px; text-align: center; pointer-events: none;
+      color: #f4e6c0; text-shadow: 2px 2px 0 #000; font-size: 16px; font-weight: bold;
+    }
+    .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
+    .help b { color: var(--fg); }
+  </style>
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <div class="frame" id="frame">
+    <canvas id="view"></canvas>
+    <canvas id="ui"></canvas>
+  </div>
+  <div class="help">
+    <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn ·
+    <b>T</b> smooth movement · <b>F</b> fog · <b>R</b> resolution · <b>V</b> far sprite variants · <b>L</b> point lights
+  </div>
+  <div class="help" id="status">Loading…</div>
+  <script type="module">
+    import { startGame } from '../engine/game.js';
+    import { town, tileTypes, manifest } from './town.js';
+    startGame({
+      level: town, tileTypes, manifest, assetPath: './assets',
+      viewCanvas: document.getElementById('view'),
+      uiCanvas: document.getElementById('ui'),
+      frame: document.getElementById('frame'),
+      status: document.getElementById('status'),
+    }).catch((e) => { document.getElementById('status').textContent = 'Error: ' + e.message; console.error(e); });
+  </script>
+</body>
+</html>
