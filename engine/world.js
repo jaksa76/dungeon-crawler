@@ -136,6 +136,24 @@ export function buildWorld(scene, level, tileTypes, assets) {
     lights.push(l);
   };
 
+  // --- blob shadows: a soft dark ellipse on the ground under each billboard.
+  const shadowTex = (() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d');
+    const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grd.addColorStop(0, 'rgba(0,0,0,0.85)');
+    grd.addColorStop(0.55, 'rgba(0,0,0,0.5)');
+    grd.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+    return new THREE.CanvasTexture(c);
+  })();
+  const shadowMat = new THREE.MeshBasicMaterial({
+    map: shadowTex, transparent: true, depthWrite: false,
+    polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+  });
+  const shadowGeo = new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2);
+
   // --- billboards
   const billboards = [];
   for (const e of level.entities) {
@@ -145,8 +163,18 @@ export function buildWorld(scene, level, tileTypes, assets) {
     mesh.material.color.setScalar(1.5); // billboards read better slightly over-lit, like the concept art
     mesh.position.set(e.x, 0, e.z);
     scene.add(mesh);
+    let shadow = null;
+    if (e.shadow !== false) {
+      // Sized from the sprite: wide props get a wide, shallow ellipse.
+      const sw = e.shadowWidth ?? w * 0.95;
+      shadow = new THREE.Mesh(shadowGeo, shadowMat);
+      shadow.scale.set(sw, 1, Math.min(sw * 0.6, 0.45));
+      shadow.position.set(e.x, 0.002, e.z);
+      shadow.renderOrder = 1;
+      scene.add(shadow);
+    }
     billboards.push({
-      entity: e, mesh,
+      entity: e, mesh, shadow,
       near: a.texture,
       far: e.far ? assets[e.far].texture : null,
     });
@@ -183,6 +211,7 @@ export function buildWorld(scene, level, tileTypes, assets) {
       const yaw = camera.rotation.y;
       for (const b of billboards) {
         b.mesh.rotation.y = yaw;
+        if (b.shadow) b.shadow.rotation.y = yaw; // ellipse stays aligned with the sprite
         if (b.far) {
           const dist = Math.hypot(b.mesh.position.x - camera.position.x, b.mesh.position.z - camera.position.z);
           const tex = farSwap && dist > 6 ? b.far : b.near;
