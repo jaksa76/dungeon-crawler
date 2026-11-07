@@ -2,13 +2,33 @@
 //
 //   [portrait] [vitals] [ message log ] [hands / quick] [minimap]
 //
+// Two layouts share the same building blocks: HI for the 640-wide display and
+// LO for 320x200, which uses a pixel font made for 8px sizes.
 // Not interactive yet: this is about layout and look.
 
-export const UI_W = 640, UI_H = 120;
-const FONT = 'VT323, monospace';
+export const LAYOUTS = {
+  hi: {
+    w: 640, h: 120, font: 'VT323', stoneTile: 64,
+    portrait: [8, 9, 104],
+    name: [120, 9, 20], title: [120, 27, 14], gold: [120, 92, 14],
+    hp: [120, 50, 112, 12, 16], mp: [120, 70, 112, 12, 16],
+    log: { box: [240, 9, 206, 104], size: 16, line: 16, pad: 6 },
+    slots: { x: 454, y: 19, s: 38, gap: 4, rowGap: 6, label: 12, captions: true },
+    map: { box: [542, 9, 92, 92], cell: 8, view: 6, label: 14, footer: 12, facing: (f) => `Facing ${f}` },
+  },
+  lo: {
+    w: 320, h: 56, font: 'Silkscreen', stoneTile: 32,
+    portrait: [3, 4, 48],
+    name: [55, 3, 8], title: null, gold: [55, 43, 8],
+    hp: [55, 17, 54, 6, 8], mp: [55, 29, 54, 6, 8],
+    log: { box: [112, 4, 122, 48], size: 8, line: 9, pad: 3 },
+    slots: { x: 238, y: 5, s: 21, gap: 1, rowGap: 2, label: 8, captions: false },
+    map: { box: [284, 4, 33, 33], cell: 3, view: 5, label: 8, footer: 11, facing: (f) => f.toUpperCase() },
+  },
+};
 
 const C = {
-  text: '#e8dcc0', dim: '#8a7f96', gold: '#d8b060',
+  text: '#e8dcc0', mid: '#b8acc8', dim: '#8a7f96', gold: '#d8b060',
   inset: '#0d0a12', insetLight: '#5a5068', insetDark: '#050308',
 };
 
@@ -19,121 +39,147 @@ function inset(g, x, y, w, h) {
   g.fillStyle = C.inset; g.fillRect(x + 1, y + 1, w - 2, h - 2);
 }
 
-function goldFrame(g, x, y, w, h) {
-  g.fillStyle = '#3a2410'; g.fillRect(x, y, w, h);
-  g.fillStyle = '#b08a4a'; g.fillRect(x + 1, y + 1, w - 2, h - 2);
-  g.fillStyle = '#e8c878'; g.fillRect(x + 1, y + 1, w - 2, 1); g.fillRect(x + 1, y + 1, 1, h - 2);
-  g.fillStyle = '#6a4a20'; g.fillRect(x + 1, y + h - 2, w - 2, 1); g.fillRect(x + w - 2, y + 1, 1, h - 2);
-  g.fillStyle = '#3a2410'; g.fillRect(x + 3, y + 3, w - 6, h - 6);
-}
-
-function text(g, s, x, y, { size = 16, color = C.text, align = 'left' } = {}) {
-  g.font = `${size}px ${FONT}`; g.textAlign = align; g.textBaseline = 'top';
-  g.fillStyle = '#000'; g.fillText(s, x + 1, y + 1);
-  g.fillStyle = color; g.fillText(s, x, y);
-}
-
-function bar(g, x, y, w, label, value, max, color) {
-  text(g, label, x, y - 1, { size: 16, color: C.gold });
-  const bx = x + 22, bw = w - 22;
-  inset(g, bx, y, bw, 12);
-  const fill = Math.round((bw - 4) * (value / max));
-  g.fillStyle = color; g.fillRect(bx + 2, y + 2, fill, 8);
-  g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(bx + 2, y + 2, fill, 2);
-  g.fillStyle = 'rgba(0,0,0,0.3)'; g.fillRect(bx + 2, y + 8, fill, 2);
-  text(g, `${value}/${max}`, bx + bw / 2, y - 1, { size: 14, align: 'center' });
-}
-
-function sheetIcon(g, sheet, index, x, y, size) {
-  const cw = sheet.width / 4, ch = sheet.height / 2;
-  g.drawImage(sheet, (index % 4) * cw, Math.floor(index / 4) * ch, cw, ch, x, y, size, size);
-}
-
-function slot(g, x, y, s, sheet, icon, label) {
-  inset(g, x, y, s, s);
-  if (icon !== null) sheetIcon(g, sheet, icon, x + 3, y + 3, s - 6);
-  if (label) text(g, label, x + 3, y + 1, { size: 12, color: C.dim });
+function goldFrame(g, x, y, s) {
+  const b = s > 60 ? 3 : 2;
+  g.fillStyle = '#3a2410'; g.fillRect(x, y, s, s);
+  g.fillStyle = '#b08a4a'; g.fillRect(x + 1, y + 1, s - 2, s - 2);
+  g.fillStyle = '#e8c878'; g.fillRect(x + 1, y + 1, s - 2, 1); g.fillRect(x + 1, y + 1, 1, s - 2);
+  g.fillStyle = '#6a4a20'; g.fillRect(x + 1, y + s - 2, s - 2, 1); g.fillRect(x + s - 2, y + 1, 1, s - 2);
+  g.fillStyle = '#3a2410'; g.fillRect(x + b, y + b, s - 2 * b, s - 2 * b);
+  return b + 1;
 }
 
 export function createUI(canvas, assets) {
   const g = canvas.getContext('2d');
-  canvas.width = UI_W; canvas.height = UI_H;
-  const stone = g.createPattern(assets['ui/panel-stone'].image, 'repeat');
   const portrait = assets['ui/portrait-hero'].image;
   const items = assets['ui/icons-items'].image;
+  let L, stone, font;
 
-  return function draw(state) {
-    g.imageSmoothingEnabled = true;
-    g.imageSmoothingQuality = 'high';
+  function text(s, x, y, size, color = C.text, align = 'left') {
+    g.font = `${size}px ${font}`; g.textAlign = align; g.textBaseline = 'top';
+    g.fillStyle = '#000'; g.fillText(s, x + 1, y + 1);
+    g.fillStyle = color; g.fillText(s, x, y);
+  }
 
-    // panel
-    g.fillStyle = stone; g.fillRect(0, 0, UI_W, UI_H);
-    g.fillStyle = 'rgba(10,6,14,0.45)'; g.fillRect(0, 0, UI_W, UI_H);
-    g.fillStyle = '#8a7a60'; g.fillRect(0, 0, UI_W, 1);
-    g.fillStyle = '#2a2230'; g.fillRect(0, 1, UI_W, 2);
+  function bar([x, y, w, h, size], label, value, max, color) {
+    text(label, x, y - Math.round((size - h) / 2) - 1, size, C.gold);
+    g.font = `${size}px ${font}`;
+    const lw = Math.ceil(g.measureText(label).width) + 3, bx = x + lw, bw = w - lw;
+    inset(g, bx, y, bw, h);
+    const fill = Math.round((bw - 2) * (value / max));
+    g.fillStyle = color; g.fillRect(bx + 1, y + 1, fill, h - 2);
+    g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(bx + 1, y + 1, fill, Math.max(1, (h - 2) >> 2));
+    if (size >= 12) text(`${value}/${max}`, bx + bw / 2, y - 1, size - 2, C.text, 'center');
+  }
 
-    // portrait
-    goldFrame(g, 8, 9, 104, 104);
-    g.drawImage(portrait, 12, 13, 96, 96);
+  function slot(x, y, s, icon, label) {
+    inset(g, x, y, s, s);
+    const m = s > 24 ? 3 : 2;
+    if (icon !== null) {
+      const cw = items.width / 4, ch = items.height / 2;
+      g.drawImage(items, (icon % 4) * cw, Math.floor(icon / 4) * ch, cw, ch, x + m, y + m, s - 2 * m, s - 2 * m);
+    }
+    if (label) text(label, x + 2, y + 1, L.slots.label, C.dim);
+  }
 
-    // vitals
-    text(g, state.hero.name, 120, 9, { size: 20, color: C.gold });
-    text(g, state.hero.title, 120, 27, { size: 14, color: C.dim });
-    bar(g, 120, 50, 112, 'HP', state.hero.hp, state.hero.maxHp, '#c02a2a');
-    bar(g, 120, 70, 112, 'MP', state.hero.mp, state.hero.maxMp, '#2a5ac8');
-    text(g, `Gold ${state.hero.gold}`, 120, 92, { size: 14, color: C.dim });
-
-    // message log: newest at the bottom, older lines fade
-    const lx = 240, ly = 9, lw = 206, lh = 104;
-    inset(g, lx, ly, lw, lh);
-    g.save(); g.beginPath(); g.rect(lx + 2, ly + 2, lw - 4, lh - 4); g.clip();
-    // word-wrap each entry; the newest entry is bright, older ones dim
-    g.font = `16px ${FONT}`;
-    const rows = [];
-    state.log.slice(-6).forEach((entry, i, all) => {
-      const color = i === all.length - 1 ? C.text : i >= all.length - 3 ? '#b8acc8' : C.dim;
+  function log(state) {
+    const { box: [x, y, w, h], size, line, pad } = L.log;
+    inset(g, x, y, w, h);
+    g.save(); g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
+    g.font = `${size}px ${font}`;
+    const rows = [], maxRows = Math.floor((h - 2 * pad) / line);
+    state.log.slice(-maxRows).forEach((entry, i, all) => {
+      const color = i === all.length - 1 ? C.text : i >= all.length - 3 ? C.mid : C.dim;
       let row = '';
       for (const word of entry.split(' ')) {
         const next = row ? `${row} ${word}` : word;
-        if (g.measureText(next).width > lw - 12 && row) { rows.push({ s: row, color }); row = word; } else row = next;
+        if (g.measureText(next).width > w - 2 * pad && row) { rows.push({ s: row, color }); row = word; } else row = next;
       }
       rows.push({ s: row, color });
     });
-    rows.slice(-6).reverse().forEach((r, age) => text(g, r.s, lx + 6, ly + lh - 18 - age * 16, { size: 16, color: r.color }));
+    rows.slice(-maxRows).reverse().forEach((r, age) => text(r.s, x + pad, y + h - pad - line - age * line + 1, size, r.color));
     g.restore();
+  }
 
-    // hands (top) and quick slots (bottom)
-    const hx = 454;
-    text(g, 'HANDS', hx + 40, 7, { size: 12, color: C.dim, align: 'center' });
-    slot(g, hx, 19, 38, items, state.hands[0], null);
-    slot(g, hx + 42, 19, 38, items, state.hands[1], null);
-    slot(g, hx, 63, 38, items, state.quick[0], '1');
-    slot(g, hx + 42, 63, 38, items, state.quick[1], '2');
-    text(g, 'QUICK', hx + 40, 103, { size: 12, color: C.dim, align: 'center' });
-
-    // minimap, centred on the player, north up
-    const mx = 542, my = 9, ms = 92;
-    inset(g, mx, my, ms, ms + 12);
-    const cell = 8, view = 6;
-    g.save(); g.beginPath(); g.rect(mx + 2, my + 2, ms - 4, ms - 4); g.clip();
-    const cx = mx + ms / 2, cy = my + ms / 2;
+  function minimap(state) {
+    const { box: [x, y, w, h], cell, view, label, footer, facing } = L.map;
+    inset(g, x, y, w, h + footer);
+    g.save(); g.beginPath(); g.rect(x + 1, y + 1, w - 2, h - 2); g.clip();
+    const cx = x + Math.floor(w / 2), cy = y + Math.floor(h / 2);
     for (let dz = -view; dz <= view; dz++) {
       for (let dx = -view; dx <= view; dx++) {
         const t = state.world.typeAt(state.tileX + dx, state.tileZ + dz);
         if (!t) continue;
         g.fillStyle = t.wall ? (t.low ? '#4a4256' : '#2a2434') : '#7a7088';
-        g.fillRect(cx + dx * cell - cell / 2, cy + dz * cell - cell / 2, cell - 1, cell - 1);
+        g.fillRect(cx + dx * cell - (cell >> 1), cy + dz * cell - (cell >> 1), cell - (cell > 4 ? 1 : 0), cell - (cell > 4 ? 1 : 0));
       }
     }
+    const dot = cell > 4 ? 3 : 1;
     for (const b of state.world.billboards) {
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#c8a060';
-      g.fillRect(cx + dx * cell - 1, cy + dz * cell - 1, 3, 3);
+      g.fillRect(Math.round(cx + dx * cell - dot / 2), Math.round(cy + dz * cell - dot / 2), dot, dot);
     }
     g.restore();
+    const a = cell * 0.6 + 1;
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
-    g.fillStyle = '#ff4a2a'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 4); g.lineTo(-4, 4); g.fill();
+    g.fillStyle = '#ff4a2a'; g.beginPath(); g.moveTo(0, -a); g.lineTo(a * 0.8, a * 0.8); g.lineTo(-a * 0.8, a * 0.8); g.fill();
     g.restore();
-    text(g, `Facing ${state.facing}`, mx + ms / 2, my + ms - 2, { size: 14, color: C.gold, align: 'center' });
-  };
+    text(facing(state.facing), x + w / 2, y + h + Math.round((footer - label) / 2), label, C.gold, 'center');
+  }
+
+  function draw(state) {
+    g.imageSmoothingEnabled = true;
+    g.imageSmoothingQuality = 'high';
+
+    // panel
+    g.fillStyle = stone; g.fillRect(0, 0, L.w, L.h);
+    g.fillStyle = 'rgba(10,6,14,0.45)'; g.fillRect(0, 0, L.w, L.h);
+    g.fillStyle = '#8a7a60'; g.fillRect(0, 0, L.w, 1);
+    g.fillStyle = '#2a2230'; g.fillRect(0, 1, L.w, 1);
+
+    // portrait
+    const [px, py, ps] = L.portrait;
+    const b = goldFrame(g, px, py, ps);
+    g.drawImage(portrait, px + b, py + b, ps - 2 * b, ps - 2 * b);
+
+    // vitals
+    const h = state.hero;
+    text(h.name, L.name[0], L.name[1], L.name[2], C.gold);
+    if (L.title) text(h.title, L.title[0], L.title[1], L.title[2], C.dim);
+    bar(L.hp, 'HP', h.hp, h.maxHp, '#c02a2a');
+    bar(L.mp, 'MP', h.mp, h.maxMp, '#2a5ac8');
+    text(`Gold ${h.gold}`, L.gold[0], L.gold[1], L.gold[2], C.dim);
+
+    log(state);
+
+    // hands (top row) and quick slots (bottom row)
+    const { x: sx, y: sy, s, gap, rowGap, captions } = L.slots;
+    if (captions) {
+      text('HANDS', sx + s + gap / 2, sy - 12, 12, C.dim, 'center');
+      text('QUICK', sx + s + gap / 2, sy + 2 * s + rowGap + 2, 12, C.dim, 'center');
+    }
+    slot(sx, sy, s, state.hands[0], null);
+    slot(sx + s + gap, sy, s, state.hands[1], null);
+    slot(sx, sy + s + rowGap, s, state.quick[0], '1');
+    slot(sx + s + gap, sy + s + rowGap, s, state.quick[1], '2');
+
+    minimap(state);
+  }
+
+  function setLayout(name) {
+    L = LAYOUTS[name];
+    font = L.font;
+    canvas.width = L.w; canvas.height = L.h;
+    // Pre-scale the stone so its block size suits the panel resolution.
+    const src = assets['ui/panel-stone'].image, t = document.createElement('canvas');
+    t.width = t.height = L.stoneTile;
+    const tg = t.getContext('2d');
+    tg.imageSmoothingQuality = 'high';
+    tg.drawImage(src, 0, 0, L.stoneTile, L.stoneTile);
+    stone = g.createPattern(t, 'repeat');
+  }
+
+  setLayout('hi');
+  return { draw, setLayout };
 }

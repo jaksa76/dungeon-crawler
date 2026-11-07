@@ -2,12 +2,17 @@ import * as THREE from 'three';
 import { loadAssets } from './assets.js';
 import { buildWorld } from './world.js';
 import { buildBackdrop } from './backdrop.js';
-import { createUI, UI_W, UI_H } from './ui.js';
+import { createUI, LAYOUTS } from './ui.js';
 
 const EYE = 0.55;          // eye height in tiles
 const CAM_BACK = 0.3;      // camera sits this far behind the tile centre
 const MOVE_MS = 200, TURN_MS = 160;
-const RESOLUTIONS = [[640, 360], [480, 270], [960, 540]];
+// Display modes. 320x200 is shown at 4:3 like on a CRT, so pixels are 1.2x taller.
+const MODES = [
+  { name: '640×480', view: [640, 360], ui: 'hi', pixelAspect: 1 },
+  { name: '320×200', view: [320, 144], ui: 'lo', pixelAspect: 1.2 },
+];
+const H_FOV = 2 * Math.atan(Math.tan((62 * Math.PI) / 360) * (16 / 9)); // kept constant across modes
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
 const DIR_NAMES = ['north', 'east', 'south', 'west'];
 
@@ -35,8 +40,8 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
 
   const world = buildWorld(scene, level, tileTypes, assets);
   const backdrop = buildBackdrop(scene, bd, assets, EYE);
-  await document.fonts.load('16px VT323').catch(() => {});
-  const drawUI = createUI(uiCanvas, assets);
+  await Promise.all(['16px VT323', '8px Silkscreen'].map((f) => document.fonts.load(f).catch(() => {})));
+  const ui = createUI(uiCanvas, assets);
   window.__game = { scene, camera, renderer, assets, world };
 
   // --- options
@@ -100,7 +105,7 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
     switch (ev.code) {
       case 'KeyT': opts.smooth = !opts.smooth; say(`Smooth movement: ${opts.smooth ? 'on' : 'off'}`); break;
       case 'KeyF': opts.fog = !opts.fog; scene.fog = opts.fog ? fog : null; say(`Fog: ${opts.fog ? 'on' : 'off'}`); break;
-      case 'KeyR': opts.res = (opts.res + 1) % RESOLUTIONS.length; resize(); say(`Resolution: ${RESOLUTIONS[opts.res].join('×')}`); break;
+      case 'KeyR': opts.res = (opts.res + 1) % MODES.length; resize(); say(`Resolution: ${MODES[opts.res].name}`); break;
       case 'KeyV': opts.farSwap = !opts.farSwap; say(`Far sprite variants: ${opts.farSwap ? 'on' : 'off'}`); break;
       case 'KeyI':
         opts.ink = !opts.ink;
@@ -118,21 +123,29 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
 
   function updateStatus() {
     status.textContent = `${level.name} · ${realCount}/${Object.keys(assets).length} real assets · `
-      + `${RESOLUTIONS[opts.res].join('×')} · smooth ${opts.smooth ? 'on' : 'off'} · fog ${opts.fog ? 'on' : 'off'} · `
+      + `${MODES[opts.res].name} · smooth ${opts.smooth ? 'on' : 'off'} · fog ${opts.fog ? 'on' : 'off'} · `
       + `far variants ${opts.farSwap ? 'on' : 'off'} · lights ${opts.lightsOn ? 'on' : 'off'} · ink ${opts.ink ? 'on' : 'off'}`;
   }
 
   // --- sizing: render small, scale up crisp
   function resize() {
-    const [w, h] = RESOLUTIONS[opts.res];
+    const mode = MODES[opts.res];
+    const [w, h] = mode.view, pa = mode.pixelAspect, uiH = LAYOUTS[mode.ui].h;
     renderer.setSize(w, h, false);
-    const totalH = 360 + UI_H;
-    const avail = Math.min(window.innerWidth / 640, (window.innerHeight - 70) / totalH);
-    const scale = avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
-    viewCanvas.style.width = uiCanvas.style.width = `${640 * scale}px`;
-    viewCanvas.style.height = `${360 * scale}px`;
-    uiCanvas.style.height = `${UI_H * scale}px`;
-    frame.style.width = `${640 * scale}px`;
+    ui.setLayout(mode.ui);
+    // Same horizontal field of view in every mode.
+    camera.aspect = w / (h * pa);
+    camera.fov = (2 * Math.atan(Math.tan(H_FOV / 2) / camera.aspect) * 180) / Math.PI;
+    camera.updateProjectionMatrix();
+    // Ink lines are measured in render pixels; keep them proportionate.
+    if (world.ink) world.ink.uInkWidth.value = Math.max(0.6, (level.ink?.width ?? 1.1) * (w / 640));
+    // Scale up crisp: whole-pixel steps when there's room.
+    const avail = Math.min(window.innerWidth / w, (window.innerHeight - 70) / ((h + uiH) * pa));
+    const scale = avail >= 2 ? Math.floor(avail) : avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+    viewCanvas.style.width = uiCanvas.style.width = `${w * scale}px`;
+    viewCanvas.style.height = `${h * scale * pa}px`;
+    uiCanvas.style.height = `${uiH * scale * pa}px`;
+    frame.style.width = `${w * scale}px`;
   }
   window.addEventListener('resize', resize);
   resize();
@@ -163,7 +176,7 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
     backdrop.update(camera);
     renderer.render(scene, camera);
 
-    drawUI({
+    ui.draw({
       world, hero, log, tileX: p.x, tileZ: p.z, yaw: view.yaw, facing: DIR_NAMES[p.dir],
       hands: [0, 1], quick: [2, 3], // icon indices in ui/icons-items: sword, shield, red & blue potion
     });
