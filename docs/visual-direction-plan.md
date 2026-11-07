@@ -129,30 +129,31 @@ Experiments 1 and 3 are independent and can run in parallel.
 
 ## Progress
 
-### Experiment 3, first pass: scale and density (placeholder art)
+### Experiment 3, first pass: scale and density with placeholder art (rejected)
 
-![Concept, before, after](screenshots/density-pass-comparison.png)
+![Variants](screenshots/density-pass-variants.png)
 
-- **Real-world scale.** Heights in level data are now in metres (`level.scale`:
-  tile 3 m, eye 1.6 m, storeys 2.5 / 2.35 m). People were 0.88 tiles (≈2.6 m),
-  taller than the painted doors; they are now ~1.75 m. The cobblestones are finer
-  (`floorScale` 1.5).
-- **Building kit.** Facades are split into ground storey, upper storey and eave
-  strip (`storeys` in the manifest) and stacked into 2–4 storey houses with varied
-  heights, jettied upper floors, roofs of varying pitch, and chimneys. Upper storeys
-  mix facade textures. Per-tile overrides in `level.buildings` compose key views.
-- **Rule-based dressing** (`engine/dressing.js`, seeded): flower boxes, ivy, door
-  lanterns with lights, hanging signs, clutter groups along wall bases (stacked
-  crates, barrels, sacks, firewood, hay, pots), corner clusters, weeds and glossy
-  puddles. Doorways are kept clear; `exclude` keeps tiles empty.
-- **Free placement**: several props per tile, stacking (`y`), floor decals.
-  Unnamed entities are scenery (never block, never described, not on the minimap).
+Tried: real-world scale (people ~1.75 m instead of ~2.6 m), 2–4 storey jettied
+houses stacked from the facade art, and rule-based dressing (flower boxes, ivy,
+lanterns, signs, wall-base and corner clutter, weeds, puddles) drawn as
+procedural placeholders. **It looked worse than experiment 1**, and the variants
+show why:
 
-Still to do from the density pass: stairs and raised areas (needs the height
-decision), shutters/dormers/balconies, deliberate light composition (pools and
-dark gaps), and real art for the new props. The open middle of the square is the
-weakest part of the start view; camera framing (lower horizon/tighter FOV) or a
-smaller square is worth trying next.
+- **Shrinking people and props to realistic size was wrong.** The concept draws
+  them larger than life; at 1.75 m they become specks and the floor dominates even
+  more (B vs A).
+- **Tall stacked facades read as apartment blocks**: the same window repeated in
+  a grid, dark side walls, and the sky and castle squeezed (D).
+- **Placeholder props hurt more than they help.** Crude, flat sprites next to
+  painted art are the most eye-catching things in the frame (E).
+- **More of the same real props adds nothing** (barrels and crates only: F ≈ A).
+
+Density has to come from *art*, not from rules scattering whatever exists, and
+the scale should stay stylised. The town is back to experiment 1's look. The
+engine keeps the new capabilities, off by default: metric heights
+(`level.scale`), storey stacking with jetties, roof pitch and chimneys
+(`engine/layout.js`), seeded dressing (`engine/dressing.js`, enabled by
+`level.dressing`; `only` restricts the prop set), floor decals and stacked props.
 
 ## Open questions
 
