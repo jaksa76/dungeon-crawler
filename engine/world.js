@@ -117,7 +117,7 @@ export function buildWorld(scene, level, tileTypes, assets) {
       map: cob,
       bumpMap: bump,
       bumpScale: cobAsset.height ? 3 : 4,
-      roughness: 0.92,
+      roughness: 0.5, // damp stone: lamplight catches the raised edges
       metalness: 0,
     }),
   );
