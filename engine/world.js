@@ -110,7 +110,13 @@ export function buildWorld(scene, level, tileTypes, assets) {
   cob.repeat.set(width, depth);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
-    new THREE.MeshStandardMaterial({ map: cob, roughness: 0.55, metalness: 0.1 }),
+    new THREE.MeshStandardMaterial({
+      map: cob,
+      bumpMap: cob, // dark mortar reads as recessed, stones as raised
+      bumpScale: 4,
+      roughness: 0.92,
+      metalness: 0,
+    }),
   );
   floor.rotation.x = -Math.PI / 2;
   floor.position.set((width - 1) / 2, 0, (depth - 1) / 2);
