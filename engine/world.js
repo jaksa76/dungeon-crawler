@@ -257,7 +257,7 @@ export function buildWorld(scene, level, tileTypes, assets) {
   const lights = [];
   const lightRange = level.lightRange ?? 4.5;
   const addLight = (spec, x, y, z) => {
-    const l = new THREE.PointLight(spec.color, spec.intensity * LIGHT_SCALE, spec.range ?? lightRange, 1.6);
+    const l = new THREE.PointLight(spec.color, spec.intensity * LIGHT_SCALE, spec.range ?? lightRange, level.lightDecay ?? 1.5);
     l.position.set(x, y, z);
     l.userData = { base: l.intensity, flicker: spec.flicker || 0, seed: Math.random() * 100 };
     scene.add(l);

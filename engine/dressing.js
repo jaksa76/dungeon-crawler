@@ -55,6 +55,7 @@ const DEFAULTS = {
   looseWeeds: 0.15,  // per open floor tile
   puddles: 0.3,      // per floor tile
   exclude: [],
+  only: null,        // e.g. ['barrel', 'crate']: restrict clutter to these props
 };
 
 export function dressLevel(level, tileTypes, assets) {
@@ -65,6 +66,10 @@ export function dressLevel(level, tileTypes, assets) {
   const T = L.S.tile; // tiles -> metres
   const entities = [], decals = [], floorDecals = [];
   const exclude = new Set(D.exclude);
+  const allowed = (item) => !D.only || D.only.includes(item.replace('^', ''));
+  const wallGroups = WALL_GROUPS.filter((g) => g.every(allowed));
+  const cornerGroups = CORNER_GROUPS.filter((g) => g.every(allowed));
+  const pickGroup = (groups) => groups[Math.floor(r() * groups.length)];
   const spec = (key) => assets[key]?.spec || {};
 
   // Footprints, to keep things from piling into each other.
@@ -162,7 +167,8 @@ export function dressLevel(level, tileTypes, assets) {
       if (r() >= D.cornerClutter) break;
       // Lay the group along whichever wall isn't a doorway, starting at the corner.
       const [along, other] = doorFace(x, z, ...a) ? [b, a] : [a, b];
-      const group = CORNER_GROUPS[Math.floor(r() * CORNER_GROUPS.length)];
+      if (!cornerGroups.length) break;
+      const group = pickGroup(cornerGroups);
       const half = ((group.filter((g) => !g.endsWith('^')).length - 1) / 2) * 0.2;
       const cx = x + (a[0] + b[0]) * 0.34 - other[0] * half, cz = z + (a[1] + b[1]) * 0.34 - other[1] * half;
       placeGroup(group, cx, cz, -other[0], -other[1], -along[0], -along[1], 0.2);
@@ -171,20 +177,20 @@ export function dressLevel(level, tileTypes, assets) {
     }
     for (const [, [dx, dz]] of walls) {
       const ax = dz, az = -dx; // along the wall
-      if (!cornered && !doorFace(x, z, dx, dz) && r() < D.wallClutter) {
+      if (!cornered && wallGroups.length && !doorFace(x, z, dx, dz) && r() < D.wallClutter) {
         const shift = (r() - 0.5) * 0.4;
-        placeGroup(WALL_GROUPS[Math.floor(r() * WALL_GROUPS.length)],
+        placeGroup(pickGroup(wallGroups),
           x + dx * 0.36 + ax * shift, z + dz * 0.36 + az * shift, ax, az, -dx, -dz, 0.24);
       }
       // Weeds where the wall meets the street.
-      const n = r() < D.weeds ? 1 + Math.floor(r() * 3) : 0;
+      const n = allowed('weeds') && r() < D.weeds ? 1 + Math.floor(r() * 3) : 0;
       for (let k = 0; k < n; k++) {
         const s = (r() - 0.5) * 0.9;
         const wx = x + dx * 0.47 + ax * s, wz = z + dz * 0.47 + az * s;
         if (free(wx, wz, 0.02)) place('weeds', wx, wz);
       }
     }
-    if (walls.length === 0 && r() < D.looseWeeds) {
+    if (walls.length === 0 && allowed('weeds') && r() < D.looseWeeds) {
       const wx = x + (r() - 0.5) * 0.9, wz = z + (r() - 0.5) * 0.9;
       if (free(wx, wz, 0.05)) place('weeds', wx, wz);
     }
