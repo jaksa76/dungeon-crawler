@@ -69,8 +69,19 @@ export async function loadAssets(manifest, basePath) {
     assets[key] = { image, real: !!img, spec };
   }));
 
+  // Optional height maps (<key>-height.png, e.g. from tools/heightmap.mjs).
+  await Promise.all(entries.filter(([, s]) => s.heightMap).map(async ([key]) => {
+    const img = await loadImage(`${basePath}/${key}-height.png`);
+    if (img) assets[key].heightImage = img;
+  }));
+
   for (const a of Object.values(assets)) {
     a.aspect = a.image.height / a.image.width;
+    if (a.heightImage) {
+      a.height = makeTexture(a.heightImage, a.spec);
+      a.height.colorSpace = THREE.NoColorSpace; // data, not colour
+      a.height.magFilter = THREE.LinearFilter;  // smooth slopes, no stair steps
+    }
     a.texture = makeTexture(a.image, a.spec);
     const glowSrc = a.spec.glow ? deriveGlow(a.image) : null;
     a.glow = glowSrc ? makeTexture(glowSrc, a.spec) : null;

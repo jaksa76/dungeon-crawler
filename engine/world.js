@@ -106,14 +106,17 @@ export function buildWorld(scene, level, tileTypes, assets) {
   }
 
   // --- floor (one texture repeat per tile)
-  const cob = assets['textures/cobblestone'].texture;
+  const cobAsset = assets['textures/cobblestone'];
+  const cob = cobAsset.texture;
   cob.repeat.set(width, depth);
+  const bump = cobAsset.height || cob; // dedicated height map if present
+  bump.repeat.set(width, depth);
   const floor = new THREE.Mesh(
     new THREE.PlaneGeometry(width, depth),
     new THREE.MeshStandardMaterial({
       map: cob,
-      bumpMap: cob, // dark mortar reads as recessed, stones as raised
-      bumpScale: 4,
+      bumpMap: bump,
+      bumpScale: cobAsset.height ? 3 : 4,
       roughness: 0.92,
       metalness: 0,
     }),

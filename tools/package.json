@@ -1,0 +1,11 @@
+{
+  "name": "dungeon-crawler-tools",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "heightmap": "node heightmap.mjs"
+  },
+  "dependencies": {
+    "pngjs": "^7.0.0"
+  }
+}

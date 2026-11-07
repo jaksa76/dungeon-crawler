@@ -3,7 +3,7 @@
 
 export const manifest = {
   // environment
-  'textures/cobblestone': { gen: 'cobble', repeat: true },
+  'textures/cobblestone': { gen: 'cobble', repeat: true, heightMap: true },
   'textures/roof-tiles': { gen: 'roof', repeat: true },
   'textures/house-timber-a': { gen: 'facade:a', glow: true },
   'textures/house-timber-b': { gen: 'facade:b', glow: true },
