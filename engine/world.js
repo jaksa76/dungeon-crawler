@@ -116,8 +116,8 @@ export function buildWorld(scene, level, tileTypes, assets) {
     new THREE.MeshStandardMaterial({
       map: cob,
       bumpMap: bump,
-      bumpScale: cobAsset.height ? 3 : 4,
-      roughness: 0.5, // damp stone: lamplight catches the raised edges
+      bumpScale: cobAsset.height ? 1.5 : 4,
+      roughness: 0.75, // slightly damp; painted highlights do most of the work
       metalness: 0,
     }),
   );
