@@ -35,7 +35,6 @@ export const manifest = {
   'sprites/decal-torch': { trim: true, gen: 'torch', glow: true },
   // ui
   'ui/portrait-hero': { gen: 'portrait' },
-  'ui/panel-stone': { gen: 'panelStone' },
   'ui/icons-items': { gen: 'icons:items' },
 };
 

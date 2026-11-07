@@ -1,92 +1,163 @@
-// Bottom UI panel (layout B), drawn on its own low-res 2D canvas:
+// Bottom UI panel (layout B) in the style of docs/concept-toonish.png:
+// dark stone blocks, raised bevelled stone frames, chunky bars and labels.
 //
 //   [portrait] [vitals] [ message log ] [hands / quick] [minimap]
 //
-// Two layouts share the same building blocks: HI for the 640-wide display and
-// LO for 320x200, which uses a pixel font made for 8px sizes.
-// Not interactive yet: this is about layout and look.
+// Drawn procedurally on a 640x120 canvas. Not interactive yet.
 
-export const LAYOUTS = {
-  hi: {
-    w: 640, h: 120, font: 'VT323', stoneTile: 64,
-    portrait: [8, 9, 104],
-    name: [120, 9, 20], title: [120, 27, 14], gold: [120, 92, 14],
-    hp: [120, 50, 112, 12, 16], mp: [120, 70, 112, 12, 16],
-    log: { box: [240, 9, 206, 104], size: 16, line: 16, pad: 6 },
-    slots: { x: 454, y: 19, s: 38, gap: 4, rowGap: 6, label: 12, captions: true },
-    map: { box: [542, 9, 92, 92], cell: 8, view: 6, label: 14, footer: 12, facing: (f) => `Facing ${f}` },
-  },
-  lo: {
-    w: 320, h: 56, font: 'Silkscreen', stoneTile: 32,
-    portrait: [3, 4, 48],
-    name: [55, 3, 8], title: null, gold: [55, 43, 8],
-    hp: [55, 17, 54, 6, 8], mp: [55, 29, 54, 6, 8],
-    log: { box: [112, 4, 122, 48], size: 8, line: 9, pad: 3 },
-    slots: { x: 238, y: 5, s: 21, gap: 1, rowGap: 2, label: 8, captions: false },
-    map: { box: [284, 4, 33, 33], cell: 3, view: 5, label: 8, footer: 11, facing: (f) => f.toUpperCase() },
-  },
-};
+export const UI_W = 640, UI_H = 120;
+const LABEL_FONT = '"Pixelify Sans"';
+const LOG_FONT = 'VT323';
 
 const C = {
-  text: '#e8dcc0', mid: '#b8acc8', dim: '#8a7f96', gold: '#d8b060',
-  inset: '#0d0a12', insetLight: '#5a5068', insetDark: '#050308',
+  text: '#e8dcc0', mid: '#b8acc8', dim: '#8a7f96', gold: '#e8c060', label: '#d8d0e4',
+  outline: '#141018', frame: '#6a6270', frameLight: '#a49cae', frameDark: '#3a3440',
+  recess: '#0e0c12', recessShadow: '#050407', recessLight: '#26222c',
 };
 
-// A recessed box: dark fill, dark top-left edge, light bottom-right edge.
-function inset(g, x, y, w, h) {
-  g.fillStyle = C.insetDark; g.fillRect(x, y, w, h);
-  g.fillStyle = C.insetLight; g.fillRect(x + 1, y + h - 1, w - 1, 1); g.fillRect(x + w - 1, y + 1, 1, h - 1);
-  g.fillStyle = C.inset; g.fillRect(x + 1, y + 1, w - 2, h - 2);
+function rng(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-function goldFrame(g, x, y, s) {
-  const b = s > 60 ? 3 : 2;
-  g.fillStyle = '#3a2410'; g.fillRect(x, y, s, s);
-  g.fillStyle = '#b08a4a'; g.fillRect(x + 1, y + 1, s - 2, s - 2);
-  g.fillStyle = '#e8c878'; g.fillRect(x + 1, y + 1, s - 2, 1); g.fillRect(x + 1, y + 1, 1, s - 2);
-  g.fillStyle = '#6a4a20'; g.fillRect(x + 1, y + s - 2, s - 2, 1); g.fillRect(x + s - 2, y + 1, 1, s - 2);
-  g.fillStyle = '#3a2410'; g.fillRect(x + b, y + b, s - 2 * b, s - 2 * b);
-  return b + 1;
+// Dark stone-block wall with a raised ledge along the top.
+function background() {
+  const c = document.createElement('canvas');
+  c.width = UI_W; c.height = UI_H;
+  const g = c.getContext('2d'), r = rng(17);
+  g.fillStyle = '#17141c'; g.fillRect(0, 0, UI_W, UI_H);
+  const rowH = 13;
+  for (let y = 6, row = 0; y < UI_H; y += rowH, row++) {
+    let x = -(row % 2) * 14 - Math.floor(r() * 8);
+    while (x < UI_W) {
+      const w = 22 + Math.floor(r() * 14);
+      const base = ['#36323e', '#2f2b36', '#3b3743', '#332f3a'][Math.floor(r() * 4)];
+      g.fillStyle = base; g.fillRect(x + 1, y + 1, w - 2, rowH - 2);
+      g.fillStyle = 'rgba(255,255,255,0.08)'; g.fillRect(x + 1, y + 1, w - 2, 1);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 1, y + rowH - 2, w - 2, 1);
+      for (let i = 0; i < w / 3; i++) {
+        g.fillStyle = r() < 0.5 ? 'rgba(0,0,0,0.18)' : 'rgba(255,255,255,0.05)';
+        g.fillRect(x + 2 + r() * (w - 4), y + 2 + r() * (rowH - 4), 1, 1);
+      }
+      x += w;
+    }
+  }
+  // top ledge
+  g.fillStyle = C.outline; g.fillRect(0, 0, UI_W, 7);
+  g.fillStyle = C.frame; g.fillRect(0, 1, UI_W, 4);
+  g.fillStyle = C.frameLight; g.fillRect(0, 1, UI_W, 1);
+  g.fillStyle = C.frameDark; g.fillRect(0, 4, UI_W, 1);
+  for (let x = 0; x < UI_W; x += 2 + Math.floor(r() * 5)) { g.fillStyle = 'rgba(0,0,0,0.2)'; g.fillRect(x, 2 + Math.floor(r() * 2), 1, 1); }
+  // soft shade under the ledge
+  const grd = g.createLinearGradient(0, 7, 0, 14);
+  grd.addColorStop(0, 'rgba(0,0,0,0.5)'); grd.addColorStop(1, 'rgba(0,0,0,0)');
+  g.fillStyle = grd; g.fillRect(0, 7, UI_W, 7);
+  return c;
 }
+
+function roundRect(g, x, y, w, h, r, color) {
+  g.fillStyle = color;
+  g.beginPath(); g.roundRect(x, y, w, h, r); g.fill();
+}
+
+// Raised bevelled stone frame around a dark recess. Returns the recess rectangle.
+function stoneFrame(g, x, y, w, h, t, r) {
+  const rad = Math.max(2, Math.round(t * 0.8));
+  roundRect(g, x, y, w, h, rad + 1, C.outline);
+  roundRect(g, x + 1, y + 1, w - 2, h - 2, rad, C.frame);
+  g.fillStyle = C.frameLight;
+  g.fillRect(x + rad, y + 1, w - 2 * rad, 1); g.fillRect(x + 1, y + rad, 1, h - 2 * rad);
+  g.fillStyle = C.frameDark;
+  g.fillRect(x + rad, y + h - 2, w - 2 * rad, 1); g.fillRect(x + w - 2, y + rad, 1, h - 2 * rad);
+  for (let i = 0; i < (w + h) / 2; i++) {
+    const px = x + 2 + Math.floor(r() * (w - 4)), py = y + 2 + Math.floor(r() * (h - 4));
+    if (px > x + t && px < x + w - t && py > y + t && py < y + h - t) continue;
+    g.fillStyle = r() < 0.6 ? 'rgba(0,0,0,0.22)' : 'rgba(255,255,255,0.12)';
+    g.fillRect(px, py, 1, 1);
+  }
+  const ix = x + t, iy = y + t, iw = w - 2 * t, ih = h - 2 * t;
+  roundRect(g, ix - 1, iy - 1, iw + 2, ih + 2, 2, C.outline);
+  g.fillStyle = C.recess; g.fillRect(ix, iy, iw, ih);
+  g.fillStyle = C.recessShadow; g.fillRect(ix, iy, iw, 2); g.fillRect(ix, iy, 2, ih);
+  g.fillStyle = C.recessLight; g.fillRect(ix + 2, iy + ih - 1, iw - 2, 1); g.fillRect(ix + iw - 1, iy + 2, 1, ih - 2);
+  return [ix, iy, iw, ih];
+}
+
+function rivet(g, x, y) {
+  g.fillStyle = C.outline; g.fillRect(x - 2, y - 1, 4, 2); g.fillRect(x - 1, y - 2, 2, 4);
+  g.fillStyle = '#9a8a70'; g.fillRect(x - 1, y - 1, 2, 2);
+  g.fillStyle = '#e0d0a8'; g.fillRect(x - 1, y - 1, 1, 1);
+}
+
+// Static parts (background and all frames) are drawn once and cached.
+function staticLayer(L) {
+  const c = background(), g = c.getContext('2d'), r = rng(5);
+  L.portraitInner = stoneFrame(g, ...L.portrait, 6, r);
+  const [px, py, pw, ph] = L.portrait;
+  for (const [x, y] of [[px + 3, py + 3], [px + pw - 4, py + 3], [px + 3, py + ph - 4], [px + pw - 4, py + ph - 4]]) rivet(g, x, y);
+  L.logInner = stoneFrame(g, ...L.log, 5, r);
+  L.slotInner = L.slots.map((s) => stoneFrame(g, ...s, 4, r));
+  L.mapInner = stoneFrame(g, ...L.map, 9, r);
+  return c;
+}
+
+const LAYOUT = {
+  portrait: [8, 11, 102, 102],
+  name: [120, 12], hp: [120, 37], mp: [120, 61], gold: [120, 88], barX: 150, barW: 86, barH: 16,
+  log: [244, 11, 198, 102],
+  slots: [[452, 12, 42, 42], [498, 12, 42, 42], [452, 66, 42, 42], [498, 66, 42, 42]],
+  map: [546, 11, 88, 102],
+};
 
 export function createUI(canvas, assets) {
   const g = canvas.getContext('2d');
+  canvas.width = UI_W; canvas.height = UI_H;
   const portrait = assets['ui/portrait-hero'].image;
   const items = assets['ui/icons-items'].image;
-  let L, stone, font;
+  const L = LAYOUT;
+  const base = staticLayer(L);
 
-  function text(s, x, y, size, color = C.text, align = 'left') {
-    g.font = `${size}px ${font}`; g.textAlign = align; g.textBaseline = 'top';
-    g.fillStyle = '#000'; g.fillText(s, x + 1, y + 1);
+  // Text with a 1px dark outline all round, like the concept's labels.
+  function text(s, x, y, size, color, { font = LABEL_FONT, weight = 700, align = 'left', outline = true } = {}) {
+    g.font = `${weight} ${size}px ${font}`; g.textAlign = align; g.textBaseline = 'top';
+    if (outline) {
+      g.fillStyle = C.outline;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [1, 1]]) g.fillText(s, x + dx, y + dy);
+    }
     g.fillStyle = color; g.fillText(s, x, y);
   }
 
-  function bar([x, y, w, h, size], label, value, max, color) {
-    text(label, x, y - Math.round((size - h) / 2) - 1, size, C.gold);
-    g.font = `${size}px ${font}`;
-    const lw = Math.ceil(g.measureText(label).width) + 3, bx = x + lw, bw = w - lw;
-    inset(g, bx, y, bw, h);
-    const fill = Math.round((bw - 2) * (value / max));
-    g.fillStyle = color; g.fillRect(bx + 1, y + 1, fill, h - 2);
-    g.fillStyle = 'rgba(255,255,255,0.3)'; g.fillRect(bx + 1, y + 1, fill, Math.max(1, (h - 2) >> 2));
-    if (size >= 12) text(`${value}/${max}`, bx + bw / 2, y - 1, size - 2, C.text, 'center');
+  function bar(y, label, value, max, fill, light) {
+    text(label, L.hp[0], y, 16, C.label);
+    const x = L.barX, w = L.barW, h = L.barH;
+    roundRect(g, x, y, w, h, 4, C.outline);
+    roundRect(g, x + 1, y + 1, w - 2, h - 2, 3, '#1c1016');
+    const fw = Math.round((w - 4) * (value / max));
+    if (fw > 0) {
+      roundRect(g, x + 2, y + 2, fw, h - 4, 2, fill);
+      g.fillStyle = light; g.fillRect(x + 4, y + 3, fw - 4, 2);
+      g.fillStyle = 'rgba(0,0,0,0.25)'; g.fillRect(x + 3, y + h - 5, fw - 2, 2);
+    }
+    text(`${value} / ${max}`, x + w / 2, y, 16, '#ffffff', { font: LOG_FONT, weight: 400, align: 'center' });
   }
 
-  function slot(x, y, s, icon, label) {
-    inset(g, x, y, s, s);
-    const m = s > 24 ? 3 : 2;
+  function slot(i, icon, label) {
+    const [x, y, w, h] = L.slotInner[i];
     if (icon !== null) {
       const cw = items.width / 4, ch = items.height / 2;
-      g.drawImage(items, (icon % 4) * cw, Math.floor(icon / 4) * ch, cw, ch, x + m, y + m, s - 2 * m, s - 2 * m);
+      g.drawImage(items, (icon % 4) * cw, Math.floor(icon / 4) * ch, cw, ch, x + 2, y + 2, w - 4, h - 4);
     }
-    if (label) text(label, x + 2, y + 1, L.slots.label, C.dim);
+    if (label) text(label, x + 2, y - 2, 16, C.label, { font: LOG_FONT, weight: 400 });
   }
 
   function log(state) {
-    const { box: [x, y, w, h], size, line, pad } = L.log;
-    inset(g, x, y, w, h);
-    g.save(); g.beginPath(); g.rect(x + 2, y + 2, w - 4, h - 4); g.clip();
-    g.font = `${size}px ${font}`;
+    const [x, y, w, h] = L.logInner, size = 16, line = 16, pad = 5;
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
+    g.font = `${size}px ${LOG_FONT}`;
     const rows = [], maxRows = Math.floor((h - 2 * pad) / line);
     state.log.slice(-maxRows).forEach((entry, i, all) => {
       const color = i === all.length - 1 ? C.text : i >= all.length - 3 ? C.mid : C.dim;
@@ -97,89 +168,67 @@ export function createUI(canvas, assets) {
       }
       rows.push({ s: row, color });
     });
-    rows.slice(-maxRows).reverse().forEach((r, age) => text(r.s, x + pad, y + h - pad - line - age * line + 1, size, r.color));
+    rows.slice(-maxRows).reverse().forEach((r, age) =>
+      text(r.s, x + pad, y + h - pad - line - age * line + 2, size, r.color, { font: LOG_FONT, weight: 400, outline: false }));
     g.restore();
   }
 
   function minimap(state) {
-    const { box: [x, y, w, h], cell, view, label, footer, facing } = L.map;
-    inset(g, x, y, w, h + footer);
-    g.save(); g.beginPath(); g.rect(x + 1, y + 1, w - 2, h - 2); g.clip();
+    const [x, y, w, h] = L.mapInner, cell = 7, view = 7;
+    g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
     const cx = x + Math.floor(w / 2), cy = y + Math.floor(h / 2);
     for (let dz = -view; dz <= view; dz++) {
       for (let dx = -view; dx <= view; dx++) {
         const t = state.world.typeAt(state.tileX + dx, state.tileZ + dz);
         if (!t) continue;
-        g.fillStyle = t.wall ? (t.low ? '#4a4256' : '#2a2434') : '#7a7088';
-        g.fillRect(cx + dx * cell - (cell >> 1), cy + dz * cell - (cell >> 1), cell - (cell > 4 ? 1 : 0), cell - (cell > 4 ? 1 : 0));
+        g.fillStyle = t.wall ? (t.low ? '#4a4256' : '#2c2834') : '#6e6678';
+        g.fillRect(cx + dx * cell - 3, cy + dz * cell - 3, cell - 1, cell - 1);
       }
     }
-    const dot = cell > 4 ? 3 : 1;
     for (const b of state.world.billboards) {
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#c8a060';
-      g.fillRect(Math.round(cx + dx * cell - dot / 2), Math.round(cy + dz * cell - dot / 2), dot, dot);
+      g.fillRect(Math.round(cx + dx * cell - 1), Math.round(cy + dz * cell - 1), 3, 3);
     }
     g.restore();
-    const a = cell * 0.6 + 1;
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
-    g.fillStyle = '#ff4a2a'; g.beginPath(); g.moveTo(0, -a); g.lineTo(a * 0.8, a * 0.8); g.lineTo(-a * 0.8, a * 0.8); g.fill();
+    g.fillStyle = C.outline; g.beginPath(); g.moveTo(0, -7); g.lineTo(6, 6); g.lineTo(-6, 6); g.fill();
+    g.fillStyle = '#ff3a20'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 4); g.lineTo(-4, 4); g.fill();
     g.restore();
-    text(facing(state.facing), x + w / 2, y + h + Math.round((footer - label) / 2), label, C.gold, 'center');
+    // compass letters set into the frame
+    const [fx, fy, fw, fh] = L.map;
+    text('N', fx + fw / 2, fy, 10, C.gold, { align: 'center' });
+    text('S', fx + fw / 2, fy + fh - 10, 10, C.gold, { align: 'center' });
+    text('W', fx + 5, fy + fh / 2 - 5, 10, C.gold, { align: 'center' });
+    text('E', fx + fw - 5, fy + fh / 2 - 5, 10, C.gold, { align: 'center' });
   }
 
   function draw(state) {
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
+    g.drawImage(base, 0, 0);
 
-    // panel
-    g.fillStyle = stone; g.fillRect(0, 0, L.w, L.h);
-    g.fillStyle = 'rgba(10,6,14,0.45)'; g.fillRect(0, 0, L.w, L.h);
-    g.fillStyle = '#8a7a60'; g.fillRect(0, 0, L.w, 1);
-    g.fillStyle = '#2a2230'; g.fillRect(0, 1, L.w, 1);
+    const [px, py, pw, ph] = L.portraitInner;
+    g.drawImage(portrait, px, py, pw, ph);
 
-    // portrait
-    const [px, py, ps] = L.portrait;
-    const b = goldFrame(g, px, py, ps);
-    g.drawImage(portrait, px + b, py + b, ps - 2 * b, ps - 2 * b);
-
-    // vitals
     const h = state.hero;
-    text(h.name, L.name[0], L.name[1], L.name[2], C.gold);
-    if (L.title) text(h.title, L.title[0], L.title[1], L.title[2], C.dim);
-    bar(L.hp, 'HP', h.hp, h.maxHp, '#c02a2a');
-    bar(L.mp, 'MP', h.mp, h.maxMp, '#2a5ac8');
-    text(`Gold ${h.gold}`, L.gold[0], L.gold[1], L.gold[2], C.dim);
+    text(h.name, L.name[0], L.name[1], 14, C.gold);
+    bar(L.hp[1], 'HP', h.hp, h.maxHp, '#c42424', '#ff6a50');
+    bar(L.mp[1], 'MP', h.mp, h.maxMp, '#2454d0', '#6aa8ff');
+    // gold: a little coin and the amount
+    const [gx, gy] = L.gold;
+    g.fillStyle = C.outline; g.beginPath(); g.arc(gx + 6, gy + 7, 6, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#d8a830'; g.beginPath(); g.arc(gx + 6, gy + 7, 5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#ffe080'; g.fillRect(gx + 4, gy + 4, 2, 2);
+    text(`${h.gold}`, gx + 16, gy - 1, 16, C.gold, { font: LOG_FONT, weight: 400 });
 
     log(state);
-
-    // hands (top row) and quick slots (bottom row)
-    const { x: sx, y: sy, s, gap, rowGap, captions } = L.slots;
-    if (captions) {
-      text('HANDS', sx + s + gap / 2, sy - 12, 12, C.dim, 'center');
-      text('QUICK', sx + s + gap / 2, sy + 2 * s + rowGap + 2, 12, C.dim, 'center');
-    }
-    slot(sx, sy, s, state.hands[0], null);
-    slot(sx + s + gap, sy, s, state.hands[1], null);
-    slot(sx, sy + s + rowGap, s, state.quick[0], '1');
-    slot(sx + s + gap, sy + s + rowGap, s, state.quick[1], '2');
-
+    slot(0, state.hands[0], null);
+    slot(1, state.hands[1], null);
+    slot(2, state.quick[0], '1');
+    slot(3, state.quick[1], '2');
     minimap(state);
   }
 
-  function setLayout(name) {
-    L = LAYOUTS[name];
-    font = L.font;
-    canvas.width = L.w; canvas.height = L.h;
-    // Pre-scale the stone so its block size suits the panel resolution.
-    const src = assets['ui/panel-stone'].image, t = document.createElement('canvas');
-    t.width = t.height = L.stoneTile;
-    const tg = t.getContext('2d');
-    tg.imageSmoothingQuality = 'high';
-    tg.drawImage(src, 0, 0, L.stoneTile, L.stoneTile);
-    stone = g.createPattern(t, 'repeat');
-  }
-
-  setLayout('hi');
-  return { draw, setLayout };
+  return { draw };
 }
