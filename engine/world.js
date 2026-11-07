@@ -41,6 +41,49 @@ export function buildWorld(scene, level, tileTypes, assets) {
     return geometries.get(id);
   };
 
+  // --- roofs: gable roofs whose ridge runs along the street-facing side, so
+  // neighbouring tiles join into continuous rooflines.
+  const ROOF_H = 0.6, ROOF_W = 0.56; // height and half-width (incl. overhang)
+  const roofTex = assets['textures/roof-tiles'].texture;
+  roofTex.repeat.set(1, 1);
+  const roofMat = new THREE.MeshLambertMaterial({ map: roofTex, side: THREE.DoubleSide });
+  const gableMat = new THREE.MeshLambertMaterial({ color: 0x3a2618, side: THREE.DoubleSide });
+  const slope = Math.hypot(ROOF_W, ROOF_H);
+  const roofGeo = new THREE.BufferGeometry();
+  roofGeo.setAttribute('position', new THREE.Float32BufferAttribute([
+    -0.5, 0, -ROOF_W, 0.5, 0, -ROOF_W, 0.5, ROOF_H, 0, -0.5, 0, -ROOF_W, 0.5, ROOF_H, 0, -0.5, ROOF_H, 0,
+    -0.5, 0, ROOF_W, -0.5, ROOF_H, 0, 0.5, ROOF_H, 0, -0.5, 0, ROOF_W, 0.5, ROOF_H, 0, 0.5, 0, ROOF_W,
+  ], 3));
+  roofGeo.setAttribute('uv', new THREE.Float32BufferAttribute([
+    0, 0, 1, 0, 1, slope, 0, 0, 1, slope, 0, slope,
+    0, 0, 0, slope, 1, slope, 0, 0, 1, slope, 1, 0,
+  ], 2));
+  roofGeo.computeVertexNormals();
+  const gableGeo = new THREE.BufferGeometry();
+  gableGeo.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, -ROOF_W, 0, 0, ROOF_W, 0, ROOF_H, 0], 3));
+  gableGeo.computeVertexNormals();
+
+  const isRoof = (x, z) => !!typeAt(x, z)?.roof;
+  const isFloor = (x, z) => !!typeAt(x, z)?.floor;
+  function addRoof(x, z, wallHeight) {
+    // Ridge along x if the house faces north/south, along z if it faces east/west.
+    const facesNS = isFloor(x, z - 1) || isFloor(x, z + 1);
+    const facesEW = isFloor(x - 1, z) || isFloor(x + 1, z);
+    const alongX = facesNS || (!facesEW && (isRoof(x - 1, z) || isRoof(x + 1, z)));
+    const group = new THREE.Group();
+    group.add(new THREE.Mesh(roofGeo, roofMat));
+    const [ax, az] = alongX ? [1, 0] : [0, 1];
+    for (const s of [-1, 1]) {
+      if (isRoof(x + ax * s, z + az * s)) continue;
+      const g = new THREE.Mesh(gableGeo, gableMat);
+      g.position.x = 0.5 * s;
+      group.add(g);
+    }
+    group.rotation.y = alongX ? 0 : Math.PI / 2;
+    group.position.set(x, wallHeight, z);
+    scene.add(group);
+  }
+
   // --- walls & roofs
   for (let z = 0; z < depth; z++) {
     for (let x = 0; x < width; x++) {
@@ -58,18 +101,7 @@ export function buildWorld(scene, level, tileTypes, assets) {
         mesh.rotation.y = Math.atan2(dx, dz);
         scene.add(mesh);
       }
-      if (t.roof) {
-        const roofH = 0.7;
-        const tex = assets['textures/roof-tiles'].texture;
-        tex.repeat.set(2, 1);
-        const roof = new THREE.Mesh(
-          new THREE.ConeGeometry(0.5 * Math.SQRT2 * 1.12, roofH, 4, 1),
-          material('textures/roof-tiles'),
-        );
-        roof.rotation.y = Math.PI / 4;
-        roof.position.set(x, wallHeight + roofH / 2, z);
-        scene.add(roof);
-      }
+      if (t.roof) addRoof(x, z, wallHeight);
     }
   }
 
