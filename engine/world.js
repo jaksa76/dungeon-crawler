@@ -84,22 +84,78 @@ export function buildWorld(scene, level, tileTypes, assets) {
     scene.add(group);
   }
 
-  // --- walls & roofs
+  // --- walls, with rounded bevels on true outside corners only.
+  // A tile corner is an outside corner when the same wall tile shows both faces
+  // that meet there; faces of neighbouring buildings in a row are coplanar and
+  // never qualify, so rows of houses stay seamless.
+  const BEVEL = level.bevel ?? 0.07; // radius in tiles
+  const ARC_SEGMENTS = 3;            // per half of the quarter-round
+  const sideOf = (dx, dz) => (dx ? (dx > 0 ? 'E' : 'W') : (dz > 0 ? 'S' : 'N'));
+  const faceKey = (t, x, z, dx, dz) => t.faces[hash3(x, z, sideOf(dx, dz).charCodeAt(0)) % t.faces.length];
+  const faceVisible = (t, x, z, dx, dz) => {
+    const n = typeAt(x + dx, z + dz);
+    return !!n && (n.floor || (n.low && !t.low));
+  };
+
+  // Builds a vertical strip from a list of columns {x, z, nx, nz, u}; v runs 0..1 up to height h.
+  function strip(cols, h, key) {
+    const pos = [], nor = [], uv = [], idx = [];
+    cols.forEach((c, i) => {
+      pos.push(c.x, 0, c.z, c.x, h, c.z);
+      nor.push(c.nx, 0, c.nz, c.nx, 0, c.nz);
+      uv.push(c.u, 0, c.u, 1);
+      if (i) { const k = 2 * i; idx.push(k - 2, k, k - 1, k - 1, k, k + 1); }
+    });
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    scene.add(new THREE.Mesh(g, material(key)));
+  }
+
   for (let z = 0; z < depth; z++) {
     for (let x = 0; x < width; x++) {
       const t = typeAt(x, z);
       if (!t || !t.wall) continue;
       let wallHeight = 0;
-      for (const [side, [dx, dz]] of Object.entries(FACE_DIRS)) {
-        const n = typeAt(x + dx, z + dz);
-        const visible = n && (n.floor || (n.low && !t.low));
-        const key = t.faces[hash3(x, z, side.charCodeAt(0)) % t.faces.length];
-        wallHeight = Math.max(wallHeight, assets[key].aspect);
-        if (!visible) continue;
-        const mesh = new THREE.Mesh(panel(1, assets[key].aspect), material(key));
-        mesh.position.set(x + dx * 0.5, 0, z + dz * 0.5);
-        mesh.rotation.y = Math.atan2(dx, dz);
-        scene.add(mesh);
+      for (const [dx, dz] of Object.values(FACE_DIRS)) {
+        const key = faceKey(t, x, z, dx, dz);
+        const h = assets[key].aspect;
+        wallHeight = Math.max(wallHeight, h);
+        if (!faceVisible(t, x, z, dx, dz)) continue;
+
+        // Face frame: outward normal n, "right" r as seen by a viewer facing the wall.
+        const th = Math.atan2(dx, dz);
+        const rx = Math.round(Math.cos(th)), rz = Math.round(-Math.sin(th));
+        const cx = x + dx * 0.5, cz = z + dz * 0.5;
+        const bevelEnd = faceVisible(t, x, z, rx, rz);      // corner at u = 1
+        const bevelStart = faceVisible(t, x, z, -rx, -rz);  // corner at u = 0
+        const u0 = bevelStart ? BEVEL : 0, u1 = bevelEnd ? 1 - BEVEL : 1;
+        const at = (u) => ({ x: cx + rx * (u - 0.5), z: cz + rz * (u - 0.5), nx: dx, nz: dz, u });
+        strip([at(u0), at(u1)], h, key);
+
+        if (bevelEnd) {
+          // Quarter-round between this face and the face whose normal is r. The first
+          // half continues this face's texture, the second half the neighbour's.
+          const qx = cx + rx * 0.5, qz = cz + rz * 0.5;           // the sharp corner
+          const ax = qx - (dx + rx) * BEVEL, az = qz - (dz + rz) * BEVEL; // arc centre
+          const other = faceKey(t, x, z, rx, rz);
+          const arc = (phi, u) => {
+            const nx = dx * Math.cos(phi) + rx * Math.sin(phi), nz = dz * Math.cos(phi) + rz * Math.sin(phi);
+            return { x: ax + nx * BEVEL, z: az + nz * BEVEL, nx, nz, u };
+          };
+          const half = (from, to, uFrom, uTo, key2) => {
+            const cols = [];
+            for (let i = 0; i <= ARC_SEGMENTS; i++) {
+              const k = i / ARC_SEGMENTS;
+              cols.push(arc(from + (to - from) * k, uFrom + (uTo - uFrom) * k));
+            }
+            strip(cols, assets[key2].aspect, key2);
+          };
+          half(0, Math.PI / 4, 1 - BEVEL, 1, key);
+          half(Math.PI / 4, Math.PI / 2, 0, BEVEL, other);
+        }
       }
       if (t.roof) addRoof(x, z, wallHeight);
     }
