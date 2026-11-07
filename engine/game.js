@@ -36,10 +36,10 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   const world = buildWorld(scene, level, tileTypes, assets);
   const backdrop = buildBackdrop(scene, bd, assets, EYE);
   const drawUI = createUI(uiCanvas, assets);
-  window.__game = { scene, camera, renderer, assets };
+  window.__game = { scene, camera, renderer, assets, world };
 
   // --- options
-  const opts = { smooth: true, fog: true, res: 0, farSwap: true, lightsOn: true };
+  const opts = { smooth: true, fog: true, res: 0, farSwap: true, lightsOn: true, ink: true };
 
   // --- player state
   const p = { x: level.start.x, z: level.start.z, dir: level.start.dir };
@@ -101,6 +101,11 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
       case 'KeyF': opts.fog = !opts.fog; scene.fog = opts.fog ? fog : null; say(`Fog: ${opts.fog ? 'on' : 'off'}`); break;
       case 'KeyR': opts.res = (opts.res + 1) % RESOLUTIONS.length; resize(); say(`Resolution: ${RESOLUTIONS[opts.res].join('×')}`); break;
       case 'KeyV': opts.farSwap = !opts.farSwap; say(`Far sprite variants: ${opts.farSwap ? 'on' : 'off'}`); break;
+      case 'KeyI':
+        opts.ink = !opts.ink;
+        if (world.ink) world.ink.uInkStrength.value = opts.ink ? (level.ink?.strength ?? 0.8) : 0;
+        say(`Ink outlines: ${opts.ink ? 'on' : 'off'}`);
+        break;
       case 'KeyL': opts.lightsOn = !opts.lightsOn; say(`Point lights: ${opts.lightsOn ? 'on' : 'off'}`); break;
       default: return;
     }
@@ -110,7 +115,7 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   function updateStatus() {
     status.textContent = `${level.name} · ${realCount}/${Object.keys(assets).length} real assets · `
       + `${RESOLUTIONS[opts.res].join('×')} · smooth ${opts.smooth ? 'on' : 'off'} · fog ${opts.fog ? 'on' : 'off'} · `
-      + `far variants ${opts.farSwap ? 'on' : 'off'} · lights ${opts.lightsOn ? 'on' : 'off'}`;
+      + `far variants ${opts.farSwap ? 'on' : 'off'} · lights ${opts.lightsOn ? 'on' : 'off'} · ink ${opts.ink ? 'on' : 'off'}`;
   }
 
   // --- sizing: render small, scale up crisp

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { addInkLines } from './ink.js';
 
 // Builds the 3D scene for a tile-based location:
 // walls as painted one-tile panels, hip roofs, a cobbled floor,
@@ -180,6 +181,8 @@ export function buildWorld(scene, level, tileTypes, assets) {
   floor.rotation.x = -Math.PI / 2;
   floor.position.set((width - 1) / 2, 0, (depth - 1) / 2);
   scene.add(floor);
+  // Hand-drawn outlines around each stone (needs a real height map).
+  const ink = cobAsset.height ? addInkLines(floor.material, level.ink) : null;
 
 
   // --- lights
@@ -256,7 +259,7 @@ export function buildWorld(scene, level, tileTypes, assets) {
   const entityAt = (x, z) => level.entities.find((e) => Math.round(e.x) === x && Math.round(e.z) === z);
 
   return {
-    width, depth, lights, billboards, typeAt, isWall, isBlocked, entityAt,
+    width, depth, lights, billboards, typeAt, isWall, isBlocked, entityAt, ink,
 
     update(time, camera, { farSwap = true, lightsOn = true } = {}) {
       for (const l of lights) {
