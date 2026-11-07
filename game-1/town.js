@@ -35,7 +35,18 @@ export const manifest = {
   'sprites/decal-torch': { trim: true, gen: 'torch', glow: true },
   // ui
   'ui/portrait-hero': { gen: 'portrait' },
-  'ui/icons-items': { gen: 'icons:items' },
+  'ui/panel': { gen: 'panel' },
+};
+
+// Bottom panel: cut from docs/concept-toonish.png (tools/crop.mjs). Regions are
+// in the panel image's own pixels: [x, y, w, h].
+export const uiLayout = {
+  image: 'ui/panel',
+  portrait: [42, 33, 163, 175],
+  hp: [292, 56, 212, 25],
+  mp: [292, 112, 212, 25],
+  map: [1178, 22, 253, 191],
+  letters: [[1290, 16, 30, 30], [1290, 192, 30, 21], [1180, 99, 30, 27], [1396, 95, 27, 31]], // N S W E
 };
 
 // Wall types. `faces` are picked per face (deterministically) for variety.

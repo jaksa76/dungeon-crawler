@@ -122,19 +122,13 @@ Important for the engine: **textures and sprites must be evenly lit**. The engin
 **`ui/portrait-hero.png`** — 1024×1024
 > Character portrait, head and shoulders, of a young determined hero with messy brown hair, blue eyes and a red hooded cloak, facing the viewer. Pixel art, square, plain dark background.
 
-**`ui/panel.png`** — 1536×1024 (the bar is a 1536×288 band; we crop it)
-> A single horizontal user-interface bar for the bottom of a fantasy RPG screen, drawn as one piece of ornate pixel art in the same style as the attached image. Canvas 1536×1024: the bar spans the full width and is exactly 288 pixels tall, vertically centred. Everything above and below the bar is flat pure magenta (#FF00FF) — no shadows or glow spilling onto it.
->
-> The bar is carved dark grey-purple stone with an aged bronze/gold trim, small rivets, and a decorative moulding along the top edge (it sits directly below the game view). It contains these empty recessed windows, from left to right:
-> 1. **Portrait window** — a square, about 245 px tall, starting about 25 px from the left edge, framed with a thicker gold frame.
-> 2. **Vitals plaque** — a column about 260 px wide containing: a small empty engraved name plate at the top; two long empty horizontal grooves below it, one above the other (for a health bar and a mana bar), each with a tiny ornament at its left end (a red gem for the upper one, a blue gem for the lower one); and a small gold coin emblem at the bottom left with empty space beside it.
-> 3. **Message window** — a large wide rectangle, about 500 px wide, almost the full height of the bar.
-> 4. **Item sockets** — a 2×2 grid of four square sockets, each about 95 px, the top two with a subtle sword-and-shield motif engraved in the stone above them.
-> 5. **Map window** — a square window, about 210 px, at the right end, with a small compass-rose ornament on its frame (no letters).
->
-> All windows, sockets and grooves must be filled with flat, perfectly uniform near-black (#0B0910) with no texture, no gradient and no reflections — the game draws the portrait, text, bars, icons and map into them. No text, no letters, no numbers, no icons inside any window. Even lighting, straight-on view, no perspective.
+**`ui/panel.png`** — not generated: cut from `docs/concept-toonish.png` with
+`node tools/crop.mjs ../docs/concept-toonish.png ../game-1/assets/ui/panel.png 0 845 1448 241`.
+The variable parts (portrait, HP/MP, minimap) are drawn over it; their regions are
+in `uiLayout` in `game-1/town.js`. The action buttons and hotbar icons are the
+concept's own art for now.
 
-Save the result as is; the engine (or `tools/`) crops the bar out of the magenta and measures the windows, so they don't have to be pixel-exact.
+*(Not used yet — the hotbar shows the panel's own item icons. Needed once items are dynamic.)*
 
 **`ui/icons-items.png`** — 1536×1024
 > A sprite sheet of 8 item icons in a precise 4 columns × 2 rows grid with equal spacing, each centred in its cell, transparent background: short sword, round wooden shield, red potion, blue potion, burning torch, scroll, purple crystal, golden key.

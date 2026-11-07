@@ -10,6 +10,12 @@
     body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
     .frame { position: relative; box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
     .frame canvas { display: block; image-rendering: pixelated; }
+    .log {
+      position: absolute; left: 0; top: 0; pointer-events: none;
+      font-family: VT323, monospace; color: #f0e4c8; line-height: 1;
+      text-shadow: 1px 0 #000, -1px 0 #000, 0 1px #000, 0 2px #000;
+    }
+    .log div { transition: opacity 1s; }
     .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
     .help b { color: var(--fg); }
   </style>
@@ -32,9 +38,9 @@
   <div class="help" id="status">Loading…</div>
   <script type="module">
     import { startGame } from '../engine/game.js';
-    import { town, tileTypes, manifest } from './town.js';
+    import { town, tileTypes, manifest, uiLayout } from './town.js';
     startGame({
-      level: town, tileTypes, manifest, assetPath: './assets',
+      level: town, tileTypes, manifest, uiLayout, assetPath: './assets',
       viewCanvas: document.getElementById('view'),
       uiCanvas: document.getElementById('ui'),
       frame: document.getElementById('frame'),

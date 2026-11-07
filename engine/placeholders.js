@@ -380,6 +380,12 @@ function panelStone() {
   return c;
 }
 
+function panel() {
+  const c = canvas(1448, 241), g = c.getContext('2d');
+  px(g, 0, 0, 1448, 241, '#2e2834'); px(g, 0, 0, 1448, 8, '#6a6270');
+  return c;
+}
+
 function iconSheet(glyphs) {
   const c = canvas(256, 128), g = c.getContext('2d');
   g.font = '44px serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -398,7 +404,7 @@ export function pixelate(source, width = 32) {
 const generators = {
   cobble, roof, stoneWall, parapet, sky, hills, treeline, moon, castle, waterfall,
   guard, villager, hooded, stall, well, barrel, crate, chest, lamppost, banner, torch,
-  portrait, panelStone,
+  portrait, panelStone, panel,
   'facade:a': () => facade('a'), 'facade:b': () => facade('b'), 'facade:door': () => facade('door'),
   'facade:alchemist': () => facade('alchemist'), 'facade:smith': () => facade('smith'),
   'icons:actions': () => iconSheet(['⚔️', '✨', '📖', '🎒', '📜', '⚙️', '💬', '✋']),

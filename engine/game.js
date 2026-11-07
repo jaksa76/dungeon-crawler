@@ -2,18 +2,18 @@ import * as THREE from 'three';
 import { loadAssets } from './assets.js';
 import { buildWorld } from './world.js';
 import { buildBackdrop } from './backdrop.js';
-import { createUI, UI_W, UI_H } from './ui.js';
+import { createUI } from './ui.js';
 
 const EYE = 0.55;          // eye height in tiles
 const CAM_BACK = 0.3;      // camera sits this far behind the tile centre
 const MOVE_MS = 200, TURN_MS = 160;
-const VIEW_W = 640, VIEW_H = 360; // 3D view; the UI panel adds UI_H below
+const VIEW_W = 640, VIEW_H = 360; // 3D view; the UI panel goes below it
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
 const DIR_NAMES = ['north', 'east', 'south', 'west'];
 
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-export async function startGame({ level, tileTypes, manifest, assetPath, viewCanvas, uiCanvas, frame, status }) {
+export async function startGame({ level, tileTypes, manifest, uiLayout, assetPath, viewCanvas, uiCanvas, frame, status }) {
   const assets = await loadAssets(manifest, assetPath);
   const realCount = Object.values(assets).filter((a) => a.real).length;
 
@@ -36,7 +36,8 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   const world = buildWorld(scene, level, tileTypes, assets);
   const backdrop = buildBackdrop(scene, bd, assets, EYE);
   await Promise.all(['16px VT323', '700 16px "Pixelify Sans"', '400 10px "Pixelify Sans"'].map((f) => document.fonts.load(f).catch(() => {})));
-  const ui = createUI(uiCanvas, assets);
+  const ui = createUI(uiCanvas, assets, uiLayout);
+  const UI_H = ui.height;
   window.__game = { scene, camera, renderer, assets, world };
 
   // --- options
@@ -50,7 +51,25 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   const log = [`Welcome to ${level.name}.`];
   const hero = { name: 'Aldren', title: 'Lv 1 Wanderer', hp: 58, maxHp: 58, mp: 24, maxMp: 24, gold: 12 };
 
-  function say(text) { if (log[log.length - 1] !== text) log.push(text); if (log.length > 50) log.shift(); }
+  // Messages appear over the bottom-left of the 3D view and fade out.
+  const logEl = document.createElement('div');
+  logEl.className = 'log';
+  frame.appendChild(logEl);
+  const LOG_LINES = 4, LOG_MS = 7000;
+  const logTimes = [performance.now()];
+  function say(text) {
+    if (log[log.length - 1] === text) { logTimes[logTimes.length - 1] = performance.now(); return; }
+    log.push(text); logTimes.push(performance.now());
+    if (log.length > 50) { log.shift(); logTimes.shift(); }
+  }
+  function renderLog(now) {
+    const start = Math.max(0, log.length - LOG_LINES);
+    const html = log.slice(start).map((t, i) => {
+      const age = now - logTimes[start + i];
+      return `<div style="opacity:${age < LOG_MS ? 1 : 0}">${t}</div>`;
+    }).join('');
+    if (logEl._html !== html) { logEl.innerHTML = html; logEl._html = html; }
+  }
 
   function describeAhead() {
     const [dx, dz] = DIRS[p.dir];
@@ -130,6 +149,10 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
     viewCanvas.style.height = `${VIEW_H * scale}px`;
     uiCanvas.style.height = `${UI_H * scale}px`;
     frame.style.width = `${VIEW_W * scale}px`;
+    logEl.style.fontSize = `${16 * scale}px`;
+    logEl.style.left = `${8 * scale}px`;
+    logEl.style.top = 'auto';
+    logEl.style.bottom = `${(UI_H + 6) * scale}px`;
   }
   window.addEventListener('resize', resize);
   resize();
@@ -160,10 +183,8 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
     backdrop.update(camera);
     renderer.render(scene, camera);
 
-    ui.draw({
-      world, hero, log, tileX: p.x, tileZ: p.z, yaw: view.yaw, facing: DIR_NAMES[p.dir],
-      hands: [0, 1], quick: [2, 3], // icon indices in ui/icons-items: sword, shield, red & blue potion
-    });
+    ui.draw({ world, hero, tileX: p.x, tileZ: p.z, yaw: view.yaw });
+    renderLog(now);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
