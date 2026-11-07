@@ -8,6 +8,8 @@ import * as THREE from 'three';
 // that grows up close and turns to noise far away. Where the stones become too
 // small on screen to outline cleanly, the lines fade out.
 //
+// The gaps below the contour are also darkened.
+//
 // Works on any material that has a bumpMap (the height map).
 
 export function addInkLines(material, {
@@ -17,6 +19,7 @@ export function addInkLines(material, {
   width = 1.1,      // half-width in screen pixels
   fadeNear = 10,    // texels per screen pixel where lines start to fade...
   fadeFar = 24,     // ...and where they are gone
+  gap = 0.7,        // how much to darken the gaps below the contour (0 = not at all, 1 = black)
 } = {}) {
   const uniforms = {
     uInkColor: { value: new THREE.Color(color) },
@@ -24,17 +27,20 @@ export function addInkLines(material, {
     uInkLevel: { value: level },
     uInkWidth: { value: width },
     uInkFade: { value: new THREE.Vector2(fadeNear, fadeFar) },
+    uInkGap: { value: gap },
   };
   material.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, uniforms);
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', `#include <common>
         uniform vec3 uInkColor;
-        uniform float uInkStrength, uInkLevel, uInkWidth;
+        uniform float uInkStrength, uInkLevel, uInkWidth, uInkGap;
         uniform vec2 uInkFade;`)
       .replace('#include <map_fragment>', `#include <map_fragment>
         {
           float h = texture2D(bumpMap, vBumpMapUv).r;
+          // Darken the gaps between stones (below the contour).
+          diffuseColor.rgb *= 1.0 - uInkGap * (1.0 - smoothstep(0.0, uInkLevel, h));
           float fw = max(fwidth(h), 1e-4);
           float ink = 1.0 - smoothstep(0.0, fw * uInkWidth * 2.0, abs(h - uInkLevel));
           vec2 texelsPerPixel = fwidth(vBumpMapUv * vec2(textureSize(bumpMap, 0)));

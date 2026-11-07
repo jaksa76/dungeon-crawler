@@ -103,7 +103,10 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
       case 'KeyV': opts.farSwap = !opts.farSwap; say(`Far sprite variants: ${opts.farSwap ? 'on' : 'off'}`); break;
       case 'KeyI':
         opts.ink = !opts.ink;
-        if (world.ink) world.ink.uInkStrength.value = opts.ink ? (level.ink?.strength ?? 0.8) : 0;
+        if (world.ink) {
+          world.ink.uInkStrength.value = opts.ink ? (level.ink?.strength ?? 0.95) : 0;
+          world.ink.uInkGap.value = opts.ink ? (level.ink?.gap ?? 0.7) : 0;
+        }
         say(`Ink outlines: ${opts.ink ? 'on' : 'off'}`);
         break;
       case 'KeyL': opts.lightsOn = !opts.lightsOn; say(`Point lights: ${opts.lightsOn ? 'on' : 'off'}`); break;
