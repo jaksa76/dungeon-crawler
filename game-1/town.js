@@ -36,7 +36,6 @@ export const manifest = {
   // ui
   'ui/portrait-hero': { gen: 'portrait' },
   'ui/panel-stone': { gen: 'panelStone' },
-  'ui/icons-actions': { gen: 'icons:actions' },
   'ui/icons-items': { gen: 'icons:items' },
 };
 
@@ -69,13 +68,13 @@ export const town = {
   // Billboards. `height` is in tiles; width comes from the image aspect.
   // `light` attaches a point light (y in tiles above floor).
   entities: [
-    { sprite: 'sprites/prop-stall', name: 'Alchemist stall', x: 1.1, z: 3, height: 1.05, block: true,
+    { sprite: 'sprites/prop-stall', name: "the alchemist's stall", x: 1.1, z: 3, height: 1.05, block: true,
       light: { color: '#ffb050', intensity: 1.6, y: 0.8, flicker: 0.1 } },
     { sprite: 'sprites/prop-chest', name: 'a chest', x: 1.2, z: 4.3, height: 0.26, block: true },
     { sprite: 'sprites/prop-crate', name: 'a crate', x: 2.0, z: 4.6, height: 0.28 },
-    { sprite: 'sprites/npc-guard', far: 'sprites/npc-guard-far', name: 'Town guard', x: 3, z: 2, height: 0.88, block: true },
-    { sprite: 'sprites/npc-hooded', name: 'Hooded stranger', x: 5, z: 1, height: 0.7, block: true },
-    { sprite: 'sprites/npc-villager', far: 'sprites/npc-villager-far', name: 'Villager', x: 6, z: 4, height: 0.68, block: true },
+    { sprite: 'sprites/npc-guard', far: 'sprites/npc-guard-far', name: 'a town guard', x: 3, z: 2, height: 0.88, block: true },
+    { sprite: 'sprites/npc-hooded', name: 'a hooded stranger', x: 5, z: 1, height: 0.7, block: true },
+    { sprite: 'sprites/npc-villager', far: 'sprites/npc-villager-far', name: 'a villager', x: 6, z: 4, height: 0.68, block: true },
     { sprite: 'sprites/prop-well', name: 'the well', x: 6, z: 2, height: 0.8, block: true },
     { sprite: 'sprites/prop-barrel', name: 'a barrel', x: 6.65, z: 2.9, height: 0.32 },
     { sprite: 'sprites/prop-banner', name: 'a banner', x: 2, z: 1, height: 1.4, block: true, shadowWidth: 0.3 },

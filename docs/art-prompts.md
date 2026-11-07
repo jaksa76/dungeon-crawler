@@ -125,8 +125,5 @@ Important for the engine: **textures and sprites must be evenly lit**. The engin
 **`ui/panel-stone.png`** — 1024×1024
 > Seamless tileable dark carved stone texture for a game's interface panel, subtle bevelled blocks, grey-purple. Must tile on all edges.
 
-**`ui/icons-actions.png`** — 1536×1024
-> A sprite sheet of 8 game interface icons arranged in a precise 4 columns × 2 rows grid with equal spacing, each icon centred in its cell, transparent background: crossed swords (attack), purple magic sparkle (spells), open book (journal), leather backpack (inventory), rolled parchment map, gear (settings), speech bubble (talk), open hand (use).
-
 **`ui/icons-items.png`** — 1536×1024
 > A sprite sheet of 8 item icons in a precise 4 columns × 2 rows grid with equal spacing, each centred in its cell, transparent background: short sword, round wooden shield, red potion, blue potion, burning torch, scroll, purple crystal, golden key.

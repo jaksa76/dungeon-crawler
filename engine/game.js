@@ -35,6 +35,7 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
 
   const world = buildWorld(scene, level, tileTypes, assets);
   const backdrop = buildBackdrop(scene, bd, assets, EYE);
+  await document.fonts.load('16px VT323').catch(() => {});
   const drawUI = createUI(uiCanvas, assets);
   window.__game = { scene, camera, renderer, assets, world };
 
@@ -46,10 +47,10 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   const view = { x: p.x, z: p.z, yaw: -p.dir * Math.PI / 2 };
   let anim = null;
   let queued = null;
-  let message = '';
-  let messageTime = 0;
+  const log = [`Welcome to ${level.name}.`];
+  const hero = { name: 'Aldren', title: 'Wanderer · Level 1', hp: 58, maxHp: 58, mp: 24, maxMp: 24, gold: 12 };
 
-  function say(text) { message = text; messageTime = performance.now(); }
+  function say(text) { if (log[log.length - 1] !== text) log.push(text); if (log.length > 50) log.shift(); }
 
   function describeAhead() {
     const [dx, dz] = DIRS[p.dir];
@@ -138,9 +139,6 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
   updateStatus();
 
   // --- main loop
-  const msgEl = document.createElement('div');
-  msgEl.className = 'message';
-  frame.appendChild(msgEl);
 
   function loop(now) {
     if (anim) {
@@ -165,9 +163,10 @@ export async function startGame({ level, tileTypes, manifest, assetPath, viewCan
     backdrop.update(camera);
     renderer.render(scene, camera);
 
-    drawUI({ world, tileX: p.x, tileZ: p.z, yaw: view.yaw, facing: DIR_NAMES[p.dir] });
-    const age = now - messageTime;
-    msgEl.textContent = message && age < 3000 ? message : '';
+    drawUI({
+      world, hero, log, tileX: p.x, tileZ: p.z, yaw: view.yaw, facing: DIR_NAMES[p.dir],
+      hands: [0, 1], quick: [2, 3], // icon indices in ui/icons-items: sword, shield, red & blue potion
+    });
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

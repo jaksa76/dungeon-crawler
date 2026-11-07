@@ -10,13 +10,12 @@
     body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
     .frame { position: relative; box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
     .frame canvas { display: block; image-rendering: pixelated; }
-    .message {
-      position: absolute; left: 0; right: 0; top: 10px; text-align: center; pointer-events: none;
-      color: #f4e6c0; text-shadow: 2px 2px 0 #000; font-size: 16px; font-weight: bold;
-    }
     .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
     .help b { color: var(--fg); }
   </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
   <script type="importmap">
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js" } }
   </script>
