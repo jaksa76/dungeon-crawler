@@ -127,6 +127,33 @@ engine.
 
 Experiments 1 and 3 are independent and can run in parallel.
 
+## Progress
+
+### Experiment 3, first pass: scale and density (placeholder art)
+
+![Concept, before, after](screenshots/density-pass-comparison.png)
+
+- **Real-world scale.** Heights in level data are now in metres (`level.scale`:
+  tile 3 m, eye 1.6 m, storeys 2.5 / 2.35 m). People were 0.88 tiles (≈2.6 m),
+  taller than the painted doors; they are now ~1.75 m. The cobblestones are finer
+  (`floorScale` 1.5).
+- **Building kit.** Facades are split into ground storey, upper storey and eave
+  strip (`storeys` in the manifest) and stacked into 2–4 storey houses with varied
+  heights, jettied upper floors, roofs of varying pitch, and chimneys. Upper storeys
+  mix facade textures. Per-tile overrides in `level.buildings` compose key views.
+- **Rule-based dressing** (`engine/dressing.js`, seeded): flower boxes, ivy, door
+  lanterns with lights, hanging signs, clutter groups along wall bases (stacked
+  crates, barrels, sacks, firewood, hay, pots), corner clusters, weeds and glossy
+  puddles. Doorways are kept clear; `exclude` keeps tiles empty.
+- **Free placement**: several props per tile, stacking (`y`), floor decals.
+  Unnamed entities are scenery (never block, never described, not on the minimap).
+
+Still to do from the density pass: stairs and raised areas (needs the height
+decision), shutters/dormers/balconies, deliberate light composition (pools and
+dark gaps), and real art for the new props. The open middle of the square is the
+weakest part of the start view; camera framing (lower horizon/tighter FOV) or a
+smaller square is worth trying next.
+
 ## Open questions
 
 - Which image model and where: local (GPU available?) or hosted API, and budget.

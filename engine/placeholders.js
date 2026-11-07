@@ -362,6 +362,156 @@ function torch() {
   return c;
 }
 
+// ---------- dressing ----------
+
+function sack() {
+  const c = canvas(28, 30), g = c.getContext('2d'), r = rng(111);
+  g.fillStyle = '#a08458'; g.beginPath(); g.ellipse(14, 19, 12, 11, 0, 0, Math.PI * 2); g.fill();
+  px(g, 9, 4, 10, 8, '#a08458'); px(g, 8, 8, 12, 2, '#6a5434');
+  px(g, 4, 22, 20, 6, '#8a7048');
+  speckle(g, r, 3, 6, 22, 22, ['#8a7048', '#b49a6a'], 40);
+  return c;
+}
+
+function bucket() {
+  const c = canvas(22, 22), g = c.getContext('2d');
+  g.strokeStyle = '#3a3a44'; g.lineWidth = 1; g.beginPath(); g.arc(11, 9, 8, Math.PI, 0); g.stroke();
+  g.fillStyle = '#6b4226'; g.beginPath(); g.moveTo(2, 8); g.lineTo(20, 8); g.lineTo(17, 22); g.lineTo(5, 22); g.fill();
+  px(g, 2, 8, 18, 2, '#4a4a55'); px(g, 4, 17, 15, 2, '#4a4a55'); px(g, 5, 10, 12, 1, '#2a4a7a');
+  return c;
+}
+
+function pot() {
+  const c = canvas(26, 34), g = c.getContext('2d'), r = rng(121);
+  for (let i = 0; i < 26; i++) px(g, 4 + r() * 18, 1 + r() * 14, 3, 3, ['#3f7a35', '#2f5a2a', '#5a9a40'][i % 3]);
+  for (let i = 0; i < 4; i++) px(g, 6 + r() * 14, 2 + r() * 10, 2, 2, '#ff6fae');
+  g.fillStyle = '#a0583a'; g.beginPath(); g.moveTo(3, 14); g.lineTo(23, 14); g.lineTo(19, 34); g.lineTo(7, 34); g.fill();
+  px(g, 2, 13, 22, 3, '#b86a48'); px(g, 6, 18, 2, 12, '#c07858');
+  return c;
+}
+
+function firewood() {
+  const c = canvas(40, 26), g = c.getContext('2d');
+  const logs = [[6, 20], [16, 20], [26, 20], [34, 20], [11, 12], [21, 12], [30, 12], [16, 4], [25, 4]];
+  for (const [x, y] of logs) {
+    g.fillStyle = '#5a3420'; g.beginPath(); g.arc(x, y, 5, 0, Math.PI * 2); g.fill();
+    g.fillStyle = '#c8a070'; g.beginPath(); g.arc(x, y, 3, 0, Math.PI * 2); g.fill();
+    px(g, x - 1, y - 1, 1, 1, '#8a6040');
+  }
+  return c;
+}
+
+function hay() {
+  const c = canvas(44, 30), g = c.getContext('2d'), r = rng(131);
+  px(g, 1, 4, 42, 26, '#c8a040'); px(g, 1, 4, 42, 3, '#e0c060');
+  for (let i = 0; i < 80; i++) px(g, 1 + r() * 42, 4 + r() * 26, 1, 3, ['#a88030', '#e0c060', '#b89038'][i % 3]);
+  for (const x of [12, 30]) px(g, x, 4, 2, 26, '#6a4a20');
+  for (let i = 0; i < 10; i++) px(g, r() * 44, r() * 5, 1, 4, '#d8b850');
+  return c;
+}
+
+function planter() {
+  const c = canvas(40, 30), g = c.getContext('2d'), r = rng(141);
+  for (let i = 0; i < 50; i++) px(g, 2 + r() * 36, 1 + r() * 14, 3, 3, ['#3f7a35', '#2f5a2a', '#5a9a40'][i % 3]);
+  for (let i = 0; i < 14; i++) px(g, 3 + r() * 34, 1 + r() * 10, 3, 3, ['#ff6fae', '#e8508f', '#f0e060', '#b070ff'][i % 4]);
+  px(g, 2, 14, 36, 16, '#6b4226'); px(g, 2, 14, 36, 2, '#8a5a36');
+  for (const y of [18, 25]) px(g, 2, y, 36, 1, '#4a2c18');
+  return c;
+}
+
+function weeds() {
+  const c = canvas(20, 12), g = c.getContext('2d'), r = rng(151);
+  for (let i = 0; i < 12; i++) {
+    const x = 2 + r() * 16, h = 4 + r() * 8;
+    px(g, x, 12 - h, 1, h, ['#4b6a40', '#3f5a3a', '#6a8a48'][i % 3]);
+  }
+  return c;
+}
+
+function flowerbox() {
+  const c = canvas(48, 22), g = c.getContext('2d'), r = rng(161);
+  for (let i = 0; i < 50; i++) px(g, 2 + r() * 44, 1 + r() * 12, 3, 3, ['#3f7a35', '#2f5a2a', '#5a9a40'][i % 3]);
+  for (let i = 0; i < 16; i++) px(g, 3 + r() * 42, 1 + r() * 9, 3, 3, ['#ff6fae', '#e8508f', '#f0e060', '#ff8a50'][i % 4]);
+  px(g, 3, 12, 42, 8, '#5a3420'); px(g, 3, 12, 42, 2, '#7a4a2a');
+  for (let i = 0; i < 6; i++) px(g, 6 + r() * 36, 18, 2, 4, '#3f7a35');
+  return c;
+}
+
+function ivy() {
+  const c = canvas(28, 128), g = c.getContext('2d'), r = rng(171);
+  let x = 14;
+  for (let y = 128; y > 4; y -= 2) {
+    x = Math.max(4, Math.min(24, x + (r() - 0.5) * 3));
+    const spread = 3 + (y / 128) * 9;
+    for (let k = 0; k < 2; k++) px(g, x + (r() - 0.5) * spread * 2, y, 3, 2, ['#3f7a35', '#2f5a2a', '#5a8a38', '#7a9a40'][Math.floor(r() * 4)]);
+  }
+  return c;
+}
+
+function wallLantern() {
+  const c = canvas(24, 36), g = c.getContext('2d');
+  px(g, 2, 4, 3, 10, '#2a2a30'); px(g, 2, 4, 16, 2, '#2a2a30'); px(g, 15, 6, 1, 4, '#2a2a30');
+  px(g, 10, 10, 12, 3, '#2a2a30'); px(g, 11, 13, 10, 14, '#2a2a30');
+  px(g, 12, 14, 8, 12, '#ffd060'); px(g, 14, 16, 4, 6, '#fff0b0');
+  px(g, 10, 27, 12, 2, '#2a2a30'); px(g, 15, 29, 2, 3, '#2a2a30');
+  return c;
+}
+
+function sign() {
+  const c = canvas(48, 40), g = c.getContext('2d');
+  px(g, 0, 2, 44, 3, '#2a2a30'); px(g, 0, 0, 3, 14, '#2a2a30');
+  g.strokeStyle = '#2a2a30'; g.lineWidth = 2; g.beginPath(); g.moveTo(2, 14); g.lineTo(20, 4); g.stroke();
+  px(g, 14, 5, 1, 6, '#2a2a30'); px(g, 38, 5, 1, 6, '#2a2a30');
+  px(g, 10, 11, 32, 26, '#3a2416'); px(g, 12, 13, 28, 22, '#7a4a2a');
+  // a tankard
+  px(g, 20, 17, 10, 14, '#d8b048'); px(g, 20, 17, 10, 3, '#f2eee6'); px(g, 30, 20, 4, 8, '#d8b048'); px(g, 31, 22, 2, 4, '#7a4a2a');
+  return c;
+}
+
+function cart() {
+  const c = canvas(84, 52), g = c.getContext('2d'), r = rng(181);
+  px(g, 60, 26, 24, 3, '#5a3420');
+  px(g, 4, 18, 58, 18, '#7a5230'); px(g, 4, 18, 58, 2, '#9a6a3a');
+  for (let x = 4; x < 62; x += 10) px(g, x, 18, 1, 18, '#5a3420');
+  for (let i = 0; i < 14; i++) { g.fillStyle = ['#c8a040', '#a0583a', '#3f7a35', '#d0303a'][i % 4]; g.beginPath(); g.arc(8 + r() * 50, 12 + r() * 8, 4, 0, Math.PI * 2); g.fill(); }
+  g.strokeStyle = '#3a2416'; g.lineWidth = 3;
+  g.beginPath(); g.arc(20, 40, 11, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(9, 40); g.lineTo(31, 40); g.moveTo(20, 29); g.lineTo(20, 51); g.stroke();
+  return c;
+}
+
+function bench() {
+  const c = canvas(60, 26), g = c.getContext('2d');
+  px(g, 0, 10, 60, 5, '#7a5230'); px(g, 0, 10, 60, 1, '#9a6a3a');
+  for (const x of [5, 51]) px(g, x, 15, 4, 11, '#5a3420');
+  px(g, 2, 0, 56, 4, '#7a5230'); for (const x of [5, 51]) px(g, x, 4, 3, 6, '#5a3420');
+  return c;
+}
+
+function goods() {
+  const c = canvas(64, 36), g = c.getContext('2d'), r = rng(191);
+  for (let i = 0; i < 26; i++) {
+    g.fillStyle = ['#d0303a', '#f0a030', '#3f7a35', '#c8a040', '#a040d0'][i % 5];
+    g.beginPath(); g.arc(6 + r() * 52, 6 + r() * 8, 3, 0, Math.PI * 2); g.fill();
+  }
+  px(g, 0, 14, 64, 4, '#7a5230'); px(g, 0, 14, 64, 1, '#9a6a3a');
+  px(g, 4, 18, 56, 10, '#9a2030'); px(g, 4, 26, 56, 2, '#e2b648');
+  for (const x of [4, 56]) px(g, x, 18, 4, 18, '#5a3420');
+  return c;
+}
+
+function puddle() {
+  // Reflects the night sky: a lighter violet than the stones.
+  const c = canvas(64, 40), g = c.getContext('2d'), r = rng(201);
+  const blobs = [];
+  for (let i = 0; i < 5; i++) blobs.push([32 + (r() - 0.5) * 24, 20 + (r() - 0.5) * 12, 10 + r() * 12, 5 + r() * 6]);
+  g.fillStyle = 'rgba(40,32,80,0.75)';
+  for (const [x, y, w, h] of blobs) { g.beginPath(); g.ellipse(x, y, w + 1, h + 1, 0, 0, Math.PI * 2); g.fill(); }
+  g.fillStyle = 'rgba(92,76,160,0.85)';
+  for (const [x, y, w, h] of blobs) { g.beginPath(); g.ellipse(x, y, w - 1, h - 1, 0, 0, Math.PI * 2); g.fill(); }
+  return c;
+}
+
 // ---------- UI ----------
 
 function portrait() {
@@ -405,6 +555,7 @@ const generators = {
   cobble, roof, stoneWall, parapet, sky, hills, treeline, moon, castle, waterfall,
   guard, villager, hooded, stall, well, barrel, crate, chest, lamppost, banner, torch,
   portrait, panelStone, panel,
+  sack, bucket, pot, firewood, hay, planter, weeds, flowerbox, ivy, wallLantern, sign, cart, bench, goods, puddle,
   'facade:a': () => facade('a'), 'facade:b': () => facade('b'), 'facade:door': () => facade('door'),
   'facade:alchemist': () => facade('alchemist'), 'facade:smith': () => facade('smith'),
   'icons:actions': () => iconSheet(['⚔️', '✨', '📖', '🎒', '📜', '⚙️', '💬', '✋']),

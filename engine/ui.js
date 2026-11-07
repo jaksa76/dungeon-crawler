@@ -85,6 +85,7 @@ export function createUI(canvas, assets, layout) {
       }
     }
     for (const b of state.world.billboards) {
+      if (!b.entity.name) continue; // scenery
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#e0b040';
       g.fillRect(Math.round(cx + dx * cell - 1), Math.round(cy + dz * cell - 1), 3, 3);
