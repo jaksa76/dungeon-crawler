@@ -236,8 +236,16 @@ export function buildWorld(scene, level, tileTypes, assets) {
       shadow.renderOrder = 1;
       scene.add(shadow);
     }
+    // Optional turned views of a prop that has a facing (see `viewSprite` in update()).
+    // Each view is drawn at the entity's `height`, so its width follows its own aspect.
+    const viewOf = (key) => ({ tex: assets[key].texture, glow: assets[key].glow, w: h / assets[key].aspect });
+    const views = e.views
+      ? { front: { tex: a.texture, glow: a.glow, w },
+          ...Object.fromEntries(Object.entries(e.views).map(([k, key]) => [k, viewOf(key)])) }
+      : null;
     billboards.push({
-      entity: e, mesh, shadow,
+      entity: e, mesh, shadow, w, views,
+      facing: e.facing ? FACE_DIRS[e.facing] : null,
       near: a.texture,
       far: e.far ? assets[e.far].texture : null,
     });
@@ -275,6 +283,24 @@ export function buildWorld(scene, level, tileTypes, assets) {
       for (const b of billboards) {
         b.mesh.rotation.y = yaw;
         if (b.shadow) b.shadow.rotation.y = yaw; // ellipse stays aligned with the sprite
+        if (b.views && b.facing) {
+          // Which way does the prop appear to face, seen from where the camera is?
+          // cos = how squarely we look at its front; side > 0 = it faces screen-right.
+          const ux = camera.position.x - b.mesh.position.x, uz = camera.position.z - b.mesh.position.z;
+          const len = Math.hypot(ux, uz) || 1;
+          const cos = (ux * b.facing[0] + uz * b.facing[1]) / len;
+          const right = (b.facing[0] * Math.cos(yaw) - b.facing[1] * Math.sin(yaw)) > 0;
+          const name = cos > 0.94 ? 'front'
+            : cos > 0.64 ? (right ? 'threeQuarterRight' : 'threeQuarterLeft')
+            : (right ? 'sideRight' : 'sideLeft'); // past ~50° (or behind it) the side view is the nearest art
+          const v = b.views[name] || b.views.front;
+          if (b.mesh.material.map !== v.tex) {
+            b.mesh.material.map = v.tex;
+            b.mesh.material.emissiveMap = v.glow;
+          }
+          b.mesh.scale.x = v.w / b.w;
+          if (b.shadow && b.entity.shadowWidth == null) b.shadow.scale.x = v.w * 0.95;
+        }
         if (b.far) {
           const dist = Math.hypot(b.mesh.position.x - camera.position.x, b.mesh.position.z - camera.position.z);
           const tex = farSwap && dist > 6 ? b.far : b.near;

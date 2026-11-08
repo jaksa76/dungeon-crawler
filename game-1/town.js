@@ -26,6 +26,11 @@ export const manifest = {
   'sprites/npc-villager-far': { trim: true, from: 'sprites/npc-villager' },
   'sprites/npc-hooded': { trim: true, gen: 'hooded' },
   'sprites/prop-stall': { trim: true, gen: 'stall', glow: true },
+  // turned views of the stall, named by the way the stall faces on screen
+  'sprites/prop-stall-left': { trim: true, glow: true, gen: 'stall' },
+  'sprites/prop-stall-right': { trim: true, glow: true, gen: 'stall' },
+  'sprites/prop-stall-front-right': { trim: true, glow: true, gen: 'stall' },
+  'sprites/prop-stall-front-left': { trim: true, glow: true, gen: 'stall' },
   'sprites/prop-well': { trim: true, gen: 'well' },
   'sprites/prop-barrel': { trim: true, gen: 'barrel' },
   'sprites/prop-crate': { trim: true, gen: 'crate' },
@@ -79,6 +84,14 @@ export const town = {
   // `light` attaches a point light (y in tiles above floor).
   entities: [
     { sprite: 'sprites/prop-stall', name: "the alchemist's stall", x: 1.1, z: 3, height: 1.05, block: true,
+      // The stall faces the square (east). Seen from the street it turns: the side views
+      // are named by the way it faces on screen (the *-front-* files are the three-quarter
+      // views: front-right shows it turned to the left, front-left turned to the right).
+      facing: 'E',
+      views: {
+        sideLeft: 'sprites/prop-stall-left', sideRight: 'sprites/prop-stall-right',
+        threeQuarterLeft: 'sprites/prop-stall-front-right', threeQuarterRight: 'sprites/prop-stall-front-left',
+      },
       light: { color: '#ffb050', intensity: 1.6, y: 0.8, flicker: 0.1 } },
     { sprite: 'sprites/prop-chest', name: 'a chest', x: 1.2, z: 4.3, height: 0.26, block: true },
     { sprite: 'sprites/prop-crate', name: 'a crate', x: 2.0, z: 4.6, height: 0.28 },
