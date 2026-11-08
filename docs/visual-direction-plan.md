@@ -1,5 +1,8 @@
 # Visual Direction Plan — getting from "experiment 1" to the concept art
 
+> **Paused (Nov 2026).** Work moved to 2D compositing — see
+> [`2d-compositing-plan.md`](2d-compositing-plan.md) and `game-2/`.
+
 ## Where we are
 
 Experiment 1 (the town square demo in `game-1/`) proved the hybrid renderer works:
