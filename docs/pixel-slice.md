@@ -39,12 +39,8 @@ same lattice.
 ## Run it
 
 Serve the repository root (`python -m http.server 8000`) and open `/game-2/px.html`. The controls are
-the same as in the default demo, which has two display keys (both pages also show them as buttons): **P**
-switches how the view canvas is scaled up to the screen between **sampling** (nearest neighbour, crisp art
-pixels, the default) and **smooth scaling** (bilinear); **R** cycles the internal resolution (the default demo
-draws 640x360, 320x180 and 160x90 from the same painted slot images; the pixel slice has only its own
-160x90, so R just says so). Both choices are remembered in `localStorage` (`view-scaling`, `view-res`) when the
-browser allows it. The default demo is `/game-2/index.html`.
+the same as in the default demo. The view is always shown with nearest-neighbour sampling (crisp art
+pixels); there is no smooth-scaling switch. The default demo is `/game-2/index.html`.
 
 ## What is in it
 
@@ -86,9 +82,8 @@ node tools/studio2d.mjs slice walls-house-a-1 game-2/px/art/painted/walls-house-
   pixels and slot masks grow by half a pixel instead of 0.75.
 - `engine2d/compositor.js`: only for a pixel view, `imageSmoothingEnabled = false` and no soft shadow.
 - `engine2d/game.js`: the displayed size is `W * (view.pixel ?? 1)`; with no `pixel` setting it is exactly
-  what it was. It also owns the display keys: P (sampling / smooth, via `image-rendering` on the view canvas)
-  and R (internal resolution: the view is composed in its own W x H coordinates and drawn into a smaller
-  canvas through a transform).
+  what it was. A view without `pixel` is drawn into a half-size canvas (320x180 for the 640x360 view) through
+  a transform and shown with nearest-neighbour sampling; a pixel view is drawn at its own size.
 - `tools/studio2d/plan.js`: `SHEET_PX`, and an optional `sheet` argument of `makePlan` and `sceneRect`.
 - `tools/studio2d/studio.js`: `studio.html?px` selects the pixel level, the `game-2/px/` folders, hard
   alpha for placeholders and the pixel slicer. Without `?px` nothing changes.
