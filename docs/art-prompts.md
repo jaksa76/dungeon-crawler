@@ -9,6 +9,11 @@ Goal: recreate `docs/concept-toonish.png` with the hybrid renderer (3D tile geom
 3. Save each result under `game-1/assets/` using the exact path given. The demo picks files up automatically on reload and falls back to procedural placeholders for anything missing.
 4. Sizes are what ChatGPT can produce (1024×1024, 1536×1024, 1024×1536). Don't worry about exact pixel sizes — the engine scales. Crop if it adds margins.
 
+Assets can alternatively be generated locally with ComfyUI + SDXL (see
+[local-image-generation.md](local-image-generation.md)). The prompts below work as a
+starting point there too, but expect to tune them, and seamless tiling and
+transparent backgrounds need extra steps that are not set up yet.
+
 Important for the engine: **textures and sprites must be evenly lit**. The engine adds torchlight, moonlight and fog itself; baked-in dramatic lighting will fight it. Glowing windows/flames are the exception (they get auto-detected as self-illuminated).
 
 ---

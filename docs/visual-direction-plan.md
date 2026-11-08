@@ -68,7 +68,8 @@ TEXTure-style multi-view texturing.
 
 **Requirement**: an image model that accepts depth/edge conditioning and inpainting
 (Stable Diffusion / Flux with ControlNet, locally or via a hosted API). ChatGPT's
-image generation cannot do this.
+image generation cannot do this. A local ComfyUI + SDXL install is available for it
+(see [local-image-generation.md](local-image-generation.md)).
 
 ### 3. View cards for key moments (option 6)
 
@@ -129,7 +130,11 @@ Experiments 1 and 3 are independent and can run in parallel.
 
 ## Open questions
 
-- Which image model and where: local (GPU available?) or hosted API, and budget.
+- Which image model and where: **local setup done** — ComfyUI + SDXL base + pixel-art
+  LoRA on the RTX 4060 (8 GB), ~22 s per 1024×1024 image; see
+  [local-image-generation.md](local-image-generation.md). Still open: whether SDXL is
+  good enough for the concept's look (depth/edge ControlNets not yet installed) or a
+  hosted API / Flux is needed for the projection-painting experiment.
 - Flat maps vs height: the density pass wants stairs and raised areas.
 - How far projection painting should go: buildings only, or floor and props too?
 - Style source: keep the concept art as the reference, or produce a short style guide
