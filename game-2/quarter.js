@@ -48,8 +48,8 @@ export const quarter = {
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
     { prop: 'crate', x: 1, z: 3, side: 'S' },
-    { prop: 'well', name: 'the well', x: 3, z: 3, side: 'E' },
+    { prop: 'well', name: 'the well', x: 2, z: 2, side: 'N' },
     { prop: 'barrel', name: 'a barrel', x: 2, z: 3, side: 'S' },
-    { prop: 'barrel', x: 2, z: 2, side: 'W' },
+    { prop: 'barrel', x: 3, z: 3, side: 'E' },
   ],
 };

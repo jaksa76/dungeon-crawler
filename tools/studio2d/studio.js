@@ -49,6 +49,9 @@ const SOURCE = {
     lamppost: 'sprites/prop-lamppost',
   },
 };
+// Props that have a second sprite for everywhere but the player's own cell: the extra art is trimmed like the
+// others and drawn, in proportion, as large as fits the slot (its outline need not match the prop's w x h).
+const DISTANT = { well: 'sprites/prop-well-distant' };
 const ROOFLESS = new Set(['stone-wall']);
 
 const canvas2d = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
@@ -114,7 +117,8 @@ const emit = (c) => png(PX ? hardAlpha(c) : c);
 async function bake(only = []) {
   const want = (part) => !only.length || only.some((o) => o === part || o.startsWith(`${part}:`));
   const wantProp = (art) => !only.some((o) => o.startsWith('props:')) || only.includes('props') || only.includes(`props:${art}`);
-  const assets = await loadAssets(game1Manifest, '../../game-1/assets');
+  const extra = Object.fromEntries(Object.values(DISTANT).map((key) => [key, { trim: true }]));
+  const assets = await loadAssets({ ...game1Manifest, ...extra }, '../../game-1/assets');
   const SS = PX ? 6 : 3; // supersampling: render big, scale down smoothly, so far slots keep detail
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
@@ -179,13 +183,20 @@ async function bake(only = []) {
     const t = a?.texture, img = a?.image;
     const sx = a ? t.offset.x * img.width : 0, sw = a ? t.repeat.x * img.width : 0;
     const sh = a ? t.repeat.y * img.height : 0, sy = a ? (1 - t.offset.y - t.repeat.y) * img.height : 0;
+    const far = a && DISTANT[p.art] ? assets[DISTANT[p.art]] : null; // used by every slot but the one in the player's own cell (d = 0)
+    const fartex = far?.texture, farimg = far?.image;
+    const fsx = far ? fartex.offset.x * farimg.width : 0, fsw = far ? fartex.repeat.x * farimg.width : 0;
+    const fsh = far ? fartex.repeat.y * farimg.height : 0, fsy = far ? (1 - fartex.offset.y - fartex.repeat.y) * farimg.height : 0;
     for (const slot of view.propSlots(p.w, p.h, p.sideW).list) {
       if (slot.borrows) continue;
       const w = Math.max(1, Math.round(slot.full.w)), h = Math.max(1, Math.round(slot.full.h));
       const c = canvas2d(w, h), g = c.getContext('2d');
       g.imageSmoothingQuality = 'high';
       if (views) drawView(g, views, slot, w, h);
-      else g.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+      else if (far && slot.d > 0) {
+        const k = Math.min(w / fsw, h / fsh), dw = fsw * k, dh = fsh * k;
+        g.drawImage(farimg, fsx, fsy, fsw, fsh, (w - dw) / 2, h - dh, dw, dh);
+      } else g.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
       const k = Math.min(1, Math.max(0, (slot.s - FOG.near) / (FOG.far - FOG.near)));
       g.globalCompositeOperation = 'source-atop';
       g.fillStyle = `rgba(${fogCol.r * 255},${fogCol.g * 255},${fogCol.b * 255},${k})`;
