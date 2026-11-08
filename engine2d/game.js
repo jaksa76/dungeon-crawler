@@ -63,7 +63,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: await loadImage(`${uiAssetPath}/ui/panel.png`) },
     'ui/portrait-hero': { image: await loadImage(`${uiAssetPath}/ui/portrait-hero.png`) },
-  }, uiLayout);
+  }, uiLayout, { width: Math.max(cw, 320) }); // the panel is drawn at the view's pixel size (at least 320 wide)
   await Promise.all(['16px VT323', '700 16px "Pixelify Sans"'].map((f) => document.fonts.load(f).catch(() => {})));
 
   const p = { ...level.start, steps: 0 };

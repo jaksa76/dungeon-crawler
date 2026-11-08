@@ -3,7 +3,9 @@
 // The game supplies the image and the regions to overwrite (measured in the
 // image's own pixels): portrait window, HP/MP bars, minimap window, and the
 // compass letters to keep on top of the map. Everything is drawn on a canvas
-// 640 px wide; its height follows the image's aspect ratio.
+// `width` px wide (640 unless asked otherwise); its height follows the image's aspect
+// ratio. `height` is what the canvas would measure at UI_W, i.e. its height when shown
+// at the same size as a UI_W-wide canvas, whatever its own resolution.
 
 export const UI_W = 640;
 const FONT = 'VT323';
@@ -43,12 +45,13 @@ function extractLetters(panel, rects) {
   return c;
 }
 
-export function createUI(canvas, assets, layout) {
+export function createUI(canvas, assets, layout, { width = UI_W } = {}) {
   const g = canvas.getContext('2d');
   const panel = assets[layout.image].image;
-  const s = UI_W / panel.width;                      // panel pixels -> canvas pixels
+  const s = width / panel.width;                     // panel pixels -> canvas pixels
+  const k = width / UI_W;                            // sizes written for a UI_W-wide canvas -> this canvas
   const H = Math.round(panel.height * s);
-  canvas.width = UI_W; canvas.height = H;
+  canvas.width = width; canvas.height = H;
   const R = (r) => r.map((v) => v * s);               // scale a region
   const portrait = assets['ui/portrait-hero'].image;
   const letters = extractLetters(panel, layout.letters);
@@ -56,17 +59,19 @@ export function createUI(canvas, assets, layout) {
   function text(str, x, y, size, color, align = 'left') {
     g.font = `${size}px ${FONT}`; g.textAlign = align; g.textBaseline = 'middle';
     g.fillStyle = '#140c10';
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) g.fillText(str, x + dx, y + dy);
+    const o = Math.max(1, Math.round(k)); // outline thickness, whole pixels
+    for (const [dx, dy] of [[-o, 0], [o, 0], [0, -o], [0, o]]) g.fillText(str, x + dx, y + dy);
     g.fillStyle = color; g.fillText(str, x, y);
   }
 
   function bar(region, value, max, fill, light) {
     const [x, y, w, h] = R(region);
-    roundRect(g, x - 1, y - 1, w + 2, h + 2, h / 2 + 1, '#140c10');
+    const b = Math.max(1, Math.round(k)); // border thickness
+    roundRect(g, x - b, y - b, w + 2 * b, h + 2 * b, h / 2 + b, '#140c10');
     roundRect(g, x, y, w, h, h / 2, '#2a1418');
     const fw = Math.max(h, w * (value / max));
     roundRect(g, x, y, fw, h, h / 2, fill);
-    roundRect(g, x + h / 3, y + 1, fw - h * 2 / 3, h / 3, h / 6, light);
+    roundRect(g, x + h / 3, y + b, fw - h * 2 / 3, h / 3, h / 6, light);
     text(`${value} / ${max}`, x + w / 2, y + h / 2 + 1, Math.round(h * 1.3), '#ffffff', 'center');
   }
 
@@ -74,23 +79,24 @@ export function createUI(canvas, assets, layout) {
     const [x, y, w, h] = R(layout.map);
     g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
     g.fillStyle = '#0d0b10'; g.fillRect(x, y, w, h);
-    const cell = 7, view = 9;
+    const cell = Math.max(2, Math.round(7 * k)), view = 9, half = Math.floor(cell / 2);
     const cx = Math.round(x + w / 2), cy = Math.round(y + h / 2);
     for (let dz = -view; dz <= view; dz++) {
       for (let dx = -view; dx <= view; dx++) {
         const t = state.world.typeAt(state.tileX + dx, state.tileZ + dz);
         if (!t) continue;
         g.fillStyle = t.wall ? (t.low ? '#5a4e5e' : '#2e2632') : '#7a6a72';
-        g.fillRect(cx + dx * cell - 3, cy + dz * cell - 3, cell - 1, cell - 1);
+        g.fillRect(cx + dx * cell - half, cy + dz * cell - half, cell - 1, cell - 1);
       }
     }
     for (const b of state.world.billboards) {
       if (!b.entity.name) continue; // scenery
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#e0b040';
-      g.fillRect(Math.round(cx + dx * cell - 1), Math.round(cy + dz * cell - 1), 3, 3);
+      const m = Math.max(2, Math.round(3 * k));
+      g.fillRect(Math.round(cx + dx * cell - m / 2), Math.round(cy + dz * cell - m / 2), m, m);
     }
-    g.translate(cx, cy); g.rotate(-state.yaw);
+    g.translate(cx, cy); g.rotate(-state.yaw); g.scale(k, k);
     g.fillStyle = '#140c10'; g.beginPath(); g.moveTo(0, -7); g.lineTo(6, 6); g.lineTo(-6, 6); g.fill();
     g.fillStyle = '#ff3a20'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 4); g.lineTo(-4, 4); g.fill();
     g.restore();
@@ -99,7 +105,7 @@ export function createUI(canvas, assets, layout) {
   function draw(state) {
     g.imageSmoothingEnabled = true;
     g.imageSmoothingQuality = 'high';
-    g.drawImage(panel, 0, 0, UI_W, H);
+    g.drawImage(panel, 0, 0, width, H);
 
     // portrait: cover-fit into the window
     const [px, py, pw, ph] = R(layout.portrait);
@@ -109,8 +115,8 @@ export function createUI(canvas, assets, layout) {
     bar(layout.hp, state.hero.hp, state.hero.maxHp, '#c42424', '#ff7a60');
     bar(layout.mp, state.hero.mp, state.hero.maxMp, '#2454d0', '#7ab0ff');
     minimap(state);
-    g.drawImage(letters, 0, 0, UI_W, H);
+    g.drawImage(letters, 0, 0, width, H);
   }
 
-  return { draw, height: H };
+  return { draw, height: Math.round(panel.height * UI_W / panel.width) };
 }
