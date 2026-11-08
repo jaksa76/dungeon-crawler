@@ -1,7 +1,7 @@
-// Paint views of the 3x3 courtyard with ComfyUI.
+// Paint views of the courtyard with ComfyUI.
 //
 //   node generate.mjs --view 2,3,N             one view
-//   node generate.mjs --all                    all 36 views (skips ones that already exist unless --force)
+//   node generate.mjs --all                    all views (skips ones that already exist unless --force)
 //   options: --seed n  --out dir  --work dir  --depth 0.5  --depth-end 0.55  --style 0.45  --tag name
 //
 // Output: <out>/x<X>z<Z>-<N|E|S|W>.png (default game-1/assets/views). Guides go to <work> (temporary).

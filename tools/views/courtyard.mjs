@@ -1,60 +1,78 @@
-// The 3x3 courtyard of experiment 2 (game-2/quarter.js on the 2d-demo-comfyui-experiments branch),
-// plus the words the image model needs for each wall type and prop.
-// Coordinates: x grows east, z grows south. North is -z. Cell (x, z) spans x-0.5..x+0.5.
-
-// A, B shops flank a stair lane (V) that climbs to the castle; W is the waterfall and mill race east of the square.
+// The courtyard of experiment 3: a plus-shaped square of 5 open cells (20 views), plus the words the image model
+// needs for each wall type and prop. Coordinates: x grows east, z grows south. North is -z.
+//
+//   z0  # T V T R     V branching stairs up to the castle gate (scenery), T stone wall with a terrace and onlookers,
+//                     the two terraces joined by a footbridge over the foot of the stairs
+//   z1  # Z . R R     Z wizard's shop, R river (a cove and the river itself, with the far shore beyond)
+//   z2  I . . . R     I inn
+//   z3  # B . D R     B smith, D house with a door
+//   z4  # # G # #     G gatehouse: an arched passage out of the quarter
 export const tiles = [
-  '#AVB#',
-  'J...H',
-  'H...W',
-  'D...J',
-  '#H#H#',
+  '#TVTR',
+  '#Z.RR',
+  'I...R',
+  '#B.DR',
+  '##G##',
 ];
 
 // Per wall type: h = height of the eave in tiles (houses run out of the top of the frame), run = how far
-// the roof climbs back, far = the cell is open scenery that many tiles further away, not a wall.
+// the roof climbs back, far = the cell is open scenery that many tiles further away, not a wall,
+// scenery = what is built there (see proxy.mjs: stairs | river), water = open water, people = onlookers on top.
 export const wallInfo = {
-  H: { h: 2.6, run: 0.9 }, J: { h: 2.3, run: 0.9 }, D: { h: 2.6, run: 0.9 }, A: { h: 2.6, run: 0.9 }, B: { h: 2.6, run: 0.9 },
+  D: { h: 2.6, run: 0.9 }, B: { h: 2.6, run: 0.9 },
+  Z: { h: 2.8, run: 1.1 }, I: { h: 2.8, run: 0.9 }, G: { h: 2.1, run: 0 },
+  T: { h: 1.5, run: 0, people: 3 },
   '#': { h: 1.5, run: 0 },
-  V: { h: 1.7, run: 0, far: 6 },
-  W: { h: 1.9, run: 0, far: 5 },
+  V: { h: 1.7, run: 0, far: 6, scenery: 'stairs' },
+  R: { h: 0, run: 0, water: true, scenery: 'river', colour: 'stream' },
 };
 
 export const wallTypes = {
-  V: 'a wide stone staircase climbing between old timber houses with lanterns up to a gate, a dark castle with glowing windows on a hill above in the distance',
-  W: 'a waterfall tumbling into a stream beside a wooden water wheel and a stone bridge, mist, pine trees',
-  H: 'half-timbered medieval house, dark timber beams, cream plaster, warm glowing windows, flower boxes, jettied upper floor, tiled roof, ivy',
-  J: 'old stone and timber house, shuttered lit windows, dormer, chimney, hanging lantern, mossy tiled roof',
+  V: 'a wide stone staircase, a stone footbridge arching over its foot, that climbs to a landing with a lantern on a central pier, then splits into two flights left and right between old timber houses, up to a gate, a dark castle with glowing windows on a hill above in the distance',
+  R: 'a wide dark river with soft ripples reflecting lantern light, a stone quay with iron mooring rings, mist on the water',
   D: 'half-timbered house with a wooden front door, stone steps and an iron lantern, glowing windows, tiled roof',
-  A: "alchemist's shop with a hanging potion-bottle banner sign, red awning, glowing windows, crates and flowers, tiled roof",
+  I: 'a big half-timbered inn with a hanging painted sign, a warm glowing doorway and windows, a lantern, barrels by the door, a steep tiled roof with a chimney, smoke',
+  Z: "a wizard's shop in a crooked narrow tower, a hanging moon-and-star sign, blue-violet glowing windows, a telescope on the balcony, shelves of books and bottles in the window, a conical tiled roof",
   B: "blacksmith's shop with a hanging crossed-hammers sign, glowing forge windows, stone base, tiled roof",
+  G: 'a stone gatehouse with an open arched passage leading into darkness, an iron lantern in the arch, a raised portcullis, mossy stones',
+  T: 'a rough grey stone wall topped by a terrace with a stone balustrade, flower pots and a hanging lantern, joined to the matching terrace across the stair lane by a stone footbridge',
   '#': 'rough grey stone wall with a burning wall torch, big stone blocks, moss',
 };
 
-// size in tiles (w, h); `look` is what the image model is told.
+// Seen across the river from the cells on its bank (see proxy.mjs): houses and a mill on the far shore, waterfalls down a wooded cliff.
+export const farShore = {
+  houses: 'a few small, scattered half-timbered houses on the opposite shore of the river, warm glowing windows, tiled roofs, pine trees between them',
+  mill: 'a timber water mill with a big wooden water wheel turning in the river',
+  waterfalls: 'two waterfalls tumbling down a wooded cliff into the river, mist',
+};
+
+// size in tiles (w, h); `edge` = gap to the wall it stands against (default 0.12; small clutter hugs the wall); `look` is what the image model is told.
 export const props = {
-  stall: { w: 1.295, sideW: 0.475, h: 1.05, look: 'a market stall with a red striped awning, a hanging lantern and a bearded alchemist selling red and blue potions' },
   guard: { w: 0.416, h: 0.88, look: 'a town guard in a plumed helmet with a spear and a crimson cross shield' },
-  chest: { w: 0.289, h: 0.26, look: 'a wooden treasure chest with iron bands' },
+  chest: { w: 0.289, h: 0.26, edge: 0.03, look: 'a wooden treasure chest with iron bands' },
   hooded: { w: 0.326, h: 0.7, look: 'a stranger in a green hooded cloak' },
   lamppost: { w: 0.62, h: 1.35, look: 'an iron lamp post with a glowing lantern and a banner' },
   villager: { w: 0.266, h: 0.68, look: 'a woman villager in a white bonnet and brown dress' },
-  crate: { w: 0.265, h: 0.28, look: 'a wooden crate' },
+  crate: { w: 0.265, h: 0.28, edge: 0.03, look: 'a wooden crate' },
   well: { w: 0.619, h: 0.8, look: 'a round stone well with a wooden tiled roof, a hanging bucket and a lantern' },
-  barrel: { w: 0.231, h: 0.32, look: 'a wooden barrel' },
+  barrel: { w: 0.231, h: 0.32, edge: 0.03, look: 'a wooden barrel' },
+  boat: { w: 0.5, sideW: 0.24, h: 0.18, edge: 0.03, look: 'a small wooden rowing boat tied to the quay with a rope, an oar across it' },
 };
 
+export const start = { x: 2, z: 3, dir: 0 };
+
+// Static scenery only: anything that moves or changes (the hooded stranger, items, doors) is drawn on top by the engine.
+// Props stand against a tile side (at most one per side); the sides that face the centre are left free so the lanes stay open.
 export const entities = [
-  { prop: 'stall', name: "the alchemist's stall", x: 1, z: 2, side: 'W' },
-  { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
-  { prop: 'hooded', name: 'a hooded stranger', x: 2, z: 1, side: 'N' },
-  { prop: 'chest', name: 'a chest', x: 1, z: 3, side: 'W' },
-  { prop: 'lamppost', name: 'a lamp post', x: 3, z: 1, side: 'E' },
-  { prop: 'well', name: 'the well', x: 3, z: 2, side: 'E' },
-  { prop: 'villager', name: 'a villager', x: 3, z: 3, side: 'E' },
-  { prop: 'barrel', x: 3, z: 2, side: 'S' },
-  { prop: 'barrel', x: 3, z: 3, side: 'N' },
-  { prop: 'crate', x: 1, z: 2, side: 'S' },
+  { prop: 'guard', name: 'a town guard', x: 2, z: 1, side: 'W' },
+  { prop: 'crate', x: 2, z: 1, side: 'E' },
+  { prop: 'well', name: 'the well', x: 3, z: 2, side: 'N' },
+  { prop: 'boat', name: 'a rowing boat', x: 3, z: 2, side: 'E' },
+  { prop: 'villager', name: 'a villager', x: 3, z: 2, side: 'S' },
+  { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'S' },
+  { prop: 'barrel', x: 1, z: 2, side: 'N' },
+  { prop: 'chest', name: 'a chest', x: 2, z: 3, side: 'W' },
+  { prop: 'barrel', x: 2, z: 3, side: 'E' },
 ];
 
 export const cells = []; // every open cell

@@ -34,7 +34,7 @@ export const quarter = {
   name: 'Ravensmoor, the Old Quarter',
   tiles: [
     '#AHB#',
-    'J...H',
+    'J..DH',
     'H...D',
     'D...J',
     '#J#H#',
@@ -43,7 +43,7 @@ export const quarter = {
   entities: [
     { prop: 'stall', name: "the alchemist's stall", x: 2, z: 1, side: 'N' },
     { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
-    { prop: 'chest', name: 'a chest', x: 3, z: 1, side: 'N' },
+    { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N' },
     { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'E' },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },

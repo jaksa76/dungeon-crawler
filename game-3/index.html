@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Walk the views</title>
+<style>
+  :root { color-scheme: dark; --bg: #14101c; --panel: #1f1830; --ink: #e8e0f5; --dim: #9a8fb5; --line: #3a2f55; --warn: #ff8a65; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.4 system-ui, sans-serif; }
+  #app { display: flex; gap: 12px; padding: 12px; align-items: flex-start; flex-wrap: wrap; max-width: 1720px; margin: 0 auto; }
+  #stage { flex: 1 1 640px; min-width: 0; }
+  #view { width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; border: 2px solid var(--line); border-radius: 4px; image-rendering: pixelated; }
+  #hud { display: flex; justify-content: space-between; gap: 12px; margin: 6px 2px; color: var(--dim); }
+  #hud b { color: var(--ink); }
+  #side { flex: 0 0 300px; display: flex; flex-direction: column; gap: 12px; }
+  .box { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; }
+  h2 { margin: 0 0 8px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--dim); font-weight: 600; }
+  #map { width: 100%; image-rendering: pixelated; display: block; }
+  #legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+  #legend li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; }
+  #legend li > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #legend .sw { width: 22px; height: 16px; border: 1px solid #0008; border-radius: 2px; }
+  #legend .pc { color: var(--dim); font-variant-numeric: tabular-nums; }
+  #legend li.big .pc { color: var(--warn); font-weight: 600; }
+  #legend li.off { opacity: .45; }
+  #legend li[title] { cursor: help; }
+  .keys { color: var(--dim); font-size: 12px; }
+  kbd { background: #0006; border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; font: inherit; color: var(--ink); }
+  .note { color: var(--dim); font-size: 12px; margin: 8px 0 0; }
+  @media (max-width: 760px) { #side { flex-basis: 100%; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage">
+    <canvas id="view" width="1280" height="720"></canvas>
+    <div id="hud"><span id="where"></span><span id="source"></span></div>
+    <div class="keys box">
+      <kbd>↑</kbd>/<kbd>W</kbd> forward · <kbd>↓</kbd>/<kbd>S</kbd> back · <kbd>A</kbd>/<kbd>D</kbd> sidestep · <kbd>←</kbd>/<kbd>Q</kbd> <kbd>→</kbd>/<kbd>E</kbd> turn ·
+      <kbd>L</kbd> legend · <kbd>G</kbd> all colours · <kbd>P</kbd> proxies only · <kbd>B</kbd> blurred proxy
+    </div>
+  </div>
+  <div id="side">
+    <div class="box"><h2>Map <span id="progress" style="float:right;text-transform:none;letter-spacing:0"></span></h2><canvas id="map" width="400" height="400"></canvas>
+      <p class="note">Ticks on each cell: green = painted view, grey = still a proxy.</p></div>
+    <div class="box" id="legendBox"><h2>Colours in this view</h2><ul id="legend"></ul>
+      <p class="note">Dark lines on the floor are tile edges. Thin dark lines on blocks are only there to show their shape.</p></div>
+  </div>
+</div>
+<script type="module" src="main.js"></script>
+</body>
+</html>
