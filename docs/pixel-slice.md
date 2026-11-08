@@ -39,10 +39,12 @@ same lattice.
 ## Run it
 
 Serve the repository root (`python -m http.server 8000`) and open `/game-2/px.html`. The controls are
-the same as in the default demo, plus **P**: it switches how the low-resolution view is scaled up to the
-screen between **sampling** (nearest neighbour, crisp art pixels, the default) and **smooth scaling**
-(bilinear). The button under the help text shows the current mode and also toggles it; the choice is
-remembered in `localStorage` (when the browser allows it). The default demo is `/game-2/index.html`.
+the same as in the default demo, which has two display keys (both pages also show them as buttons): **P**
+switches how the view canvas is scaled up to the screen between **sampling** (nearest neighbour, crisp art
+pixels, the default) and **smooth scaling** (bilinear); **R** cycles the internal resolution (the default demo
+draws 640x360, 320x180 and 160x90 from the same painted slot images; the pixel slice has only its own
+160x90, so R just says so). Both choices are remembered in `localStorage` (`view-scaling`, `view-res`) when the
+browser allows it. The default demo is `/game-2/index.html`.
 
 ## What is in it
 
@@ -83,9 +85,10 @@ node tools/studio2d.mjs slice walls-house-a-1 game-2/px/art/painted/walls-house-
 - `engine2d/view.js`: an optional view setting `pixel: n`. Only when it is set, prop rectangles are whole
   pixels and slot masks grow by half a pixel instead of 0.75.
 - `engine2d/compositor.js`: only for a pixel view, `imageSmoothingEnabled = false` and no soft shadow.
-- `game-2/px.html` (not the engine) holds the sampling / smooth toggle: it sets `image-rendering` on the view canvas.
 - `engine2d/game.js`: the displayed size is `W * (view.pixel ?? 1)`; with no `pixel` setting it is exactly
-  what it was.
+  what it was. It also owns the display keys: P (sampling / smooth, via `image-rendering` on the view canvas)
+  and R (internal resolution: the view is composed in its own W x H coordinates and drawn into a smaller
+  canvas through a transform).
 - `tools/studio2d/plan.js`: `SHEET_PX`, and an optional `sheet` argument of `makePlan` and `sceneRect`.
 - `tools/studio2d/studio.js`: `studio.html?px` selects the pixel level, the `game-2/px/` folders, hard
   alpha for placeholders and the pixel slicer. Without `?px` nothing changes.

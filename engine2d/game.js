@@ -39,7 +39,9 @@ export function cellLookup(level, tileTypes, props) {
   };
 }
 
-export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status }) {
+// `scalingButton` and `resolutionButton` are optional elements that show and toggle the two display settings
+// (keys P and R). Returns { toggleScaling, cycleResolution }.
+export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, scalingButton, resolutionButton }) {
   const view = createView(level.view);
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1; // a pixel view is shown this many times larger (see view.js)
@@ -49,10 +51,28 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const comp = createCompositor(view, images);
   const cell = cellLookup(level, tileTypes, props);
 
-  viewCanvas.width = W; viewCanvas.height = H;
+  const stored = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const store = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable: not remembered */ } };
+
+  // Internal resolution: the view is always composed in its own W x H coordinates, but drawn into a canvas of
+  // `res` times that size (R cycles through them), so lower ones show the same picture with fewer, bigger
+  // pixels. A pixel view is built for one size (its art is baked at it), so it has only that.
+  const RESOLUTIONS = SHOWN > 1 ? [1] : [1, 0.5, 0.25];
+  let resIndex = Math.max(0, RESOLUTIONS.indexOf(Number(stored('view-res'))));
+  const size = () => [Math.round(W * RESOLUTIONS[resIndex]), Math.round(H * RESOLUTIONS[resIndex])];
+
   const g = viewCanvas.getContext('2d');
-  const prev = document.createElement('canvas'); prev.width = W; prev.height = H;
-  const next = document.createElement('canvas'); next.width = W; next.height = H;
+  const prev = document.createElement('canvas');
+  const next = document.createElement('canvas');
+  function sizeCanvases() {
+    const [w, h] = size();
+    for (const c of [viewCanvas, prev, next]) { c.width = w; c.height = h; }
+  }
+  sizeCanvases();
+
+  // How the canvas is scaled up to the screen: 'sampling' = nearest neighbour (crisp pixels, the default),
+  // 'smooth' = bilinear (P toggles).
+  let smooth = stored('view-scaling') === 'smooth';
 
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: await loadImage(`${uiAssetPath}/ui/panel.png`) },
@@ -101,6 +121,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   function render(target) {
     const tg = target.getContext('2d');
+    tg.setTransform(target.width / W, 0, 0, target.height / H, 0, 0);
+    tg.imageSmoothingQuality = 'high'; // shrinking painted slot images to a lower resolution
     comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines });
   }
 
@@ -124,12 +146,42 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     look();
   }
 
+  const scalingLabel = () => `Scaling: ${smooth ? 'smooth (bilinear)' : 'sampling (nearest neighbour)'} — press P`;
+  const resolutionLabel = () => `Resolution: ${size().join('x')}${RESOLUTIONS.length > 1 ? '' : ' (fixed)'} — press R`;
+  function applyDisplay() {
+    viewCanvas.style.imageRendering = smooth ? 'auto' : 'pixelated';
+    if (scalingButton) scalingButton.textContent = scalingLabel();
+    if (resolutionButton) resolutionButton.textContent = resolutionLabel();
+  }
+  function toggleScaling() {
+    smooth = !smooth;
+    store('view-scaling', smooth ? 'smooth' : 'sampling');
+    applyDisplay();
+    say(scalingLabel().replace(' — press P', ''));
+  }
+  function cycleResolution() {
+    resIndex = (resIndex + 1) % RESOLUTIONS.length;
+    if (RESOLUTIONS.length > 1) store('view-res', RESOLUTIONS[resIndex]);
+    sizeCanvases(); // resizing clears the canvases and resets their state: draw the current view again, no fade
+    render(next);
+    prev.getContext('2d').drawImage(next, 0, 0);
+    fade = null;
+    applyDisplay();
+    say(RESOLUTIONS.length > 1 ? resolutionLabel().replace(' — press R', '') : `Resolution is fixed at ${size().join('x')} in this view.`);
+  }
+  scalingButton?.addEventListener('click', () => { toggleScaling(); scalingButton.blur(); });
+  resolutionButton?.addEventListener('click', () => { cycleResolution(); resolutionButton.blur(); });
+  applyDisplay();
+
   const keymap = {
     KeyW: 'forward', ArrowUp: 'forward', KeyS: 'back', ArrowDown: 'back', KeyA: 'strafeLeft', KeyD: 'strafeRight',
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
+    if (ev.repeat) return;
+    if (ev.code === 'KeyP') toggleScaling();
+    if (ev.code === 'KeyR') cycleResolution();
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
 
@@ -170,4 +222,5 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
+  return { toggleScaling, cycleResolution };
 }
