@@ -1,6 +1,8 @@
 import { createView } from './view.js';
 import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
+import { drawText } from '../engine/bitmapfont.js';
+import { font5x8 as FONT } from '../engine/font-5x8.js';
 
 // Grid crawler drawn by 2D compositing: every step and turn shows a new
 // composite of pre-painted slot images (see view.js). Movement is instant with a
@@ -60,11 +62,13 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const prev = document.createElement('canvas'); prev.width = cw; prev.height = ch;
   const next = document.createElement('canvas'); next.width = cw; next.height = ch;
 
+  // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
+  // use a bitmap font: a scalable one is too blurry at this size.
+  const PW = Math.max(cw, 320);
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: await loadImage(`${uiAssetPath}/ui/panel.png`) },
     'ui/portrait-hero': { image: await loadImage(`${uiAssetPath}/ui/portrait-hero.png`) },
-  }, uiLayout, { width: Math.max(cw, 320) }); // the panel is drawn at the view's pixel size (at least 320 wide)
-  await Promise.all(['16px VT323', '700 16px "Pixelify Sans"'].map((f) => document.fonts.load(f).catch(() => {})));
+  }, uiLayout, { width: PW, font: FONT });
 
   const p = { ...level.start, steps: 0 };
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
@@ -76,9 +80,13 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   window.__game2d = { view, images, level, p };
 
   // Log: messages over the bottom-left of the view, fading out.
-  const logEl = document.createElement('div');
-  logEl.className = 'log';
-  frame.appendChild(logEl);
+  const LOG_LINES = 4, LOG_PITCH = FONT.h + 1, LOG_PAD = 2;
+  const logCanvas = document.createElement('canvas');
+  logCanvas.className = 'log';
+  logCanvas.width = PW; logCanvas.height = LOG_LINES * LOG_PITCH + LOG_PAD;
+  frame.appendChild(logCanvas);
+  const lg = logCanvas.getContext('2d');
+  const maxChars = Math.floor((PW - 2 * LOG_PAD) / FONT.w);
   const log = [];
   function say(text) {
     log.push({ text, t: performance.now() });
@@ -110,6 +118,23 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     tg.setTransform(target.width / W, 0, 0, target.height / H, 0, 0);
     tg.imageSmoothingQuality = 'high'; // shrinking the painted slot images to the internal resolution
     comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines });
+  }
+
+  // Messages stay for 7 s, then fade out over 1 s. Redrawn only when something changed.
+  let logKey = '';
+  function drawLog(now) {
+    const alphas = log.map((m) => Math.min(1, Math.max(0, 1 - (now - m.t - 7000) / 1000)));
+    const key = log.map((m, i) => `${m.text}@${alphas[i].toFixed(2)}`).join('|');
+    if (key === logKey) return;
+    logKey = key;
+    lg.clearRect(0, 0, logCanvas.width, logCanvas.height);
+    log.forEach((m, i) => {
+      if (alphas[i] <= 0) return;
+      lg.globalAlpha = alphas[i];
+      const y = logCanvas.height - LOG_PAD - (log.length - i) * LOG_PITCH;
+      drawText(lg, FONT, m.text.slice(0, maxChars), LOG_PAD, y, '#f0e4c8', { outline: '#000' });
+    });
+    lg.globalAlpha = 1;
   }
 
   let fade = null;
@@ -154,9 +179,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
     viewCanvas.style.height = `${DH * scale}px`;
     uiCanvas.style.height = `${ui.height * scale}px`;
-    logEl.style.fontSize = `${16 * scale}px`;
-    logEl.style.left = `${8 * scale}px`;
-    logEl.style.bottom = `${(ui.height + 6) * scale}px`;
+    logCanvas.style.width = `${DW * scale}px`;
+    logCanvas.style.height = `${logCanvas.height * DW * scale / PW}px`;
+    logCanvas.style.bottom = `${ui.height * scale}px`;
   }
   window.addEventListener('resize', resize);
   resize();
@@ -173,8 +198,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     g.globalAlpha = k; g.drawImage(next, 0, 0);
     g.globalAlpha = 1;
     if (k >= 1) fade = null;
-    const html = log.map((m) => `<div style="opacity:${now - m.t < 7000 ? 1 : 0}">${m.text}</div>`).join('');
-    if (logEl._html !== html) { logEl.innerHTML = html; logEl._html = html; }
+    drawLog(now);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

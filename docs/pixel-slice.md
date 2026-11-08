@@ -84,6 +84,11 @@ node tools/studio2d.mjs slice walls-house-a-1 game-2/px/art/painted/walls-house-
 - `engine2d/game.js`: the displayed size is `W * (view.pixel ?? 1)`; with no `pixel` setting it is exactly
   what it was. A view without `pixel` is drawn into a half-size canvas (320x180 for the 640x360 view) through
   a transform and shown with nearest-neighbour sampling; a pixel view is drawn at its own size.
+  The UI panel and the message log are drawn at the view's pixel size (at least 320 wide) with a bitmap font:
+  `engine/bitmapfont.js` draws glyph bits pixel by pixel, `engine/font-5x8.js` is the X11 misc-fixed 5x8 font
+  (public domain) converted by `tools/bdf2js.mjs` from `tools/fonts/misc-fixed-5x8.bdf`. Scalable fonts (VT323,
+  Pixelify Sans, Silkscreen, Tiny5) were tried and are anti-aliased into mush at this size, so they are not used.
+  `createUI` only uses the bitmap font when given one (`{ font }`); the 3D demo still uses VT323.
 - `tools/studio2d/plan.js`: `SHEET_PX`, and an optional `sheet` argument of `makePlan` and `sceneRect`.
 - `tools/studio2d/studio.js`: `studio.html?px` selects the pixel level, the `game-2/px/` folders, hard
   alpha for placeholders and the pixel slicer. Without `?px` nothing changes.

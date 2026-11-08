@@ -7,6 +7,8 @@
 // ratio. `height` is what the canvas would measure at UI_W, i.e. its height when shown
 // at the same size as a UI_W-wide canvas, whatever its own resolution.
 
+import { drawText, digitRows } from './bitmapfont.js';
+
 export const UI_W = 640;
 const FONT = 'VT323';
 
@@ -45,7 +47,9 @@ function extractLetters(panel, rects) {
   return c;
 }
 
-export function createUI(canvas, assets, layout, { width = UI_W } = {}) {
+// `font`: an optional bitmap font (engine/bitmapfont.js) for the numbers, instead of the VT323 web font. Use
+// it for a small canvas, where a scalable font is too blurry to read.
+export function createUI(canvas, assets, layout, { width = UI_W, font } = {}) {
   const g = canvas.getContext('2d');
   const panel = assets[layout.image].image;
   const s = width / panel.width;                     // panel pixels -> canvas pixels
@@ -57,6 +61,11 @@ export function createUI(canvas, assets, layout, { width = UI_W } = {}) {
   const letters = extractLetters(panel, layout.letters);
 
   function text(str, x, y, size, color, align = 'left') {
+    if (font) { // x, y: the middle of the text
+      const [r0, r1] = digitRows(font);
+      drawText(g, font, str, x, y - (r0 + r1) / 2, color, { outline: '#140c10', align });
+      return;
+    }
     g.font = `${size}px ${FONT}`; g.textAlign = align; g.textBaseline = 'middle';
     g.fillStyle = '#140c10';
     const o = Math.max(1, Math.round(k)); // outline thickness, whole pixels
@@ -65,14 +74,14 @@ export function createUI(canvas, assets, layout, { width = UI_W } = {}) {
   }
 
   function bar(region, value, max, fill, light) {
-    const [x, y, w, h] = R(region);
+    const [x, y, w, h] = font ? R(region).map(Math.round) : R(region); // pixel-aligned on a small canvas
     const b = Math.max(1, Math.round(k)); // border thickness
     roundRect(g, x - b, y - b, w + 2 * b, h + 2 * b, h / 2 + b, '#140c10');
     roundRect(g, x, y, w, h, h / 2, '#2a1418');
     const fw = Math.max(h, w * (value / max));
     roundRect(g, x, y, fw, h, h / 2, fill);
     roundRect(g, x + h / 3, y + b, fw - h * 2 / 3, h / 3, h / 6, light);
-    text(`${value} / ${max}`, x + w / 2, y + h / 2 + 1, Math.round(h * 1.3), '#ffffff', 'center');
+    text(`${value} / ${max}`, x + w / 2, y + h / 2 + (font ? 0 : 1), Math.round(h * 1.3), '#ffffff', 'center');
   }
 
   function minimap(state) {
