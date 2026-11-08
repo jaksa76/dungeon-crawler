@@ -1,0 +1,59 @@
+{
+ "about": "OKLab statistics of non-glint pixels used by tools/comfy/floorgrade.py (measured 2026-11-08). walls_band = the 60 px of wall just above the floor edge in the start view (stone bases, timber, plaster); walls_all = the whole wall area below the roofs; a5_target = game-2/art/ref/floor-colour.png; old_placeholder = the projected-texture floor from experiment 1.",
+ "walls_band": {
+  "mean": [
+   0.3715,
+   0.0345,
+   0.0125
+  ],
+  "std": [
+   0.091,
+   0.0247,
+   0.0214
+  ],
+  "hue": 20.0,
+  "chroma": 0.0368
+ },
+ "walls_all": {
+  "mean": [
+   0.3749,
+   0.0345,
+   0.0149
+  ],
+  "std": [
+   0.116,
+   0.0222,
+   0.0194
+  ],
+  "hue": 23.3,
+  "chroma": 0.0375
+ },
+ "old_placeholder": {
+  "mean": [
+   0.3807,
+   0.0453,
+   -0.017
+  ],
+  "std": [
+   0.089,
+   0.014,
+   0.0193
+  ],
+  "hue": 339.4,
+  "chroma": 0.0484
+ },
+ "a5_target": {
+  "mean": [
+   0.4549,
+   0.0457,
+   0.0029
+  ],
+  "std": [
+   0.0757,
+   0.0173,
+   0.0193
+  ],
+  "hue": 3.7,
+  "chroma": 0.0458
+ }
+}

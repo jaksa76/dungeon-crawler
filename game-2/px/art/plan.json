@@ -1,0 +1,3504 @@
+{
+  "view": {
+    "W": 160,
+    "H": 90,
+    "fovY": 50,
+    "eye": 0.55,
+    "back": 0.4,
+    "wallH": 1.5,
+    "ridgeH": 2.1,
+    "top": 2.4,
+    "maxDepth": 3,
+    "minArea": 2,
+    "edge": 0.12,
+    "pixel": 4
+  },
+  "sheet": {
+    "w": 1280,
+    "h": 720,
+    "cols": 1,
+    "rows": 1
+  },
+  "whole": {
+    "floor": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 720
+    },
+    "backdrop": []
+  },
+  "sheets": [
+    {
+      "name": "walls-house-a-1",
+      "scenes": [
+        {
+          "art": "house-a",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-a-2",
+      "scenes": [
+        {
+          "art": "house-a",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-a-3",
+      "scenes": [
+        {
+          "art": "house-a",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-a-4",
+      "scenes": [
+        {
+          "art": "house-a",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-b-1",
+      "scenes": [
+        {
+          "art": "house-b",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-b-2",
+      "scenes": [
+        {
+          "art": "house-b",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-b-3",
+      "scenes": [
+        {
+          "art": "house-b",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-b-4",
+      "scenes": [
+        {
+          "art": "house-b",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-door-1",
+      "scenes": [
+        {
+          "art": "house-door",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-door-2",
+      "scenes": [
+        {
+          "art": "house-door",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-door-3",
+      "scenes": [
+        {
+          "art": "house-door",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-house-door-4",
+      "scenes": [
+        {
+          "art": "house-door",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-alchemist-1",
+      "scenes": [
+        {
+          "art": "shop-alchemist",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-alchemist-2",
+      "scenes": [
+        {
+          "art": "shop-alchemist",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-alchemist-3",
+      "scenes": [
+        {
+          "art": "shop-alchemist",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-alchemist-4",
+      "scenes": [
+        {
+          "art": "shop-alchemist",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-smith-1",
+      "scenes": [
+        {
+          "art": "shop-smith",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-smith-2",
+      "scenes": [
+        {
+          "art": "shop-smith",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-smith-3",
+      "scenes": [
+        {
+          "art": "shop-smith",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-shop-smith-4",
+      "scenes": [
+        {
+          "art": "shop-smith",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-stone-wall-1",
+      "scenes": [
+        {
+          "art": "stone-wall",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              0
+            ]
+          ],
+          "slots": [
+            "front-d1-l0",
+            "front-d1-l1",
+            "side-d0-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-stone-wall-2",
+      "scenes": [
+        {
+          "art": "stone-wall",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              1
+            ]
+          ],
+          "slots": [
+            "front-d2-l0",
+            "front-d2-l1",
+            "side-d1-l1",
+            "side-d1-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-stone-wall-3",
+      "scenes": [
+        {
+          "art": "stone-wall",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "front-d3-l0",
+            "front-d3-l1",
+            "front-d3-l2",
+            "side-d2-l2",
+            "front-d2-l2",
+            "side-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "walls-stone-wall-4",
+      "scenes": [
+        {
+          "art": "stone-wall",
+          "kind": "walls",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              3,
+              3
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "side-d3-l3",
+            "side-d2-l1",
+            "side-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-1",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-near-d1-l1",
+            "prop-left-d1-l1",
+            "prop-near-d2-l1",
+            "prop-far-d2-l1",
+            "prop-near-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-2",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-far-d1-l1",
+            "prop-left-d2-l1",
+            "prop-right-d2-l1",
+            "prop-far-d2-l2",
+            "prop-right-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-3",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-near-d3-l2",
+            "prop-left-d3-l1",
+            "prop-left-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-4",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0",
+            "prop-right-d3-l2",
+            "prop-far-d3-l1",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-5",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-near-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-6",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-7",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-8",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-9",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-10",
+      "scenes": [
+        {
+          "art": "guard",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-11",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-left-d1-l1",
+            "prop-far-d1-l1",
+            "prop-left-d2-l1",
+            "prop-left-d2-l2",
+            "prop-far-d2-l1",
+            "prop-far-d2-l2",
+            "prop-left-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-12",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ],
+            [
+              3,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-near-d2-l1",
+            "prop-right-d2-l1",
+            "prop-near-d3-l1",
+            "prop-near-d3-l2",
+            "prop-right-d3-l1",
+            "prop-right-d3-l2",
+            "prop-far-d3-l3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-13",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-near-d2-l0",
+            "prop-left-d3-l2",
+            "prop-far-d3-l1",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-14",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-15",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0",
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-16",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-17",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-18",
+      "scenes": [
+        {
+          "art": "villager",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-19",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -3,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-near-d1-l1",
+            "prop-left-d1-l1",
+            "prop-near-d2-l1",
+            "prop-left-d2-l1",
+            "prop-left-d2-l2",
+            "prop-near-d3-l1",
+            "prop-far-d3-l3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-20",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -2,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-far-d1-l1",
+            "prop-right-d2-l1",
+            "prop-far-d2-l1",
+            "prop-far-d2-l2",
+            "prop-near-d3-l2",
+            "prop-left-d3-l1",
+            "prop-right-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-21",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-left-d3-l2",
+            "prop-right-d3-l2",
+            "prop-far-d3-l0",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-22",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-23",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-near-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-24",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-25",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-26",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-27",
+      "scenes": [
+        {
+          "art": "hooded",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-28",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-29",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              1,
+              0
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l1",
+            "prop-near-d1-l1",
+            "prop-near-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-30",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-31",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-32",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-near-d2-l1",
+            "prop-far-d2-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-33",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-34",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-35",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              1,
+              3
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l1",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-36",
+      "scenes": [
+        {
+          "art": "stall",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-37",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-near-d1-l1",
+            "prop-far-d2-l2",
+            "prop-left-d3-l2",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-38",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-far-d1-l1",
+            "prop-near-d2-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-39",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-left-d2-l1",
+            "prop-right-d2-l1",
+            "prop-near-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-40",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0",
+            "prop-far-d2-l1",
+            "prop-near-d3-l1",
+            "prop-right-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-41",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d2-l0",
+            "prop-left-d3-l1",
+            "prop-right-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-42",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-43",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-44",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-45",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-46",
+      "scenes": [
+        {
+          "art": "well",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-47",
+      "scenes": [
+        {
+          "art": "barrel",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              3,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-left-d1-l1",
+            "prop-far-d1-l1",
+            "prop-near-d2-l0",
+            "prop-left-d2-l1",
+            "prop-left-d2-l2",
+            "prop-far-d2-l1",
+            "prop-far-d2-l2",
+            "prop-left-d3-l1",
+            "prop-left-d3-l2",
+            "prop-far-d3-l1",
+            "prop-far-d3-l3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-48",
+      "scenes": [
+        {
+          "art": "barrel",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-near-d2-l1",
+            "prop-right-d2-l0",
+            "prop-right-d2-l1",
+            "prop-near-d3-l0",
+            "prop-near-d3-l1",
+            "prop-near-d3-l2",
+            "prop-right-d3-l1",
+            "prop-right-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-49",
+      "scenes": [
+        {
+          "art": "barrel",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-far-d2-l0",
+            "prop-right-d3-l0",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-50",
+      "scenes": [
+        {
+          "art": "barrel",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-51",
+      "scenes": [
+        {
+          "art": "barrel",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-52",
+      "scenes": [
+        {
+          "art": "crate",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-left-d1-l1",
+            "prop-far-d1-l0",
+            "prop-far-d1-l1",
+            "prop-left-d2-l1",
+            "prop-left-d2-l2",
+            "prop-far-d2-l1",
+            "prop-far-d2-l2",
+            "prop-left-d3-l1",
+            "prop-left-d3-l2",
+            "prop-far-d3-l0",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-53",
+      "scenes": [
+        {
+          "art": "crate",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ],
+            [
+              3,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-near-d2-l0",
+            "prop-near-d2-l1",
+            "prop-right-d2-l1",
+            "prop-near-d3-l1",
+            "prop-near-d3-l2",
+            "prop-right-d3-l1",
+            "prop-right-d3-l2",
+            "prop-far-d3-l3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-54",
+      "scenes": [
+        {
+          "art": "crate",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-far-d2-l0",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-55",
+      "scenes": [
+        {
+          "art": "crate",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0",
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-56",
+      "scenes": [
+        {
+          "art": "crate",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-57",
+      "scenes": [
+        {
+          "art": "chest",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              0,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              2,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              2
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-left-d1-l1",
+            "prop-far-d1-l0",
+            "prop-far-d1-l1",
+            "prop-left-d2-l1",
+            "prop-left-d2-l2",
+            "prop-far-d2-l1",
+            "prop-far-d2-l2",
+            "prop-left-d3-l1",
+            "prop-left-d3-l2",
+            "prop-right-d3-l0",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-58",
+      "scenes": [
+        {
+          "art": "chest",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              2,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              -2,
+              3
+            ],
+            [
+              0,
+              3
+            ],
+            [
+              3,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-near-d2-l0",
+            "prop-near-d2-l1",
+            "prop-right-d2-l1",
+            "prop-near-d3-l1",
+            "prop-near-d3-l2",
+            "prop-right-d3-l1",
+            "prop-right-d3-l2",
+            "prop-far-d3-l0",
+            "prop-far-d3-l3"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-59",
+      "scenes": [
+        {
+          "art": "chest",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-far-d2-l0",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-60",
+      "scenes": [
+        {
+          "art": "chest",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0",
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-61",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              0
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d0-l0",
+            "prop-near-d1-l1",
+            "prop-left-d1-l1",
+            "prop-left-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-62",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              1
+            ],
+            [
+              -1,
+              1
+            ]
+          ],
+          "slots": [
+            "prop-near-d1-l0",
+            "prop-right-d1-l1",
+            "prop-far-d1-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-63",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d1-l0",
+            "prop-near-d2-l1",
+            "prop-left-d2-l1",
+            "prop-near-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-64",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              1
+            ],
+            [
+              1,
+              2
+            ],
+            [
+              -1,
+              2
+            ],
+            [
+              -2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d1-l0",
+            "prop-right-d2-l1",
+            "prop-far-d2-l1",
+            "prop-right-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-65",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -1,
+              3
+            ],
+            [
+              2,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d2-l0",
+            "prop-near-d3-l1",
+            "prop-left-d3-l1",
+            "prop-far-d3-l2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-66",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ],
+            [
+              1,
+              3
+            ],
+            [
+              -1,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d2-l0",
+            "prop-right-d3-l1",
+            "prop-far-d3-l1"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-67",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              2
+            ]
+          ],
+          "slots": [
+            "prop-far-d2-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-68",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-near-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-69",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-right-d3-l0"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "props-70",
+      "scenes": [
+        {
+          "art": "lamppost",
+          "kind": "props",
+          "rect": {
+            "x": 0,
+            "y": 0,
+            "w": 1280,
+            "h": 720,
+            "scale": 8
+          },
+          "cells": [
+            [
+              0,
+              3
+            ]
+          ],
+          "slots": [
+            "prop-far-d3-l0"
+          ]
+        }
+      ]
+    }
+  ]
+}

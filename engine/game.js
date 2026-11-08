@@ -3,8 +3,9 @@ import { loadAssets } from './assets.js';
 import { buildWorld } from './world.js';
 import { buildBackdrop } from './backdrop.js';
 import { createUI } from './ui.js';
+import { dressLevel } from './dressing.js';
+import { DEFAULT_SCALE } from './layout.js';
 
-const EYE = 0.55;          // eye height in tiles
 const CAM_BACK = 0.3;      // camera sits this far behind the tile centre
 const MOVE_MS = 200, TURN_MS = 160;
 const VIEW_W = 640, VIEW_H = 360; // 3D view; the UI panel goes below it
@@ -13,8 +14,11 @@ const DIR_NAMES = ['north', 'east', 'south', 'west'];
 
 const ease = (t) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
-export async function startGame({ level, tileTypes, manifest, uiLayout, assetPath, viewCanvas, uiCanvas, frame, status }) {
+export async function startGame({ level: baseLevel, tileTypes, manifest, uiLayout, assetPath, viewCanvas, uiCanvas, frame, status }) {
   const assets = await loadAssets(manifest, assetPath);
+  const level = dressLevel(baseLevel, tileTypes, assets);
+  const scale = { ...DEFAULT_SCALE, ...level.scale };
+  const EYE = scale.eye / scale.tile; // eye height in tiles
   const realCount = Object.values(assets).filter((a) => a.real).length;
 
   const renderer = new THREE.WebGLRenderer({ canvas: viewCanvas, antialias: false });
@@ -38,7 +42,7 @@ export async function startGame({ level, tileTypes, manifest, uiLayout, assetPat
   await Promise.all(['16px VT323', '700 16px "Pixelify Sans"', '400 10px "Pixelify Sans"'].map((f) => document.fonts.load(f).catch(() => {})));
   const ui = createUI(uiCanvas, assets, uiLayout);
   const UI_H = ui.height;
-  window.__game = { scene, camera, renderer, assets, world };
+  window.__game = { scene, camera, renderer, assets, world, level };
 
   // --- options
   const opts = { smooth: true, fog: true, farSwap: true, lightsOn: true, ink: true };

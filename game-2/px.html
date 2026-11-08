@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Old Quarter Demo (pixel slice)</title>
+  <style>
+    :root { --bg: #08060c; --fg: #b8aecb; --dim: #6f6684; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.4 monospace; }
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
+    .frame { position: relative; box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
+    .frame canvas { display: block; image-rendering: pixelated; }
+    .log { position: absolute; left: 0; pointer-events: none; }
+    .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
+    .help b { color: var(--fg); }
+  </style>
+</head>
+<body>
+  <div class="frame" id="frame">
+    <canvas id="view"></canvas>
+    <canvas id="ui"></canvas>
+  </div>
+  <div class="help">
+    <span id="res">pixel slice</span> · <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn · <b>O</b> slot outlines
+  </div>
+  <div class="help" id="status">Loading…</div>
+  <script type="module">
+    import { startGame2d } from '../engine2d/game.js';
+    import { quarterPx, tileTypes, props, PX } from './quarter-px.js';
+    import { uiLayout } from '../game-1/town.js';
+
+    document.getElementById('res').textContent = `${PX.width}x${PX.height} pixel slice`;
+    startGame2d({
+      level: quarterPx, tileTypes, props, uiLayout,
+      assetPath: './px/assets', uiAssetPath: '../game-1/assets',
+      viewCanvas: document.getElementById('view'),
+      uiCanvas: document.getElementById('ui'),
+      frame: document.getElementById('frame'),
+      status: document.getElementById('status'),
+    }).catch((e) => { document.getElementById('status').textContent = 'Error: ' + e.message; console.error(e); });
+  </script>
+</body>
+</html>

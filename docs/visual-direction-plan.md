@@ -1,5 +1,8 @@
 # Visual Direction Plan — getting from "experiment 1" to the concept art
 
+> **Paused (Nov 2026).** Work moved to 2D compositing — see
+> [`2d-compositing-plan.md`](2d-compositing-plan.md) and `game-2/`.
+
 ## Where we are
 
 Experiment 1 (the town square demo in `game-1/`) proved the hybrid renderer works:
@@ -127,6 +130,34 @@ engine.
 6. **World-generation test** (option 7): time-boxed; concept art in, walk it on the grid.
 
 Experiments 1 and 3 are independent and can run in parallel.
+
+## Progress
+
+### Experiment 3, first pass: scale and density with placeholder art (rejected)
+
+![Variants](screenshots/density-pass-variants.png)
+
+Tried: real-world scale (people ~1.75 m instead of ~2.6 m), 2–4 storey jettied
+houses stacked from the facade art, and rule-based dressing (flower boxes, ivy,
+lanterns, signs, wall-base and corner clutter, weeds, puddles) drawn as
+procedural placeholders. **It looked worse than experiment 1**, and the variants
+show why:
+
+- **Shrinking people and props to realistic size was wrong.** The concept draws
+  them larger than life; at 1.75 m they become specks and the floor dominates even
+  more (B vs A).
+- **Tall stacked facades read as apartment blocks**: the same window repeated in
+  a grid, dark side walls, and the sky and castle squeezed (D).
+- **Placeholder props hurt more than they help.** Crude, flat sprites next to
+  painted art are the most eye-catching things in the frame (E).
+- **More of the same real props adds nothing** (barrels and crates only: F ≈ A).
+
+Density has to come from *art*, not from rules scattering whatever exists, and
+the scale should stay stylised. The town is back to experiment 1's look. The
+engine keeps the new capabilities, off by default: metric heights
+(`level.scale`), storey stacking with jetties, roof pitch and chimneys
+(`engine/layout.js`), seeded dressing (`engine/dressing.js`, enabled by
+`level.dressing`; `only` restricts the prop set), floor decals and stacked props.
 
 ## Open questions
 

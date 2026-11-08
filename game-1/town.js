@@ -1,15 +1,18 @@
 // Town square experiment — aims to recreate docs/concept-toonish.png.
 // Coordinates: x grows east, z grows south. North is -z. One tile = 1 unit.
+// Heights (`height`, `y`) are in metres; see `scale` on the level.
 
 export const manifest = {
   // environment
   'textures/cobblestone': { gen: 'cobble', repeat: true, heightMap: true },
   'textures/roof-tiles': { gen: 'roof', repeat: true },
-  'textures/house-timber-a': { gen: 'facade:a', glow: true },
-  'textures/house-timber-b': { gen: 'facade:b', glow: true },
-  'textures/house-door': { gen: 'facade:door', glow: true },
-  'textures/shop-alchemist': { gen: 'facade:alchemist', glow: true },
-  'textures/shop-smith': { gen: 'facade:smith', glow: true },
+  // Facades: `storeys` = [top of ground storey, top of upper storey] as texture v
+  // (0 = bottom); above the second value is the eave strip.
+  'textures/house-timber-a': { gen: 'facade:a', glow: true, storeys: [0.47, 0.9] },
+  'textures/house-timber-b': { gen: 'facade:b', glow: true, storeys: [0.47, 0.9] },
+  'textures/house-door': { gen: 'facade:door', glow: true, storeys: [0.47, 0.9] },
+  'textures/shop-alchemist': { gen: 'facade:alchemist', glow: true, storeys: [0.47, 0.9] },
+  'textures/shop-smith': { gen: 'facade:smith', glow: true, storeys: [0.47, 0.9] },
   'textures/stone-wall': { gen: 'stoneWall' },
   'textures/parapet': { gen: 'parapet' },
   // backdrop
@@ -55,12 +58,15 @@ export const uiLayout = {
 };
 
 // Wall types. `faces` are picked per face (deterministically) for variety.
+// Houses are one ground + one upper storey at the facade art's native size
+// (engine/layout.js supports more storeys, jetties, roof pitch and chimneys).
+const HOUSE = { wall: true, roof: true, storeys: [2, 2], roofHeight: [1.8, 1.8] };
 export const tileTypes = {
   '.': { floor: true },
-  H: { wall: true, faces: ['textures/house-timber-a', 'textures/house-timber-b'], roof: true },
-  D: { wall: true, faces: ['textures/house-door'], roof: true },
-  A: { wall: true, faces: ['textures/shop-alchemist'], roof: true },
-  B: { wall: true, faces: ['textures/shop-smith'], roof: true },
+  H: { ...HOUSE, faces: ['textures/house-timber-a', 'textures/house-timber-b'] },
+  D: { ...HOUSE, faces: ['textures/house-door'] },
+  A: { ...HOUSE, faces: ['textures/shop-alchemist'] },
+  B: { ...HOUSE, faces: ['textures/shop-smith'] },
   '#': { wall: true, faces: ['textures/stone-wall'] },
   '=': { wall: true, faces: ['textures/parapet'], low: true },
 };
@@ -79,11 +85,15 @@ export const town = {
     'HHHHHHHHH',
   ],
   start: { x: 4, z: 7, dir: 0 },
+  // A tile is 3 m. Characters and props are drawn larger than life, as in the
+  // concept art; storeys match the facade art's native proportions.
+  scale: { tile: 3, eye: 1.65, ground: 2.1, storey: 1.94, jetty: 0 },
+  lightRange: 7,
 
-  // Billboards. `height` is in tiles; width comes from the image aspect.
-  // `light` attaches a point light (y in tiles above floor).
+  // Billboards. `height` (metres) is the visible figure; width comes from the image.
+  // `light` attaches a point light (y in metres).
   entities: [
-    { sprite: 'sprites/prop-stall', name: "the alchemist's stall", x: 1.1, z: 3, height: 1.05, block: true,
+    { sprite: 'sprites/prop-stall', name: "the alchemist's stall", x: 1.1, z: 3, height: 3.15, block: true,
       // The stall faces the square (east). Seen from the street it turns: the side views
       // are named by the way it faces on screen (the *-front-* files are the three-quarter
       // views: front-right shows it turned to the left, front-left turned to the right).
@@ -92,28 +102,28 @@ export const town = {
         sideLeft: 'sprites/prop-stall-left', sideRight: 'sprites/prop-stall-right',
         threeQuarterLeft: 'sprites/prop-stall-front-right', threeQuarterRight: 'sprites/prop-stall-front-left',
       },
-      light: { color: '#ffb050', intensity: 1.6, y: 0.8, flicker: 0.1 } },
-    { sprite: 'sprites/prop-chest', name: 'a chest', x: 1.2, z: 4.3, height: 0.26, block: true },
-    { sprite: 'sprites/prop-crate', name: 'a crate', x: 2.0, z: 4.6, height: 0.28 },
-    { sprite: 'sprites/npc-guard', far: 'sprites/npc-guard-far', name: 'a town guard', x: 3, z: 2, height: 0.88, block: true },
-    { sprite: 'sprites/npc-hooded', name: 'a hooded stranger', x: 5, z: 1, height: 0.7, block: true },
-    { sprite: 'sprites/npc-villager', far: 'sprites/npc-villager-far', name: 'a villager', x: 6, z: 4, height: 0.68, block: true },
-    { sprite: 'sprites/prop-well', name: 'the well', x: 6, z: 2, height: 0.8, block: true },
-    { sprite: 'sprites/prop-barrel', name: 'a barrel', x: 6.65, z: 2.9, height: 0.32 },
-    { sprite: 'sprites/prop-banner', name: 'a banner', x: 2, z: 1, height: 1.4, block: true, shadowWidth: 0.3 },
-    { sprite: 'sprites/prop-lamppost', name: 'a lamp post', x: 1, z: 2, height: 1.35, block: true, shadowWidth: 0.3,
-      light: { color: '#ffc060', intensity: 2.2, y: 1.1, flicker: 0.05 } },
-    { sprite: 'sprites/prop-lamppost', name: 'a lamp post', x: 7, z: 4, height: 1.35, block: true, shadowWidth: 0.3,
-      light: { color: '#ffc060', intensity: 2.2, y: 1.1, flicker: 0.05 } },
+      light: { color: '#ffb050', intensity: 1.6, y: 2.4, flicker: 0.1 } },
+    { sprite: 'sprites/prop-chest', name: 'a chest', x: 1.2, z: 4.3, height: 0.78, block: true },
+    { sprite: 'sprites/prop-crate', name: 'a crate', x: 2.0, z: 4.6, height: 0.84 },
+    { sprite: 'sprites/npc-guard', far: 'sprites/npc-guard-far', name: 'a town guard', x: 3, z: 2, height: 2.64, block: true },
+    { sprite: 'sprites/npc-hooded', name: 'a hooded stranger', x: 5, z: 1, height: 2.1, block: true },
+    { sprite: 'sprites/npc-villager', far: 'sprites/npc-villager-far', name: 'a villager', x: 6, z: 4, height: 2.04, block: true },
+    { sprite: 'sprites/prop-well', name: 'the well', x: 6, z: 2, height: 2.4, block: true },
+    { sprite: 'sprites/prop-barrel', name: 'a barrel', x: 6.65, z: 2.9, height: 0.96 },
+    { sprite: 'sprites/prop-banner', name: 'a banner', x: 2, z: 1, height: 4.2, block: true, shadowWidth: 0.9 },
+    { sprite: 'sprites/prop-lamppost', name: 'a lamp post', x: 1, z: 2, height: 4.05, block: true, shadowWidth: 0.9,
+      light: { color: '#ffc060', intensity: 2.2, y: 3.3, flicker: 0.05 } },
+    { sprite: 'sprites/prop-lamppost', name: 'a lamp post', x: 7, z: 4, height: 4.05, block: true, shadowWidth: 0.9,
+      light: { color: '#ffc060', intensity: 2.2, y: 3.3, flicker: 0.05 } },
   ],
 
   // Decals stuck flat on a wall face: wall tile + which side faces the street.
   decals: [
-    { sprite: 'sprites/decal-torch', wall: { x: 2, z: 6, face: 'E' }, y: 0.75, height: 0.3,
+    { sprite: 'sprites/decal-torch', wall: { x: 2, z: 6, face: 'E' }, y: 2.25, height: 0.9,
       light: { color: '#ff9a40', intensity: 2.0, flicker: 0.25 } },
-    { sprite: 'sprites/decal-torch', wall: { x: 1, z: 5, face: 'E' }, y: 0.75, height: 0.3,
+    { sprite: 'sprites/decal-torch', wall: { x: 1, z: 5, face: 'E' }, y: 2.25, height: 0.9,
       light: { color: '#ff9a40', intensity: 1.8, flicker: 0.25 } },
-    { sprite: 'sprites/decal-torch', wall: { x: 0, z: 4, face: 'E' }, y: 0.75, height: 0.3,
+    { sprite: 'sprites/decal-torch', wall: { x: 0, z: 4, face: 'E' }, y: 2.25, height: 0.9,
       light: { color: '#ff9a40', intensity: 1.8, flicker: 0.25 } },
   ],
 
