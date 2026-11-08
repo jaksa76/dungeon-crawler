@@ -1,6 +1,6 @@
-// 2D compositing demo — a small town quarter.
-// Designed so lines of sight stay short: no straight open run is longer than four
-// cells, so walls close every view within the drawn depth (view.maxDepth = 3).
+// 2D compositing demo — a small town courtyard: a 3×3 square of open cells inside a
+// ring of buildings. The drawn depth is unchanged (view.maxDepth = 3): from the back
+// row you look across two open cells and the far wall closes the view at depth 3.
 // Coordinates: x grows east, z grows south. North is -z.
 
 // Wall types: `art` names the folder of slot images under assets/walls/.
@@ -27,30 +27,29 @@ export const props = {
   lamppost: { art: 'lamppost', w: 0.62, h: 1.35 },
 };
 
+// Every entity stands against one side of its tile (`side`: N, E, S or W), at most one
+// per side. Nothing blocks a tile: the player can walk onto a tile with an NPC and
+// sees it only while facing its side. Named entities show up on the minimap.
 export const quarter = {
   name: 'Ravensmoor, the Old Quarter',
   tiles: [
-    'HJHDHJHJH',
-    'H....A#.H',
-    'HJ.DB...H',
-    'HD....J.H',
-    'JHJ...H.J',
-    'HHD....HH',
-    'H...JH.JH',
-    'H..#...BH',
-    'HHJHHDHHH',
+    '#AHB#',
+    'J...H',
+    'H...D',
+    'D...J',
+    '#J#H#',
   ],
-  start: { x: 4, z: 5, dir: 0 },
+  start: { x: 2, z: 3, dir: 0 },
   entities: [
-    { prop: 'well', name: 'the well', x: 5, z: 3, block: true },
-    { prop: 'stall', name: "the alchemist's stall", x: 3, z: 3, block: true },
-    { prop: 'guard', name: 'a town guard', x: 1, z: 1, block: true },
-    { prop: 'villager', name: 'a villager', x: 4, z: 7, block: true },
-    { prop: 'hooded', name: 'a hooded stranger', x: 7, z: 4, block: true },
-    { prop: 'lamppost', name: 'a lamp post', x: 1, z: 6, block: true },
-    { prop: 'barrel', name: 'a barrel', x: 4, z: 1 },
-    { prop: 'barrel', x: 6, z: 7 },
-    { prop: 'crate', x: 7, z: 3 },
-    { prop: 'chest', name: 'a chest', x: 7, z: 1 },
+    { prop: 'stall', name: "the alchemist's stall", x: 2, z: 1, side: 'N' },
+    { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
+    { prop: 'chest', name: 'a chest', x: 3, z: 1, side: 'N' },
+    { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'E' },
+    { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
+    { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
+    { prop: 'crate', x: 1, z: 3, side: 'S' },
+    { prop: 'well', name: 'the well', x: 3, z: 3, side: 'E' },
+    { prop: 'barrel', name: 'a barrel', x: 2, z: 3, side: 'S' },
+    { prop: 'barrel', x: 2, z: 2, side: 'W' },
   ],
 };

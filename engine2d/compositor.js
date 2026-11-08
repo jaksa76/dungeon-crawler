@@ -20,7 +20,9 @@ export async function loadSlotImages(view, { assetPath, wallArts, propArts }) {
   for (const dir of 'NESW') want(`backdrop:${dir}`, `backdrop-${dir}.png`);
   want('floor', 'floor.png');
   for (const art of wallArts) for (const s of view.wallSlots) want(`walls:${art}:${s.id}`, `walls/${art}/${s.id}.png`);
-  for (const p of propArts) for (const s of view.propSlots(p.w, p.h).list) want(`props:${p.art}:${s.id}`, `props/${p.art}/${s.id}.png`);
+  for (const p of propArts) for (const s of view.propSlots(p.w, p.h, p.sideW).list) {
+    if (!s.borrows) want(`props:${p.art}:${s.id}`, `props/${p.art}/${s.id}.png`);
+  }
   await Promise.all(jobs);
   return images;
 }
@@ -44,20 +46,26 @@ export function createCompositor(view, images) {
     g.fillStyle = grd; g.beginPath(); g.arc(cx, cy, rx, 0, Math.PI * 2); g.fill(); g.restore();
   }
 
-  // A prop slot without its own image borrows the nearest one in the same row:
-  // same distance means same size, only the viewing angle differs slightly.
-  function imageFor(it) {
-    if (it.slot.kind !== 'prop') return images.get(`walls:${it.type}:${it.slot.id}`);
-    for (let l = Math.abs(it.l); l >= 0; l--) {
-      const img = images.get(`props:${it.prop.art}:prop-d${it.d}-l${l}`);
-      if (img) return img;
+  // The image for a draw item, and whether it is drawn flipped. A prop slot without
+  // its own image borrows the nearest one in the same row (see view.propChain).
+  function lookup(it) {
+    if (it.slot.kind !== 'prop') {
+      const img = images.get(`walls:${it.type}:${it.slot.id}`);
+      return img ? { img, flip: it.mirror } : null;
+    }
+    for (const c of view.propChain(it.slot)) {
+      const img = images.get(`props:${it.prop.art}:${c.id}`);
+      if (img) return { img, flip: it.mirror !== c.flip };
     }
     return null;
   }
+  const imageFor = (it) => lookup(it)?.img ?? null;
 
   // items: from view.compose(). facing: 'N'|'E'|'S'|'W'. flipFloor: alternate per step.
   // bare: only walls and props on a transparent canvas (for art guides).
-  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = true } = {}) {
+  // A pixel view (view.V.pixel) is drawn without smoothing and without the soft shadow.
+  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = !view.V.pixel } = {}) {
+    if (view.V.pixel) g.imageSmoothingEnabled = false;
     g.clearRect(0, 0, W, H);
     if (!bare) {
       const bd = images.get(`backdrop:${facing}`);
@@ -70,13 +78,13 @@ export function createCompositor(view, images) {
     for (const it of items) {
       const kind = it.slot.kind;
       const r = view.placed(it);
-      const img = imageFor(it);
+      const found = lookup(it);
       if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);
-        if (img) drawFlipped(g, img, r.full.x, r.full.y, r.full.w, r.full.h, it.mirror);
+        if (found) drawFlipped(g, found.img, r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
         else polygon(g, r.poly, FALLBACK.prop);
-      } else if (img) {
-        drawFlipped(g, img, r.x, r.y, r.w, r.h, it.mirror);
+      } else if (found) {
+        drawFlipped(g, found.img, r.x, r.y, r.w, r.h, found.flip);
       } else {
         polygon(g, r.poly, FALLBACK[kind]);
       }

@@ -10,23 +10,39 @@ const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
 const DIR_KEYS = 'NESW';
 const FADE_MS = 140;
 
-// Map a level + tile types to the compositor's view-relative cell lookup.
+// Props and NPCs stand against a side of their tile (`side: 'N'|'E'|'S'|'W'`), at
+// most one per side, and never block the tile. Seen from a player facing `dir`, a
+// side is the far, right, near or left side of the tile.
+const ANCHOR_BY_TURN = ['far', 'right', 'near', 'left'];
+const anchorOf = (side, dir) => ANCHOR_BY_TURN[(DIR_KEYS.indexOf(side) - dir + 4) % 4];
+
+// Map a level + tile types to a world cell lookup: { wall } | { entities } | {} | null.
 export function cellLookup(level, tileTypes, props) {
   const rows = level.tiles;
-  const entityAt = new Map(level.entities.map((e) => [`${e.x},${e.z}`, e]));
+  const entitiesAt = new Map();
+  for (const e of level.entities) {
+    const where = `${e.x},${e.z}`, label = e.name ?? e.prop;
+    if (!props[e.prop]) throw new Error(`${label}: unknown prop "${e.prop}"`);
+    if (!DIR_KEYS.includes(e.side) || e.side.length !== 1) throw new Error(`${label} at (${where}) needs a side: N, E, S or W`);
+    if (tileTypes[rows[e.z]?.[e.x]]?.floor !== true) throw new Error(`${label} at (${where}) is not on a floor tile`);
+    const list = entitiesAt.get(where) ?? [];
+    if (list.some((o) => o.side === e.side)) throw new Error(`two things on the ${e.side} side of tile (${where})`);
+    entitiesAt.set(where, [...list, e]);
+  }
   return (x, z) => {
     if (z < 0 || z >= rows.length || x < 0 || x >= rows[0].length) return null;
     const t = tileTypes[rows[z][x]];
     if (!t) return null;
     if (t.wall) return { wall: t.art };
-    const e = entityAt.get(`${x},${z}`);
-    return e ? { prop: { ...props[e.prop], type: e.prop }, entity: e } : {};
+    const entities = entitiesAt.get(`${x},${z}`);
+    return entities ? { entities } : {};
   };
 }
 
 export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status }) {
   const view = createView(level.view);
   const { W, H } = view.V;
+  const SHOWN = view.V.pixel ?? 1; // a pixel view is shown this many times larger (see view.js)
   const wallArts = [...new Set(Object.values(tileTypes).filter((t) => t.wall).map((t) => t.art))];
   const propArts = Object.values(props);
   const images = await loadSlotImages(view, { assetPath, wallArts, propArts });
@@ -63,10 +79,25 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     if (log.length > 4) log.shift();
   }
 
+  // The cell `d` ahead and `l` to the right of the player, with its props placed
+  // relative to the player's facing (what view.compose expects).
   const relCell = (l, d) => {
     const [fx, fz] = DIRS[p.dir], [rx, rz] = DIRS[(p.dir + 1) % 4];
-    return cell(p.x + fx * d + rx * l, p.z + fz * d + rz * l);
+    const c = cell(p.x + fx * d + rx * l, p.z + fz * d + rz * l);
+    if (!c?.entities) return c;
+    return { props: c.entities.map((e) => ({ ...props[e.prop], type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })) };
   };
+
+  // Say what the player is looking at: whatever stands against the far side of this
+  // tile, or against the near or far side of the tile ahead.
+  function look() {
+    for (const d of [0, 1]) for (const pr of relCell(0, d)?.props ?? []) {
+      const name = pr.entity.name;
+      if (!name) continue;
+      if (d === 0 && pr.anchor === 'far') say(`You stand before ${name}.`);
+      if (d === 1 && (pr.anchor === 'far' || pr.anchor === 'near')) say(`You see ${name}.`);
+    }
+  }
 
   function render(target) {
     const tg = target.getContext('2d');
@@ -83,16 +114,14 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function act(cmd) {
-    if (cmd === 'left' || cmd === 'right') { p.dir = (p.dir + (cmd === 'left' ? 3 : 1)) % 4; show(); return; }
+    if (cmd === 'left' || cmd === 'right') { p.dir = (p.dir + (cmd === 'left' ? 3 : 1)) % 4; show(); look(); return; }
     const off = { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd];
     const [dx, dz] = DIRS[(p.dir + off) % 4];
     const c = cell(p.x + dx, p.z + dz);
     if (!c || c.wall) { say('You bump into a wall.'); return; }
-    if (c.entity?.block) { say(`${c.entity.name[0].toUpperCase()}${c.entity.name.slice(1)} blocks the way.`); return; }
     p.x += dx; p.z += dz; p.steps++;
     show();
-    const ahead = relCell(0, 1);
-    if (ahead?.entity?.name) say(`You see ${ahead.entity.name}.`);
+    look();
   }
 
   const keymap = {
@@ -111,10 +140,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function resize() {
-    const avail = Math.min(window.innerWidth / W, (window.innerHeight - 70) / (H + ui.height));
+    const DW = W * SHOWN, DH = H * SHOWN;
+    const avail = Math.min(window.innerWidth / DW, (window.innerHeight - 70) / (DH + ui.height));
     const scale = avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
-    viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${W * scale}px`;
-    viewCanvas.style.height = `${H * scale}px`;
+    viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
+    viewCanvas.style.height = `${DH * scale}px`;
     uiCanvas.style.height = `${ui.height * scale}px`;
     logEl.style.fontSize = `${16 * scale}px`;
     logEl.style.left = `${8 * scale}px`;
@@ -127,6 +157,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   render(next);
   prev.getContext('2d').drawImage(next, 0, 0);
   show();
+  look();
 
   function loop(now) {
     const k = fade ? Math.min(1, (now - fade.start) / FADE_MS) : 1;
