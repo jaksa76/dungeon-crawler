@@ -28,7 +28,7 @@ export const wallInfo = {
 };
 
 export const wallTypes = {
-  V: 'a wide stone staircase, a stone footbridge arching over its foot, that climbs to a landing with a lantern on a central pier, then splits into two flights left and right between old timber houses, up to a gate, a dark castle with glowing windows on a hill above in the distance',
+  V: 'a modest, narrow, weathered stone staircase in deep shadow, a stone footbridge arching over its foot; it climbs to a small landing, then splits into two narrow flights left and right up to a gate, understated and dark so it recedes into the dusk; a dark castle with glowing windows on a hill above in the distance',
   R: 'a wide dark river with soft ripples reflecting lantern light, a stone quay with iron mooring rings, mist on the water',
   D: 'half-timbered house with a wooden front door, stone steps and an iron lantern, glowing windows, tiled roof',
   I: 'a big half-timbered inn with a hanging painted sign, a warm glowing doorway and windows, a lantern, barrels by the door, a steep tiled roof with a chimney, smoke',
@@ -64,7 +64,7 @@ export const start = { x: 2, z: 3, dir: 0 };
 // Static scenery only: anything that moves or changes (the hooded stranger, items, doors) is drawn on top by the engine.
 // Props stand against a tile side (at most one per side); the sides that face the centre are left free so the lanes stay open.
 export const entities = [
-  { prop: 'guard', name: 'a town guard', x: 2, z: 1, side: 'W' },
+  { prop: 'guard', name: 'a town guard', x: 2, z: 1, side: 'N' }, // at the foot of the stairs, guarding them
   { prop: 'crate', x: 2, z: 1, side: 'E' },
   { prop: 'well', name: 'the well', x: 3, z: 2, side: 'N' },
   { prop: 'boat', name: 'a rowing boat', x: 3, z: 2, side: 'E' },
