@@ -43,7 +43,8 @@ const SOURCE = {
     'shop-alchemist': 'textures/shop-alchemist', 'shop-smith': 'textures/shop-smith', 'stone-wall': 'textures/stone-wall',
   },
   props: {
-    guard: 'sprites/npc-guard', villager: 'sprites/npc-villager', hooded: 'sprites/npc-hooded', stall: 'sprites/prop-stall',
+    guard: 'sprites/npc-guard', villager: 'sprites/npc-villager', hooded: 'sprites/npc-hooded', stall: { front: 'art/sprites/stall/front.png', q: 'art/sprites/stall/q.png', side: 'art/sprites/stall/side.png',
+      sideFlip: 'art/sprites/stall/side-flip.png' },
     well: 'sprites/prop-well', barrel: 'sprites/prop-barrel', crate: 'sprites/prop-crate', chest: 'sprites/prop-chest',
     lamppost: 'sprites/prop-lamppost',
   },
@@ -65,6 +66,7 @@ function clipTo(g, poly, dx = 0, dy = 0) {
 // { front, q, side } of paths relative to game-2/ (SOURCE.props.<art>):
 //   front  seen straight on        q     turned 45 degrees: the front faces right, its left side shows
 //   side   turned 90 degrees: the front faces right
+//   sideFlip  optional: the side view turned the other way, used where `side` would be mirrored (right wall)
 // Every sprite is trimmed to the object. Which one a slot shows depends on where the prop is seen from.
 const loadImage = (src) => new Promise((resolve, reject) => {
   const im = new Image();
@@ -77,6 +79,7 @@ const loadViews = async (views) => Object.fromEntries(await Promise.all(
 
 function viewFor(slot) {
   const x = Math.abs((slot.full.x + slot.full.w / 2 - W / 2) * slot.s / view.f); // lateral distance of the prop, in tiles
+  // Slots are stored for the right of the centre line; the compositor mirrors them for the left.
   if (slot.anchor === 'far') return { name: Math.atan2(x, slot.s) < 0.38 ? 'front' : 'q', flip: false };
   if (slot.anchor === 'near') return { name: 'front', flip: false }; // seen from behind: there is no back view yet
   if (slot.anchor === 'left') return { name: 'side', flip: false }; // its front faces away to the right: show the profile
@@ -84,9 +87,12 @@ function viewFor(slot) {
 }
 
 // Draw the right view of a prop into a w x h canvas: as large as fits, standing on the bottom edge.
+// A mirrored view uses its own sprite when the art has one (`sideFlip`: painted facing the other way, so details
+// such as which side the chest is on need not be a mirror image), else the mirrored sprite.
 function drawView(g, views, slot, w, h) {
-  const { name, flip } = viewFor(slot);
-  const im = views[name], k = Math.min(w / im.width, h / im.height);
+  let { name, flip } = viewFor(slot);
+  if (flip && views[`${name}Flip`]) { name = `${name}Flip`; flip = false; }
+  const im = views[name] ?? views.front, k = Math.min(w / im.width, h / im.height);
   const dw = im.width * k, dh = im.height * k;
   g.save();
   if (flip) { g.translate(w, 0); g.scale(-1, 1); }

@@ -19,7 +19,7 @@ export const props = {
   guard: { art: 'guard', w: 0.416, h: 0.88 },
   villager: { art: 'villager', w: 0.266, h: 0.68 },
   hooded: { art: 'hooded', w: 0.326, h: 0.7 },
-  stall: { art: 'stall', w: 1.295, h: 1.05 },
+  stall: { art: 'stall', w: 1.295, h: 1.05, sideW: 0.49 }, // sideW: its width seen from the side (the art's own proportions)
   well: { art: 'well', w: 0.619, h: 0.8 },
   barrel: { art: 'barrel', w: 0.231, h: 0.32 },
   crate: { art: 'crate', w: 0.265, h: 0.28 },

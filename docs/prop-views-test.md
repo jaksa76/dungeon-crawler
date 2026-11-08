@@ -85,3 +85,14 @@ A crude layout per prop (a few boxes and cylinders, an hour at most for furnitur
 generations for the views and a few more to pick seeds: roughly 6–10 generations (10–15 min) per
 prop. People (the guard, the villager, the hooded stranger) need a figure layout and are harder.
 The layout and clean-up scripts used for this test are in the scratchpad, not in the repo yet.
+
+## Update: the stall from hand-made art
+
+The stall's `q` and `side` views are now the turned views drawn by hand, not the clay test: `art/sprites/stall/q.png`
+(front faces right, its left side shows), `side.png` (faces right) and `side-flip.png` (faces left, used for the
+right wall instead of a mirror image, since the barrel and the chest swap sides). The sprites are trimmed to the
+object with clean alpha, and `front.png` is still the placeholder. `quarter.js`: stall `sideW 0.49`, so the stall
+is drawn against the left and right walls (`bake props:stall` after changing the art). A prop at the left of the
+centre line shows the mirror image of the right-hand slot (see `canonicalProp`), so the left-of-centre three-quarter
+view and a left-wall prop standing straight ahead are mirrors; the hand-made `front-right` picture is not used.
+The pixel slice (`px.html`) was not rebaked and shows plain boxes for the stall's side slots.
