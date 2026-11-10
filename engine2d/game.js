@@ -2,7 +2,7 @@ import { createView } from './view.js';
 import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
-import { createSideBars } from './sidebars.js';
+import { createMobileHUD } from './mobile-hud.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 
@@ -81,8 +81,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     typeAt: (x, z) => { const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
     billboards: level.entities.filter((e) => e.name).map((e) => ({ entity: e })),
   };
-  // On a phone in landscape the bottom panel gives way to a bar on each side of the view.
-  const bars = createSideBars({ panel: panelImage, portrait: portraitImage, layout: uiLayout, font: FONT, world, hero });
+  const debugMode = new URLSearchParams(location.search).has('debug');
+  document.documentElement.toggleAttribute('data-debug', debugMode);
+  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame,
+    inspect, debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
+  });
+  await bars.ready;
   window.__game2d = { view, images, level, p };
 
   // Log: messages over the bottom-left of the view, fading out.
@@ -95,6 +99,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const maxChars = Math.floor((PW - 2 * LOG_PAD) / FONT.w);
   const log = [];
   function say(text) {
+    bars.notice(text);
     log.push({ text, t: performance.now() });
     if (log.length > 4) log.shift();
   }
@@ -117,6 +122,31 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       if (d === 0 && pr.anchor === 'far') say(`You stand before ${name}.`);
       if (d === 1 && (pr.anchor === 'far' || pr.anchor === 'near')) say(`You see ${name}.`);
     }
+  }
+
+  function targetAhead() {
+    for (const d of [0, 1]) {
+      const pr = (relCell(0, d)?.props ?? []).find(pr => pr.entity.name &&
+        (d === 0 ? pr.anchor === 'far' : pr.anchor === 'far' || pr.anchor === 'near'));
+      if (pr) return pr.entity;
+    }
+    return null;
+  }
+
+  function inspect() {
+    const entity = targetAhead();
+    if (!entity) return;
+    const descriptions = {
+      well: 'A roofed stone well stands in the square. Its wooden bucket hangs over the dark water below.',
+      guard: 'A town guard watches over the square, shield in hand. His red plume catches the lantern light.',
+      villager: 'A local resident lingers among the timber houses of the Old Quarter.',
+      hooded: 'A hooded figure waits in the shadows, keeping their face concealed.',
+      stall: 'Bottles and small curios crowd the alchemist’s stall beneath its striped awning.',
+      chest: 'A sturdy wooden chest rests beside the houses, bound with iron fittings.',
+      barrel: 'A weathered wooden barrel, held together with heavy iron hoops.',
+      lamppost: 'A warm lantern lights the cobbles beneath an old iron post.',
+    };
+    bars.open(entity.name.replace(/^./, c => c.toUpperCase()), descriptions[entity.prop] ?? 'You take a closer look.');
   }
 
   function render(target) {
@@ -151,10 +181,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
     ui.draw(hud);
     bars.draw(hud);
+    bars.setTarget(targetAhead());
     updateStatus();
   }
 
   function act(cmd) {
+    if (bars.isOpen()) return;
     if (cmd === 'left' || cmd === 'right') { p.dir = (p.dir + (cmd === 'left' ? 3 : 1)) % 4; show(); look(); return; }
     const off = { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd];
     const [dx, dz] = DIRS[(p.dir + off) % 4];
@@ -170,28 +202,32 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
   const touch = createTouch({
-    onCommand: act, swipeEl: frame, extras: [{ label: 'Slot outlines', code: 'KeyO' }],
+    onCommand: act, swipeEl: viewCanvas, mount: bars.controls,
+    extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
     fullscreen: true, sideBars: { left: bars.left, right: bars.right },
   });
   window.addEventListener('keydown', (ev) => {
+    if (bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (ev.code === 'KeyF') { ev.preventDefault(); inspect(); return; }
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
 
   function updateStatus() {
     const missing = view.compose(relCell).filter((it) => !comp.imageFor(it));
+    status.hidden = !debugMode;
     status.textContent = `${level.name} · (${p.x},${p.z}) facing ${'NESW'[p.dir]} · ${images.size} slot images loaded`
       + (missing.length ? ` · missing here: ${missing.map((m) => `${m.type}/${m.slot.id}`).join(', ')}` : '');
   }
 
-  // Desktop: view and panel stacked, scaled to fit. Phone portrait: full width, panel below, controls
-  // under that. Phone landscape: the view sits between two side bars that hold the HUD and the controls.
+  // Desktop keeps the original canvas panel. Mobile uses a separate DOM dashboard
+  // in portrait and thumb-friendly rails in landscape, preserving the scene's aspect ratio.
   function resize() {
     const mode = touch.layout();
     const vp = viewportSize();
     const DW = W * SHOWN, DH = H * SHOWN;
-    // landscape: the view sits between the two side bars (a bigger multiple of the pixels on a tall screen)
-    const barW = mode === 'landscape' ? bars.setScale(vp.h >= 700 ? 3 : 2) : 0;
+    // Reserve room for the landscape rails before fitting the scene.
+    const barW = bars.setLayout(mode, vp.w);
     const avail = mode === 'portrait' ? vp.w / DW
       : mode === 'landscape' ? Math.min((vp.w - 2 * barW) / DW, vp.h / DH)
       : Math.min(vp.w / DW, (vp.h - 70) / (DH + ui.height));
@@ -202,8 +238,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     uiCanvas.style.height = `${ui.height * scale}px`;
     logCanvas.style.width = `${DW * scale}px`;
     logCanvas.style.height = `${logCanvas.height * DW * scale / PW}px`;
-    if (mode === 'landscape') { logCanvas.style.top = '0'; logCanvas.style.bottom = 'auto'; }
-    else { logCanvas.style.top = 'auto'; logCanvas.style.bottom = `${ui.height * scale}px`; }
+    if (mode !== 'desktop') {
+      logCanvas.style.top = '32px'; logCanvas.style.bottom = 'auto';
+    } else { logCanvas.style.top = 'auto'; logCanvas.style.bottom = `${ui.height * scale}px`; }
   }
   window.addEventListener('resize', resize);
   resize();
