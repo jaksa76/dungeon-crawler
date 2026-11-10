@@ -1,8 +1,10 @@
 # The Undercrypt (game two)
 
 The first dungeon is a 17×17 branching labyrinth beneath Ravensmoor, with
-closed stone corridors, dead ends and a return door. There are no combat,
-enemy, loot or quest systems added in this pass.
+closed stone corridors, dead ends and a return door. A roaming creature now
+patrols it; contact causes defeat and a village respawn. See
+[monsters.md](monsters.md) for behaviour and the future sprite contract.
+Combat, loot and quest systems are not implemented.
 
 ## Entering and leaving
 

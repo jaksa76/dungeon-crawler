@@ -4,6 +4,8 @@ import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
 import { createMobileHUD } from './mobile-hud.js';
 import { createExploration } from './exploration.js';
+import { createMonsters, actorDirection } from './monsters.js';
+import { createGameOver } from './game-over.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
@@ -58,7 +60,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
         const def = definitions[id], view = createView(def.level.view);
         const wallArts = [...new Set(Object.values(def.tileTypes).filter(t => t.wall).map(t => t.art))];
         const images = await loadSlotImages(view, { assetPath: def.assetPath, wallArts,
-          propArts: Object.values(def.props), backdrop: !def.level.atmosphere });
+          propArts: Object.values(def.props), backdrop: !def.level.atmosphere,
+          actorArts: [...new Set((def.level.monsters ?? []).map(actor => actor.art).filter(Boolean))] });
         // Required dungeon art must be complete before replacing the active scene.
         if (def.level.atmosphere && (!images.has('floor') || wallArts.some(art =>
           view.wallSlots.some(slot => !images.has(`walls:${art}:${slot.id}`))))) {
@@ -66,7 +69,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
         }
         const cell = cellLookup(def.level, def.tileTypes, def.props);
         return { ...def, view, images, cell, comp: createCompositor(view, images),
-          exploration: createExploration(def.level, cell) };
+          exploration: createExploration(def.level, cell), monsters: createMonsters(def.level, cell) };
       })();
       cache.set(id, job);
       job.catch(() => cache.delete(id));
@@ -75,10 +78,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
   let active = await prepare(levelId);
   ({ level, tileTypes, props, assetPath } = active);
-  let { view, images, cell, comp, exploration } = active;
+  let { view, images, cell, comp, exploration, monsters } = active;
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1;
-  let transitioning = false;
+  let transitioning = false, dead = false;
+  let monsterDue = performance.now() + monsters.graceMs;
 
   // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
   // (320x180 for the default 640x360 view), and shown scaled up with nearest-neighbour sampling (the canvas
@@ -104,6 +108,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const p = { ...level.start, steps: 0 };
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
   const opts = { outlines: false };
+  const heldKeys = new Set(), blockedKeys = new Set();
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -117,7 +122,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   });
   await bars.ready;
   bars.setLevel(level);
-  window.__game2d = { view, images, level, levelId, p, world };
+  const gameOver = createGameOver();
+  window.__game2d = { view, images, level, levelId, p, world, monsters, hero,
+    get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
+  document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 
   // Log: messages over the bottom-left of the view, fading out.
   const LOG_LINES = 4, LOG_PITCH = FONT.h + 1, LOG_PAD = 2;
@@ -139,8 +147,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const relCell = (l, d) => {
     const [fx, fz] = DIRS[p.dir], [rx, rz] = DIRS[(p.dir + 1) % 4];
     const c = cell(p.x + fx * d + rx * l, p.z + fz * d + rz * l);
-    if (!c?.entities) return c;
-    return { props: c.entities.map((e) => ({ ...props[e.prop], type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })) };
+    if (!c || c.wall) return c;
+    const x = p.x + fx * d + rx * l, z = p.z + fz * d + rz * l;
+    return {
+      props: (c.entities ?? []).map(e => ({ ...props[e.prop], type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })),
+      actors: monsters.at(x, z).map(actor => ({ ...actor, direction: actorDirection(actor.dir, p.dir) })),
+    };
   };
 
   // Say what the player is looking at: whatever stands against the far side of this
@@ -203,7 +215,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function peekFor(cmd) {
     const st = plan(cmd);
     if (!st) return null;
-    const key = `${levelId}:${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
+    const key = `${levelId}:${monsters.version}:${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
     if (key !== peekKey) { peeks.clear(); peekKey = key; }
     if (!peeks.has(cmd)) {
       const c = document.createElement('canvas'); c.width = cw; c.height = ch;
@@ -216,7 +228,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function onSwipe(phase, cmd, amount) {
-    if (phase !== 'move' || bars.isOpen() || transitioning) { settleDrag(); return; }
+    if (phase !== 'move' || bars.isOpen() || transitioning || dead) { settleDrag(); return; }
     anim = null; release = null; // the picture in `next` is the settled one; start from it
     if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
     else drag.amount = amount;
@@ -247,7 +259,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     updateStatus();
   }
 
-  async function travel(exit) {
+  async function travel(exit, { respawn = false } = {}) {
     transitioning = true;
     anim = drag = release = null;
     frame.setAttribute('aria-busy', 'true');
@@ -260,9 +272,14 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       const landing = destination.cell(spawn.x, spawn.z);
       if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
       active = destination; levelId = exit.to;
-      ({ level, tileTypes, props, assetPath, view, images, cell, comp, exploration } = active);
+      ({ level, tileTypes, props, assetPath, view, images, cell, comp, exploration, monsters } = active);
+      if (respawn) {
+        await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
+        hero.hp = hero.maxHp; hero.mp = hero.maxMp;
+      } else monsters.reset();
+      monsterDue = performance.now() + monsters.graceMs;
       Object.assign(p, spawn, { steps: 0 });
-      Object.assign(window.__game2d, { levelId, level, view, images });
+      Object.assign(window.__game2d, { levelId, level, view, images, monsters });
       peeks.clear(); peekKey = '';
       bars.setLevel(level);
       document.title = `${level.shortName ?? level.name} · Ravensmoor`;
@@ -272,21 +289,43 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       if (levelId === 'village') url.searchParams.delete('level');
       else url.searchParams.set('level', levelId);
       history.replaceState(null, '', url);
+      return true;
     } catch (error) {
       say(error.message);
+      return false;
     } finally {
       transitioning = false;
       frame.removeAttribute('aria-busy');
     }
   }
 
+  async function die() {
+    if (dead || transitioning) return;
+    dead = true; anim = drag = release = null;
+    touch.cancel();
+    for (const code of heldKeys) blockedKeys.add(code);
+    hero.hp = 0; peeks.clear(); peekKey = ''; show();
+    let retry = false;
+    while (dead) {
+      await gameOver.wait(retry);
+      const returned = await travel({ to: 'village', spawn: definitions.village.level.start }, { respawn: true });
+      if (returned) {
+        dead = false; gameOver.close(); say('You awaken safely in the village.');
+        return;
+      }
+      retry = true;
+    }
+  }
+
   function act(cmd) {
-    if (bars.isOpen() || transitioning) return;
+    if (bars.isOpen() || transitioning || dead) return;
+    if (monsters.caught(p)) { void die(); return; }
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
     if (!st) { say('You bump into a wall.'); settleDrag(); return; }
     Object.assign(p, st);
+    if (monsters.caught(p)) { void die(); return; }
     show(cmd);
     look();
   }
@@ -301,13 +340,19 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     fullscreen: true, sideBars: { left: bars.left, right: bars.right },
   });
   window.addEventListener('keydown', (ev) => {
-    if (bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (keymap[ev.code]) {
+      heldKeys.add(ev.code);
+      if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
+    }
+    if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
+  window.addEventListener('keyup', ev => { heldKeys.delete(ev.code); blockedKeys.delete(ev.code); });
+  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); touch.cancel(); });
 
   function updateStatus() {
-    const missing = view.compose(relCell).filter((it) => !comp.imageFor(it));
+    const missing = view.compose(relCell).filter(it => !(it.actor && !it.actor.art) && !comp.imageFor(it));
     status.hidden = !debugMode;
     status.textContent = `${level.name} · (${p.x},${p.z}) facing ${'NESW'[p.dir]} · ${images.size} slot images loaded`
       + (missing.length ? ` · missing here: ${missing.map((m) => `${m.type}/${m.slot.id}`).join(', ')}` : '');
@@ -339,11 +384,29 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   resize();
 
   document.title = `${level.shortName ?? level.name} · Ravensmoor`;
+  monsterDue = performance.now() + monsters.graceMs;
   say(`Welcome to ${level.name}.`);
   show();
   look();
 
+  function updateMonsters(now) {
+    if (dead || transitioning || bars.isOpen() || document.hidden) {
+      monsterDue = now + monsters.stepMs; return;
+    }
+    if (!monsters.actors.length || now < monsterDue) return;
+    monsterDue = now + monsters.stepMs;
+    const version = monsters.version;
+    if (monsters.step(p)) { void die(); return; }
+    if (version !== monsters.version) {
+      // Update moving creatures without interrupting a player's current motion.
+      peeks.clear(); peekKey = ''; render(next);
+      if (drag) drag.peek = peekFor(drag.cmd);
+      if (release) release.peek = peekFor(release.cmd);
+    }
+  }
+
   function loop(now) {
+    updateMonsters(now);
     if (drag) {
       drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);
     } else if (release) {

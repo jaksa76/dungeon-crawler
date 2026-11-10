@@ -14,6 +14,9 @@
 .rpg-dialog { box-sizing: border-box; width: min(460px, 92vw); max-height: 88dvh; padding: 20px; font: 16px/1.5 'RPG Pixel', monospace; }
 .rpg-dialog::backdrop { background: #08060bd9; }
 .rpg-dialog h2 { font: 16px 'RPG Pixel', monospace; color: #e8c688; margin: 0 0 14px; }
+.rpg-game-over { text-align: center; }
+.rpg-game-over h2 { color: #ed8b74; font-size: 24px; margin-bottom: 24px; }
+.rpg-game-over::backdrop { background: #08060bf0; }
 .rpg-dialog p { margin: 0 0 18px; }
 .rpg-dialog button { min-height: 44px; color: var(--ink); background: #211c19; border: 1px solid var(--bronze); padding: 8px 16px; font: inherit; }
 .rpg-dialog > button { width: 100%; margin-top: 18px; }

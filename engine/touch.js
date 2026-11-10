@@ -123,16 +123,20 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
   const main = root.querySelector('.tp-main'), move = root.querySelector('.tp-move'), turn = root.querySelector('.tp-turn');
 
   // A finger held on a button repeats it.
+  const stops = [];
+  let cancelSwipe = () => {};
   function bind(el, fire) {
-    let hold = 0, rep = 0;
-    const stop = () => { clearTimeout(hold); clearInterval(rep); el.classList.remove('down'); };
+    let hold = 0, rep = 0, down = false;
+    const stop = () => { down = false; clearTimeout(hold); clearInterval(rep); el.classList.remove('down'); };
+    stops.push(stop);
     el.addEventListener('pointerdown', (ev) => {
       ev.preventDefault();
       el.setPointerCapture?.(ev.pointerId);
+      clearTimeout(hold); clearInterval(rep); down = true;
       el.classList.add('down');
       fire();
-      clearTimeout(hold); clearInterval(rep);
-      hold = setTimeout(() => { rep = setInterval(fire, REPEAT_MS); }, HOLD_MS);
+      // A command can open a defeat screen and cancel input synchronously.
+      if (down) hold = setTimeout(() => { if (down) rep = setInterval(fire, REPEAT_MS); }, HOLD_MS);
     });
     for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(t, stop);
     el.addEventListener('contextmenu', (ev) => ev.preventDefault());
@@ -148,6 +152,7 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
   if (swipeEl) {
     swipeEl.style.touchAction = 'none';
     let start = null;
+    cancelSwipe = () => { if (start) onSwipe?.('cancel'); start = null; };
     // The command a drag of (dx, dy) means, and how far along it is: 0 to 1, where 1 is far enough to count.
     const read = (dx, dy) => {
       const dist = Math.max(Math.abs(dx), Math.abs(dy));
@@ -164,7 +169,7 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
       const { cmd, amount } = read(ev.clientX - start.x, ev.clientY - start.y);
       onSwipe?.(cmd ? 'move' : 'cancel', cmd, amount);
     });
-    swipeEl.addEventListener('pointercancel', () => { if (start) onSwipe?.('cancel'); start = null; });
+    swipeEl.addEventListener('pointercancel', cancelSwipe);
     swipeEl.addEventListener('pointerup', (ev) => {
       if (!start || ev.pointerId !== start.id || layoutMode() === 'desktop') return;
       const { cmd, amount } = read(ev.clientX - start.x, ev.clientY - start.y);
@@ -215,5 +220,5 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
     return mode;
   }
   layout();
-  return { layout, el: root };
+  return { layout, el: root, cancel() { stops.forEach(stop => stop()); cancelSwipe(); } };
 }

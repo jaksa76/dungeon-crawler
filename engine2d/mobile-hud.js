@@ -33,12 +33,14 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
   face.getContext('2d').drawImage(portrait, 0, 0, 40, 40);
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
+  const vitalNodes = [];
   for (const [label, value, max] of [['HP', hero.hp, hero.maxHp], ['MP', hero.mp, hero.maxMp]]) {
     const row = document.createElement('div'); row.className = `rpg-vital ${label.toLowerCase()}`;
     const caption = document.createElement('span'); caption.textContent = label;
     const meter = document.createElement('meter'); meter.min = 0; meter.max = max; meter.value = value;
     meter.setAttribute('aria-label', label === 'HP' ? 'Health' : 'Mana');
     const number = document.createElement('b'); number.textContent = `${value}/${max}`;
+    vitalNodes.push({ key: label.toLowerCase(), meter, number });
     row.append(caption, meter, number); vitals.append(row);
   }
   character.append(vitals); left.append(character);
@@ -133,6 +135,9 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
   function draw(state) {
+    for (const { key, meter, number } of vitalNodes) {
+      meter.value = hero[key]; number.textContent = `${hero[key]}/${meter.max}`;
+    }
     const g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, 56, 56);
     const cell = 5, cx = 28, cy = 28;
     for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {

@@ -211,6 +211,16 @@ export function createView(options = {}) {
   // A partial slot with nothing to borrow (the prop in the player's own cell, whose
   // feet are below the screen) is painted as the visible part only.
   const propCache = new Map();
+  // Moving creatures stand at the centre of a cell, independently of wall-side
+  // props. Their frame is selected by direction and depth; lateral movement
+  // reuses that frame at a different projected position.
+  function actorSlot(l, d, w, h) {
+    const spot = { x: l, s: d + V.back }, region = boxRegion(boxes.prop(spot, w, h));
+    if (!region) return null;
+    const [cx, by] = project(spot.x, 0, spot.s), pw = f * w / spot.s, ph = f * h / spot.s;
+    const full = { x: Math.round(cx - pw / 2), y: Math.round(by - ph), w: Math.max(1, Math.round(pw)), h: Math.max(1, Math.round(ph)) };
+    return { kind: 'actor', id: `actor-d${d}-l${l}`, l, d, s: spot.s, ...region, full };
+  }
   function propSlots(w, h, sideW = w) {
     const key = `${w}x${h}x${sideW}`;
     if (propCache.has(key)) return propCache.get(key);
@@ -261,6 +271,10 @@ export function createView(options = {}) {
           const slot = propSlots(prop.w, prop.h, prop.sideW).get(k.anchor, k.l, d);
           if (slot) row.push({ slot, type: prop.type, prop, l, d, mirror: k.mirror });
         }
+        for (const actor of cellAt(l, d)?.actors ?? []) {
+          const slot = actorSlot(l, d, actor.w, actor.h);
+          if (slot) row.push({ slot, type: actor.art ?? actor.id, actor, l, d, mirror: false });
+        }
       }
       return row.sort((p, q) => q.slot.s - p.slot.s); // stable: ties stay outermost first
     };
@@ -294,5 +308,5 @@ export function createView(options = {}) {
     return { card: mirrorPoly(s.card, V.W), poly: mirrorPoly(s.poly, V.W), x: V.W - s.x - s.w, y: s.y, w: s.w, h: s.h, full };
   }
 
-  return { V, f, near, project, boxes, wallSlots, propSlots, propChain, compose, placed, horizon: V.H / 2 };
+  return { V, f, near, project, boxes, wallSlots, propSlots, actorSlot, propChain, compose, placed, horizon: V.H / 2 };
 }
