@@ -13,7 +13,8 @@ keep controls accessible independently of the painted art.
 ## Controls and scope
 
 - Step/strafe with the movement pad; turn with the curved arrows. Hold a
-  movement button to repeat, or swipe the scene.
+  movement button to repeat, or drag the scene: down moves forward, up moves
+  backward, left turns right, and right turns left.
 - Inspect examines the nearest named object directly ahead. Keyboard: **F**.
 - Quick items and Inventory show the demo equipment descriptions. They do not
   introduce combat, potion consumption, or an inventory persistence system.

@@ -8,7 +8,7 @@
 //                 returns it; call it from the page's resize handler before sizing anything.
 //
 // Controls: a move pad on the left (forward / back / strafe), turn buttons on the right,
-// swipes on the view (up = forward, down = back, left/right = turn), and optional toggle
+// swipes that drag the world (down = forward, up = back, left = turn right), and optional toggle
 // chips that fire the same keys the keyboard does. Holding a button repeats it.
 // In portrait the controls sit in the page flow (below the view); in landscape they float
 // over the view's bottom corners, or, given `sideBars`, sit inside two side bars the page provides
@@ -155,7 +155,7 @@ export function createTouch({ onCommand, extras = [], swipeEl, mount = document.
       const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
       start = null;
       if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_PX) return;
-      onCommand(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'left' : 'right') : (dy < 0 ? 'forward' : 'back'));
+      onCommand(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'right' : 'left') : (dy < 0 ? 'back' : 'forward'));
     });
   }
 
