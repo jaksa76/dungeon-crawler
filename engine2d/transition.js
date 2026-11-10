@@ -12,9 +12,9 @@ export const RELEASE_MS = 120;   // a swipe that is let go of too early settles 
 
 // pan: `amp` is the sideways travel as a share of the view's width. zoom: `amt` is the scale change.
 const MOTION = {
-  turn: { kind: 'pan', amp: 0.5, ms: 160 },
-  strafe: { kind: 'pan', amp: 0.03, ms: 150 },
-  move: { kind: 'zoom', amt: 0.06, ms: 180 },
+  turn: { kind: 'pan', amp: 0.6, ms: 160 },
+  strafe: { kind: 'pan', amp: 0.2, ms: 150 },
+  move: { kind: 'zoom', amt: 0.3, ms: 180 },
 };
 const BY_COMMAND = {
   left: ['turn', -1], right: ['turn', 1],
