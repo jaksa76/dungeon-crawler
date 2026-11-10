@@ -84,7 +84,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
   const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame,
-    inspect, debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
+    debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
   window.__game2d = { view, images, level, p };
@@ -124,31 +124,6 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     }
   }
 
-  function targetAhead() {
-    for (const d of [0, 1]) {
-      const pr = (relCell(0, d)?.props ?? []).find(pr => pr.entity.name &&
-        (d === 0 ? pr.anchor === 'far' : pr.anchor === 'far' || pr.anchor === 'near'));
-      if (pr) return pr.entity;
-    }
-    return null;
-  }
-
-  function inspect() {
-    const entity = targetAhead();
-    if (!entity) return;
-    const descriptions = {
-      well: 'A roofed stone well stands in the square. Its wooden bucket hangs over the dark water below.',
-      guard: 'A town guard watches over the square, shield in hand. His red plume catches the lantern light.',
-      villager: 'A local resident lingers among the timber houses of the Old Quarter.',
-      hooded: 'A hooded figure waits in the shadows, keeping their face concealed.',
-      stall: 'Bottles and small curios crowd the alchemist’s stall beneath its striped awning.',
-      chest: 'A sturdy wooden chest rests beside the houses, bound with iron fittings.',
-      barrel: 'A weathered wooden barrel, held together with heavy iron hoops.',
-      lamppost: 'A warm lantern lights the cobbles beneath an old iron post.',
-    };
-    bars.open(entity.name.replace(/^./, c => c.toUpperCase()), descriptions[entity.prop] ?? 'You take a closer look.');
-  }
-
   function render(target) {
     const tg = target.getContext('2d');
     tg.setTransform(target.width / W, 0, 0, target.height / H, 0, 0);
@@ -181,7 +156,6 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
     ui.draw(hud);
     bars.draw(hud);
-    bars.setTarget(targetAhead());
     updateStatus();
   }
 
@@ -208,7 +182,6 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   });
   window.addEventListener('keydown', (ev) => {
     if (bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
-    if (ev.code === 'KeyF') { ev.preventDefault(); inspect(); return; }
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });

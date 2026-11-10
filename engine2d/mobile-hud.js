@@ -1,10 +1,14 @@
+import { drawText } from '../engine/bitmapfont.js';
+import { font5x8 as FONT } from '../engine/font-5x8.js';
+import { pixelSkin } from './pixel-skin.js';
+
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
 
-export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, debug }) {
+export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
-  const ready = new Promise((resolve, reject) => {
+  const styleReady = new Promise((resolve, reject) => {
     sheet.onload = resolve;
     sheet.onerror = () => reject(new Error('Could not load the mobile HUD stylesheet.'));
   });
@@ -15,16 +19,17 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, 
   const left = document.createElement('aside'); left.className = 'rpg-rail rpg-left';
   const right = document.createElement('aside'); right.className = 'rpg-rail rpg-right';
   root.append(left, right); document.body.append(root);
+  const ready = Promise.all([styleReady, pixelSkin(root)]);
   const title = document.createElement('div'); title.className = 'rpg-location';
   title.textContent = 'Ravensmoor · Old Quarter'; frame.append(title);
   const notice = document.createElement('div'); notice.className = 'rpg-notice';
   notice.setAttribute('role', 'status'); frame.append(notice);
   let noticeTimer;
-  const action = document.createElement('button'); action.className = 'rpg-inspect';
-  action.type = 'button'; action.hidden = true; action.addEventListener('click', inspect); frame.append(action);
   const character = document.createElement('div'); character.className = 'rpg-character';
   const heroTitle = document.createElement('h2'); heroTitle.className = 'rpg-rail-title'; heroTitle.textContent = 'Adventurer'; left.append(heroTitle);
-  const face = document.createElement('img'); face.src = portrait.src; face.alt = 'Your adventurer';
+  const face = document.createElement('canvas'); face.className = 'rpg-portrait';
+  face.width = face.height = 40; face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
+  face.getContext('2d').drawImage(portrait, 0, 0, 40, 40);
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   for (const [label, value, max] of [['HP', hero.hp, hero.maxHp], ['MP', hero.mp, hero.maxMp]]) {
@@ -55,8 +60,8 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, 
   function iconButton(label, source, target, handler) {
     const button = document.createElement('button'); button.type = 'button';
     button.title = label; button.setAttribute('aria-label', label);
-    const c = document.createElement('canvas'); c.width = c.height = 64; c.setAttribute('aria-hidden', 'true');
-    c.getContext('2d').drawImage(panel, ...source, 0, 0, 64, 64);
+    const c = document.createElement('canvas'); c.width = c.height = 24; c.setAttribute('aria-hidden', 'true');
+    c.getContext('2d').drawImage(panel, ...source, 0, 0, 24, 24);
     button.append(c); button.addEventListener('click', handler); target.append(button);
     return button;
   }
@@ -73,11 +78,11 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, 
   }
   for (const [label, text, i] of items) {
     const button = iconButton(label, [545 + i * 76, 130, 76, 76], slots, () => open(label, text));
-    caption(button, label);
+    caption(button, label.replace(' potion', ''));
   }
   left.append(slots);
   const mapTitle = document.createElement('h2'); mapTitle.className = 'rpg-rail-title'; mapTitle.textContent = 'Old Quarter'; right.append(mapTitle);
-  const map = document.createElement('canvas'); map.width = map.height = 112; map.className = 'rpg-map';
+  const map = document.createElement('canvas'); map.width = map.height = 56; map.className = 'rpg-map';
   map.setAttribute('role', 'img'); map.setAttribute('aria-label', 'Map of the Old Quarter');
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
@@ -91,14 +96,14 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, 
     body.append(grid);
   }
   iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, inventory);
-  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, () => open('Field journal', 'You have arrived in Ravensmoor’s Old Quarter. Explore the square and inspect the people and objects around you. No quests have been accepted.'));
+  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, () => open('Field journal', 'You have arrived in Ravensmoor’s Old Quarter. Explore the square and meet the people of the Old Quarter. No quests have been accepted.'));
   iconButton('Map', [545 + 4 * 99, 20, 99, 92], menus, () => {
     open('Old Quarter', 'North is up. Amber marks people and landmarks; the red arrow marks your position.');
-    const large = document.createElement('canvas'); large.width = large.height = 112;
+    const large = document.createElement('canvas'); large.width = large.height = 56;
     large.getContext('2d').drawImage(map, 0, 0); large.className = 'rpg-large-map'; body.append(large);
   });
   iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, () => {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Tap Inspect to examine what is ahead. Keyboard: W/S move, A/D strafe, Q/E turn, F inspect.');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Keyboard: W/S move, A/D strafe, Q/E turn.');
     const label = document.createElement('label'); label.className = 'rpg-debug';
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = debug.get();
     checkbox.addEventListener('change', () => debug.set(checkbox.checked));
@@ -116,31 +121,31 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, inspect, 
       body.append(fullscreen);
     }
   });
-  for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title);
+  for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
   function draw(state) {
-    const g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, 112, 112);
-    const cell = 10, cx = 56, cy = 56;
+    const g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, 56, 56);
+    const cell = 5, cx = 28, cy = 28;
     for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
       const t = world.typeAt(state.tileX + dx, state.tileZ + dz); if (!t) continue;
-      g.fillStyle = t.wall ? '#3b3335' : '#95816a'; g.fillRect(cx + dx * cell - 4, cy + dz * cell - 4, 8, 8);
+      g.fillStyle = t.wall ? '#3b3335' : '#95816a'; g.fillRect(cx + dx * cell - 2, cy + dz * cell - 2, 4, 4);
     }
     for (const b of world.billboards) {
       const x = cx + (b.entity.x - state.tileX) * cell, y = cy + (b.entity.z - state.tileZ) * cell;
-      g.fillStyle = '#e9b65e'; g.fillRect(x - 2, y - 2, 4, 4);
+      g.fillStyle = '#e9b65e'; g.fillRect(x - 1, y - 1, 2, 2);
     }
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
-    g.fillStyle = '#ff6348'; g.strokeStyle = '#190d0b'; g.lineWidth = 2;
-    g.beginPath(); g.moveTo(0, -6); g.lineTo(5, 5); g.lineTo(0, 3); g.lineTo(-5, 5); g.closePath(); g.stroke(); g.fill(); g.restore();
-    g.font = '10px Georgia'; g.fillStyle = '#e5c48c'; g.textAlign = 'center';
-    for (const [s, x, y] of [['N', 56, 11], ['S', 56, 108], ['W', 7, 59], ['E', 105, 59]]) g.fillText(s, x, y);
+    // Integer rectangles keep the facing marker as crisp as the map cells.
+    g.fillStyle = '#ff6348'; g.fillRect(-1, -3, 2, 5); g.fillRect(-2, 0, 4, 2); g.restore();
+    for (const [s, x, y] of [['N', 26, 1], ['S', 26, 47], ['W', 1, 24], ['E', 50, 24]]) {
+      drawText(g, FONT, s, x, y, '#e5c48c');
+    }
     map.setAttribute('aria-label', `Old Quarter map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   return { left, right, controls, draw, open, ready,
     notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
     isOpen: () => dialog.open,
-    setTarget(entity) { action.hidden = !entity; action.textContent = entity ? `Inspect ${entity.name.replace(/^(the |a |an )/, '')}` : ''; },
     setLayout(mode, width) {
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));
       document.documentElement.style.setProperty('--rpg-rail', `${rail}px`);
