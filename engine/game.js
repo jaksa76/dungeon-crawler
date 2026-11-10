@@ -5,6 +5,7 @@ import { buildBackdrop } from './backdrop.js';
 import { createUI } from './ui.js';
 import { dressLevel } from './dressing.js';
 import { DEFAULT_SCALE } from './layout.js';
+import { createTouch, viewportSize } from './touch.js';
 
 const CAM_BACK = 0.3;      // camera sits this far behind the tile centre
 const MOVE_MS = 200, TURN_MS = 160;
@@ -113,11 +114,17 @@ export async function startGame({ level: baseLevel, tileTypes, manifest, uiLayou
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
 
+  const command = (cmd) => { if (anim) queued = cmd; else act(cmd); };
+  const touch = createTouch({
+    onCommand: command, swipeEl: frame,
+    extras: [['Smooth', 'KeyT'], ['Fog', 'KeyF'], ['Far sprites', 'KeyV'], ['Lights', 'KeyL'], ['Ink', 'KeyI']]
+      .map(([label, code]) => ({ label, code })),
+  });
+
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) {
       ev.preventDefault();
-      const cmd = keymap[ev.code];
-      if (anim) queued = cmd; else act(cmd);
+      command(keymap[ev.code]);
       return;
     }
     switch (ev.code) {
@@ -144,19 +151,27 @@ export async function startGame({ level: baseLevel, tileTypes, manifest, uiLayou
       + `far variants ${opts.farSwap ? 'on' : 'off'} · lights ${opts.lightsOn ? 'on' : 'off'} · ink ${opts.ink ? 'on' : 'off'}`;
   }
 
-  // --- sizing: render small, scale up crisp
+  // --- sizing: render small, scale up crisp. Desktop: view and panel stacked, scaled to fit the window.
+  // Phone portrait: view across the full width, panel below it, controls under that. Phone landscape:
+  // the view fills the screen, the panel is hidden and the controls float over the view.
   function resize() {
+    const mode = touch.layout();
+    const vp = viewportSize();
     renderer.setSize(VIEW_W, VIEW_H, false);
-    const avail = Math.min(window.innerWidth / VIEW_W, (window.innerHeight - 70) / (VIEW_H + UI_H));
-    const scale = avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+    const avail = mode === 'portrait' ? vp.w / VIEW_W
+      : mode === 'landscape' ? Math.min(vp.w / VIEW_W, vp.h / VIEW_H)
+      : Math.min(vp.w / VIEW_W, (vp.h - 70) / (VIEW_H + UI_H));
+    const scale = mode === 'desktop' && avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+    viewCanvas.style.imageRendering = uiCanvas.style.imageRendering = mode !== 'desktop' && scale < 1 ? 'auto' : '';
     viewCanvas.style.width = uiCanvas.style.width = `${VIEW_W * scale}px`;
     viewCanvas.style.height = `${VIEW_H * scale}px`;
     uiCanvas.style.height = `${UI_H * scale}px`;
     frame.style.width = `${VIEW_W * scale}px`;
-    logEl.style.fontSize = `${16 * scale}px`;
+    logEl.style.fontSize = `${mode === 'desktop' ? 16 * scale : Math.max(12, 16 * scale)}px`;
     logEl.style.left = `${8 * scale}px`;
-    logEl.style.top = 'auto';
-    logEl.style.bottom = `${(UI_H + 6) * scale}px`;
+    logEl.style.maxWidth = `${(VIEW_W - 16) * scale}px`;
+    if (mode === 'landscape') { logEl.style.top = `${6 * scale}px`; logEl.style.bottom = 'auto'; }
+    else { logEl.style.top = 'auto'; logEl.style.bottom = `${(UI_H + 6) * scale}px`; }
   }
   window.addEventListener('resize', resize);
   resize();

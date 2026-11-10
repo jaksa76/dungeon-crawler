@@ -1,6 +1,7 @@
 import { createView } from './view.js';
 import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
+import { createTouch, viewportSize } from '../engine/touch.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 
@@ -161,6 +162,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     KeyW: 'forward', ArrowUp: 'forward', KeyS: 'back', ArrowDown: 'back', KeyA: 'strafeLeft', KeyD: 'strafeRight',
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
+  const touch = createTouch({ onCommand: act, swipeEl: frame, extras: [{ label: 'Slot outlines', code: 'KeyO' }] });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
@@ -172,16 +174,24 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       + (missing.length ? ` · missing here: ${missing.map((m) => `${m.type}/${m.slot.id}`).join(', ')}` : '');
   }
 
+  // Desktop: view and panel stacked, scaled to fit. Phone portrait: full width, panel below, controls
+  // under that. Phone landscape: the view fills the screen, the panel is hidden, controls float over it.
   function resize() {
+    const mode = touch.layout();
+    const vp = viewportSize();
     const DW = W * SHOWN, DH = H * SHOWN;
-    const avail = Math.min(window.innerWidth / DW, (window.innerHeight - 70) / (DH + ui.height));
-    const scale = avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+    const avail = mode === 'portrait' ? vp.w / DW
+      : mode === 'landscape' ? Math.min(vp.w / DW, vp.h / DH)
+      : Math.min(vp.w / DW, (vp.h - 70) / (DH + ui.height));
+    const scale = mode === 'desktop' && avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+    viewCanvas.style.imageRendering = uiCanvas.style.imageRendering = mode !== 'desktop' && scale < 1 ? 'auto' : '';
     viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
     viewCanvas.style.height = `${DH * scale}px`;
     uiCanvas.style.height = `${ui.height * scale}px`;
     logCanvas.style.width = `${DW * scale}px`;
     logCanvas.style.height = `${logCanvas.height * DW * scale / PW}px`;
-    logCanvas.style.bottom = `${ui.height * scale}px`;
+    if (mode === 'landscape') { logCanvas.style.top = '0'; logCanvas.style.bottom = 'auto'; }
+    else { logCanvas.style.top = 'auto'; logCanvas.style.bottom = `${ui.height * scale}px`; }
   }
   window.addEventListener('resize', resize);
   resize();

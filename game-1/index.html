@@ -18,6 +18,13 @@
     .log div { transition: opacity 1s; }
     .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
     .help b { color: var(--fg); }
+    /* phones: see engine/touch.js, which sets html[data-layout] */
+    html[data-layout="portrait"] body, html[data-layout="landscape"] body { height: 100vh; height: 100dvh; overflow: hidden; }
+    html[data-layout="portrait"] body { justify-content: flex-start; gap: 0; }
+    html[data-layout="portrait"] .frame, html[data-layout="landscape"] .frame { box-shadow: none; }
+    html[data-layout="portrait"] .keys, html[data-layout="landscape"] .keys,
+    html[data-layout="landscape"] #status, html[data-layout="landscape"] #ui { display: none; }
+    html[data-layout="portrait"] #status { font-size: 10px; line-height: 1.3; padding: 6px 12px 0; }
   </style>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,7 +38,7 @@
     <canvas id="view"></canvas>
     <canvas id="ui"></canvas>
   </div>
-  <div class="help">
+  <div class="help keys">
     <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn ·
     <b>T</b> smooth movement · <b>F</b> fog · <b>V</b> far sprite variants · <b>L</b> point lights · <b>I</b> ink outlines
   </div>

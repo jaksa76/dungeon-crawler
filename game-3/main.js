@@ -6,6 +6,7 @@ import { COLOURS } from '../tools/views/colours.mjs';
 import { DIRS, SIDE_VEC } from '../tools/views/dirs.mjs';
 import { createWorld, viewName } from './world.js';
 import { legendEntries, coverage } from './legend.js';
+import { createTouch } from '../engine/touch.js';
 
 const PAINTED = 'assets/views/';
 const PROXY = 'assets/proxies/';
@@ -126,18 +127,28 @@ async function renderLegend(name) {
 
 // ---------------------------------------------------------------- input
 const KEYS = { ArrowUp: 'forward', w: 'forward', ArrowDown: 'back', s: 'back', a: 'left', d: 'right', ArrowLeft: 'turnLeft', q: 'turnLeft', ArrowRight: 'turnRight', e: 'turnRight' };
+function step(action) {
+  const r = world.act(state, action);
+  if (r.moved) { state = r.state; history.replaceState(null, '', `#${state.x},${state.z},${DIRS[state.dir]}`); show(); }
+}
 addEventListener('keydown', (ev) => {
   if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
-  if (KEYS[k]) {
-    ev.preventDefault();
-    const r = world.act(state, KEYS[k]);
-    if (r.moved) { state = r.state; history.replaceState(null, '', `#${state.x},${state.z},${DIRS[state.dir]}`); show(); }
-  } else if (k === 'l') { showLegend = !showLegend; show(false); }
+  if (KEYS[k]) { ev.preventDefault(); step(KEYS[k]); }
+  else if (k === 'l') { showLegend = !showLegend; show(false); }
   else if (k === 'g') { showAll = !showAll; renderLegend(viewName(state)); }
   else if (k === 'p') { proxyOnly = !proxyOnly; show(false); }
   else if (k === 'b') { blurred = !blurred; show(false); }
 });
+
+// Touch: the controls sit under the view (portrait) or float over it (landscape); see engine/touch.js.
+// The touch layer speaks in engine commands (strafe, turn); this viewer calls them left/right/turnLeft/turnRight.
+const ACTION = { forward: 'forward', back: 'back', strafeLeft: 'left', strafeRight: 'right', left: 'turnLeft', right: 'turnRight' };
+const touch = createTouch({
+  onCommand: (cmd) => step(ACTION[cmd]), swipeEl: canvas, mount: $('stage'),
+  extras: [{ label: 'Legend', code: 'KeyL' }, { label: 'All colours', code: 'KeyG' }, { label: 'Proxies only', code: 'KeyP' }, { label: 'Blurred', code: 'KeyB' }],
+});
+addEventListener('resize', touch.layout);
 
 ready = true;
 progress(); drawMap(); show(false);
