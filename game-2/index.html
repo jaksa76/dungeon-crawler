@@ -36,9 +36,11 @@
   <script type="module">
     import { startGame2d } from '../engine2d/game.js';
     import { quarter, tileTypes, props } from './quarter.js';
+    import { levels } from './levels.js';
     import { uiLayout } from '../game-1/town.js';
     startGame2d({
-      level: quarter, tileTypes, props, uiLayout,
+      level: quarter, tileTypes, props, uiLayout, levels,
+      initialLevel: new URLSearchParams(location.search).get('level') ?? 'village',
       assetPath: './assets', uiAssetPath: '../game-1/assets',
       viewCanvas: document.getElementById('view'),
       uiCanvas: document.getElementById('ui'),

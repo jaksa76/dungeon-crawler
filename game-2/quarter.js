@@ -32,6 +32,8 @@ export const props = {
 // sees it only while facing its side. Named entities show up on the minimap.
 export const quarter = {
   name: 'Ravensmoor, the Old Quarter',
+  shortName: 'Old Quarter',
+  journal: 'Explore Ravensmoor’s Old Quarter. The arched door in the eastern wall, beside the chest, leads to the Undercrypt. Face it and step forward to enter.',
   tiles: [
     '#AHB#',
     'J..DH',
@@ -40,11 +42,13 @@ export const quarter = {
     '#J#H#',
   ],
   start: { x: 2, z: 3, dir: 0 },
+  exits: [{ x: 3, z: 2, dir: 1, to: 'dungeon',
+    message: 'The eastern door leads to the Undercrypt. Step forward to enter.' }],
   entities: [
     { prop: 'stall', name: "the alchemist's stall", x: 2, z: 1, side: 'N' },
     { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
     { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N' },
-    { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'E' },
+    { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S' },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
     { prop: 'crate', x: 1, z: 3, side: 'S' },

@@ -3,6 +3,7 @@ import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
 import { createMobileHUD } from './mobile-hud.js';
+import { createExploration } from './exploration.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
@@ -43,18 +44,41 @@ export function cellLookup(level, tileTypes, props) {
   };
 }
 
-export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status }) {
+export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village' }) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
-  const view = createView(level.view);
+  const definitions = levels ?? { village: { level, tileTypes, props, assetPath } };
+  let levelId = Object.hasOwn(definitions, initialLevel) ? initialLevel : 'village';
+  const cache = new Map();
+  async function prepare(id) {
+    if (!Object.hasOwn(definitions, id)) throw new Error(`Unknown level: ${id}`);
+    if (!cache.has(id)) {
+      const job = (async () => {
+        const def = definitions[id], view = createView(def.level.view);
+        const wallArts = [...new Set(Object.values(def.tileTypes).filter(t => t.wall).map(t => t.art))];
+        const images = await loadSlotImages(view, { assetPath: def.assetPath, wallArts,
+          propArts: Object.values(def.props), backdrop: !def.level.atmosphere });
+        // Required dungeon art must be complete before replacing the active scene.
+        if (def.level.atmosphere && (!images.has('floor') || wallArts.some(art =>
+          view.wallSlots.some(slot => !images.has(`walls:${art}:${slot.id}`))))) {
+          throw new Error('The dungeon artwork could not be loaded. Please try again.');
+        }
+        const cell = cellLookup(def.level, def.tileTypes, def.props);
+        return { ...def, view, images, cell, comp: createCompositor(view, images),
+          exploration: createExploration(def.level, cell) };
+      })();
+      cache.set(id, job);
+      job.catch(() => cache.delete(id));
+    }
+    return cache.get(id);
+  }
+  let active = await prepare(levelId);
+  ({ level, tileTypes, props, assetPath } = active);
+  let { view, images, cell, comp, exploration } = active;
   const { W, H } = view.V;
-  const SHOWN = view.V.pixel ?? 1; // a pixel view is shown this many times larger (see view.js)
-  const wallArts = [...new Set(Object.values(tileTypes).filter((t) => t.wall).map((t) => t.art))];
-  const propArts = Object.values(props);
-  const images = await loadSlotImages(view, { assetPath, wallArts, propArts });
-  const comp = createCompositor(view, images);
-  const cell = cellLookup(level, tileTypes, props);
+  const SHOWN = view.V.pixel ?? 1;
+  let transitioning = false;
 
   // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
   // (320x180 for the default 640x360 view), and shown scaled up with nearest-neighbour sampling (the canvas
@@ -81,8 +105,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
   const opts = { outlines: false };
   const world = {
-    typeAt: (x, z) => { const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
-    billboards: level.entities.filter((e) => e.name).map((e) => ({ entity: e })),
+    get name() { return level.shortName ?? level.name; },
+    get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
+    typeAt: (x, z) => { if (!exploration.isKnown(x, z)) return null; const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
+    get billboards() { return level.entities.filter(e => e.name && exploration.isKnown(e.x, e.z)).map(entity => ({ entity })); },
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
@@ -90,7 +116,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
-  window.__game2d = { view, images, level, p };
+  bars.setLevel(level);
+  window.__game2d = { view, images, level, levelId, p, world };
 
   // Log: messages over the bottom-left of the view, fading out.
   const LOG_LINES = 4, LOG_PITCH = FONT.h + 1, LOG_PAD = 2;
@@ -118,7 +145,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   // Say what the player is looking at: whatever stands against the far side of this
   // tile, or against the near or far side of the tile ahead.
+  const exitAhead = () => levels && level.exits?.find(exit => exit.x === p.x && exit.z === p.z && exit.dir === p.dir);
+
   function look() {
+    const exit = exitAhead();
+    if (exit?.message) { say(exit.message); return; }
     for (const d of [0, 1]) for (const pr of relCell(0, d)?.props ?? []) {
       const name = pr.entity.name;
       if (!name) continue;
@@ -131,7 +162,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const tg = target.getContext('2d');
     tg.setTransform(target.width / W, 0, 0, target.height / H, 0, 0);
     tg.imageSmoothingQuality = 'high'; // shrinking the painted slot images to the internal resolution
-    comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines });
+    comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines, atmosphere: level.atmosphere });
   }
 
   // Messages stay for 7 s, then fade out over 1 s. Redrawn only when something changed.
@@ -172,7 +203,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function peekFor(cmd) {
     const st = plan(cmd);
     if (!st) return null;
-    const key = `${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
+    const key = `${levelId}:${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
     if (key !== peekKey) { peeks.clear(); peekKey = key; }
     if (!peeks.has(cmd)) {
       const c = document.createElement('canvas'); c.width = cw; c.height = ch;
@@ -185,7 +216,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function onSwipe(phase, cmd, amount) {
-    if (phase !== 'move' || bars.isOpen()) { settleDrag(); return; }
+    if (phase !== 'move' || bars.isOpen() || transitioning) { settleDrag(); return; }
     anim = null; release = null; // the picture in `next` is the settled one; start from it
     if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
     else drag.amount = amount;
@@ -200,6 +231,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   // Show the player's new state. `cmd` is the command that led here, when one did.
   function show(cmd) {
+    exploration.reveal(p);
     const motion = cmd ? motionFor(cmd) : null;
     const continuing = !!drag && drag.cmd === cmd; // the swipe that made this move already showed its first part
     // The picture to move away from: what is on screen right now, unless a swipe was already showing the
@@ -215,8 +247,43 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     updateStatus();
   }
 
+  async function travel(exit) {
+    transitioning = true;
+    anim = drag = release = null;
+    frame.setAttribute('aria-busy', 'true');
+    say('Opening the passage...');
+    try {
+      const destination = await prepare(exit.to);
+      const spawn = exit.spawn ?? destination.level.start;
+      if (destination.view.V.W !== W || destination.view.V.H !== H ||
+          (destination.view.V.pixel ?? 1) !== SHOWN) throw new Error('Level view sizes must match.');
+      const landing = destination.cell(spawn.x, spawn.z);
+      if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
+      active = destination; levelId = exit.to;
+      ({ level, tileTypes, props, assetPath, view, images, cell, comp, exploration } = active);
+      Object.assign(p, spawn, { steps: 0 });
+      Object.assign(window.__game2d, { levelId, level, view, images });
+      peeks.clear(); peekKey = '';
+      bars.setLevel(level);
+      document.title = `${level.shortName ?? level.name} · Ravensmoor`;
+      log.length = 0; logKey = '';
+      show(); say(`You enter ${level.shortName ?? level.name}.`); look();
+      const url = new URL(location.href);
+      if (levelId === 'village') url.searchParams.delete('level');
+      else url.searchParams.set('level', levelId);
+      history.replaceState(null, '', url);
+    } catch (error) {
+      say(error.message);
+    } finally {
+      transitioning = false;
+      frame.removeAttribute('aria-busy');
+    }
+  }
+
   function act(cmd) {
-    if (bars.isOpen()) return;
+    if (bars.isOpen() || transitioning) return;
+    const exit = cmd === 'forward' && exitAhead();
+    if (exit) { void travel(exit); return; }
     const st = plan(cmd);
     if (!st) { say('You bump into a wall.'); settleDrag(); return; }
     Object.assign(p, st);
@@ -271,6 +338,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   window.addEventListener('resize', resize);
   resize();
 
+  document.title = `${level.shortName ?? level.name} · Ravensmoor`;
   say(`Welcome to ${level.name}.`);
   show();
   look();

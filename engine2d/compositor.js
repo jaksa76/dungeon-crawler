@@ -13,11 +13,11 @@ export function loadImage(url) {
 // Image paths, relative to the asset folder:
 //   backdrop-<N|E|S|W>.png, floor.png
 //   walls/<art>/<slot id>.png, props/<art>/<slot id>.png
-export async function loadSlotImages(view, { assetPath, wallArts, propArts }) {
+export async function loadSlotImages(view, { assetPath, wallArts, propArts, backdrop = true }) {
   const images = new Map();
   const jobs = [];
   const want = (key, path) => jobs.push(loadImage(`${assetPath}/${path}`).then((img) => img && images.set(key, img)));
-  for (const dir of 'NESW') want(`backdrop:${dir}`, `backdrop-${dir}.png`);
+  if (backdrop) for (const dir of 'NESW') want(`backdrop:${dir}`, `backdrop-${dir}.png`);
   want('floor', 'floor.png');
   for (const art of wallArts) for (const s of view.wallSlots) want(`walls:${art}:${s.id}`, `walls/${art}/${s.id}.png`);
   for (const p of propArts) for (const s of view.propSlots(p.w, p.h, p.sideW).list) {
@@ -31,6 +31,24 @@ const FALLBACK = { front: '#5a4a5e', side: '#463a4c', prop: '#a07a4a' };
 
 export function createCompositor(view, images) {
   const { W, H } = view.V;
+  const tinted = new WeakMap();
+  const darkness = (distance, fog) => Math.min(1, Math.max(0, (distance - fog.near) / (fog.far - fog.near)));
+  function shade(image, distance, fog) {
+    if (!fog) return image;
+    const alpha = Math.round(darkness(distance, fog) * 8) / 8;
+    if (!alpha) return image;
+    let variants = tinted.get(image);
+    if (!variants) tinted.set(image, variants = new Map());
+    const key = `${fog.color}:${alpha}`;
+    if (!variants.has(key)) {
+      const c = document.createElement('canvas'); c.width = image.width; c.height = image.height;
+      const g = c.getContext('2d'); g.drawImage(image, 0, 0);
+      g.globalCompositeOperation = 'source-atop'; g.globalAlpha = alpha;
+      g.fillStyle = fog.color; g.fillRect(0, 0, c.width, c.height);
+      variants.set(key, c);
+    }
+    return variants.get(key);
+  }
 
   function drawFlipped(g, img, x, y, w, h, flip) {
     if (!flip) { g.drawImage(img, x, y, w, h); return; }
@@ -64,15 +82,26 @@ export function createCompositor(view, images) {
   // items: from view.compose(). facing: 'N'|'E'|'S'|'W'. flipFloor: alternate per step.
   // bare: only walls and props on a transparent canvas (for art guides).
   // A pixel view (view.V.pixel) is drawn without smoothing and without the soft shadow.
-  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = !view.V.pixel } = {}) {
-    if (view.V.pixel) g.imageSmoothingEnabled = false;
+  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = !view.V.pixel, atmosphere = null } = {}) {
+    g.imageSmoothingEnabled = !(view.V.pixel || atmosphere);
     g.clearRect(0, 0, W, H);
     if (!bare) {
-      const bd = images.get(`backdrop:${facing}`);
-      if (bd) g.drawImage(bd, 0, 0, W, H); else { g.fillStyle = '#1a1430'; g.fillRect(0, 0, W, H); }
+      const bd = !atmosphere && images.get(`backdrop:${facing}`);
+      if (bd) g.drawImage(bd, 0, 0, W, H); else { g.fillStyle = atmosphere?.color ?? '#1a1430'; g.fillRect(0, 0, W, H); }
       const floor = images.get('floor');
       if (floor) drawFlipped(g, floor, 0, 0, W, H, flipFloor);
       else { g.fillStyle = '#3a3040'; g.fillRect(0, view.horizon, W, H - view.horizon); }
+      if (atmosphere) {
+        // Ground distance comes from the same camera projection as the walls.
+        // Two-pixel strips match the demo's 320x180 internal rendering grid.
+        g.save(); g.fillStyle = atmosphere.color;
+        for (let y = view.horizon; y < H; y += 2) {
+          const distance = view.f * view.V.eye / Math.max(1, y - view.horizon);
+          g.globalAlpha = darkness(distance, atmosphere);
+          g.fillRect(0, y, W, 2);
+        }
+        g.restore();
+      }
     }
 
     for (const it of items) {
@@ -81,10 +110,10 @@ export function createCompositor(view, images) {
       const found = lookup(it);
       if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);
-        if (found) drawFlipped(g, found.img, r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
+        if (found) drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
         else polygon(g, r.poly, FALLBACK.prop);
       } else if (found) {
-        drawFlipped(g, found.img, r.x, r.y, r.w, r.h, found.flip);
+        drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.x, r.y, r.w, r.h, found.flip);
       } else {
         polygon(g, r.poly, FALLBACK[kind]);
       }

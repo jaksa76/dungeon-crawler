@@ -97,14 +97,14 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
     body.append(grid);
   }
   iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, inventory);
-  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, () => open('Field journal', 'You have arrived in Ravensmoor’s Old Quarter. Explore the square and meet the people of the Old Quarter. No quests have been accepted.'));
+  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, () => open('Field journal', world.journal));
   iconButton('Map', [545 + 4 * 99, 20, 99, 92], menus, () => {
-    open('Old Quarter', 'North is up. Amber marks people and landmarks; the red arrow marks your position.');
+    open(world.name, 'North is up. Amber marks people and landmarks; the red arrow marks your position. Dark areas are unexplored.');
     const large = document.createElement('canvas'); large.width = large.height = 56;
     large.getContext('2d').drawImage(map, 0, 0); large.className = 'rpg-large-map'; body.append(large);
   });
   iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, () => {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Keyboard: W/S move, A/D strafe, Q/E turn.');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Keyboard: W/S move, A/D strafe, Q/E turn.');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -149,9 +149,10 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
     for (const [s, x, y] of [['N', 26, 1], ['S', 26, 47], ['W', 1, 24], ['E', 50, 24]]) {
       drawText(g, FONT, s, x, y, '#e5c48c');
     }
-    map.setAttribute('aria-label', `Old Quarter map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
+    map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   return { left, right, controls, draw, open, ready,
+    setLevel(level) { title.textContent = level.name; mapTitle.textContent = level.shortName ?? level.name; },
     notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
     isOpen: () => dialog.open,
     setLayout(mode, width) {

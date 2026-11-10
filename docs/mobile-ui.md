@@ -21,6 +21,8 @@ keep controls accessible independently of the painted art.
   introduce combat, potion consumption, or an inventory persistence system.
 - Journal describes the current exploration demo; Map expands the live minimap.
 - Settings contains control help, fullscreen where supported, and slot outlines.
+- Game two's eastern village door connects to the Undercrypt; see
+  [dungeon-level.md](dungeon-level.md) for travel, visibility and art authoring.
 - **Reload without cache** in Settings clears this project's Cache Storage and
   service worker registrations, refreshes loaded game assets from the network,
   and reloads the page at a unique URL. Browsers do not expose a page API for
