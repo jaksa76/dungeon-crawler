@@ -11,7 +11,9 @@
 // swipes on the view (up = forward, down = back, left/right = turn), and optional toggle
 // chips that fire the same keys the keyboard does. Holding a button repeats it.
 // In portrait the controls sit in the page flow (below the view); in landscape they float
-// over the view's bottom corners.
+// over the view's bottom corners, or, given `sideBars`, sit inside two side bars the page provides
+// (move pad in the left one, turn buttons in the right one).
+// `fullscreen: true` adds a button that toggles fullscreen where the browser supports it (not iPhone Safari).
 
 const COARSE = matchMedia('(pointer: coarse)');
 const NARROW_PX = 700;
@@ -45,13 +47,28 @@ html[data-layout="portrait"], html[data-layout="landscape"] { overscroll-behavio
 .tp-move .sr { grid-column: 3; grid-row: 2; }
 .tp-turn { display: grid; grid-template-columns: repeat(2, var(--b)); grid-template-rows: calc(var(--b) * 2 + 6px); gap: 6px; }
 .tp-extras { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
-.tp button { appearance: none; margin: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
+.tp button, .sb .tp-move button, .sb .tp-turn button, .tp-fs { appearance: none; margin: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
   color: #f0e4c8; background: rgba(46, 36, 66, .88); border: 2px solid #6b5a8a; border-radius: 14px;
   -webkit-tap-highlight-color: transparent; touch-action: none; font: inherit; }
-.tp button.down { background: #6b5a8a; border-color: #c9a45c; }
-.tp button svg { width: 52%; height: 52%; fill: currentColor; pointer-events: none; }
+.tp button.down, .sb button.down, .tp-fs.down { background: #6b5a8a; border-color: #c9a45c; }
+.tp button svg, .sb button svg, .tp-fs svg { width: 52%; height: 52%; fill: currentColor; pointer-events: none; }
 .tp-extras button { height: 32px; padding: 0 12px; border-radius: 16px; font: 12px/1 system-ui, sans-serif; color: #b8aecb; background: rgba(46, 36, 66, .6); border-width: 1px; }
 .tp-extras button.down { color: #fff; }
+
+/* fullscreen toggle: a corner button, or the top row of the right side bar */
+.tp-fs { display: none; position: fixed; z-index: 30; top: 8px; right: 8px; width: 40px; height: 40px; opacity: .75; }
+html[data-layout="portrait"] .tp-fs, html[data-layout="landscape"] .tp-fs { display: grid; }
+.tp-fs.in-bar { position: static; width: 100%; height: 32px; flex: none; opacity: 1; border-radius: 10px; }
+.tp-fs.in-bar svg { width: 18px; height: 18px; }
+
+/* controls inside the side bars: the pads fill the bar's width and sit at its bottom */
+html[data-sidebars] .tp { display: none; }
+.sb .tp-move, .sb .tp-turn { width: 100%; margin-top: auto; gap: 4px; flex: none; }
+.sb .tp-move { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 46px); }
+.sb .tp-turn { grid-template-columns: repeat(2, 1fr); grid-template-rows: 96px; }
+.sb .tp button { width: 100%; height: 100%; border-radius: 10px; }
+.sb .tp-move button svg { width: 46%; height: 46%; }
+.sb .tp-turn button svg { width: 46%; height: 46%; }
 
 html[data-layout="portrait"] .tp { flex-direction: column; align-items: center; gap: 10px; width: 100%;
   margin-top: auto; padding: 8px 12px calc(12px + env(safe-area-inset-bottom)); }
@@ -67,12 +84,15 @@ html[data-layout="landscape"] .tp button.down { opacity: 1; background: #6b5a8a;
 const ICON = {
   arrow: '<svg viewBox="0 0 24 24"><path d="M12 4l8 9h-5v7H9v-7H4z"/></svg>',
   turn: '<svg viewBox="0 0 24 24"><path d="M9 4L3 10l6 6v-4h5a2 2 0 010 4h-3v4h3a6 6 0 000-12H9z"/></svg>',
+  fsEnter: '<svg viewBox="0 0 24 24"><path d="M3 3h7v2.5H5.5V10H3zm11 0h7v7h-2.5V5.5H14zM3 14h2.5v4.5H10V21H3zm15.5 0H21v7h-7v-2.5h4.5z"/></svg>',
+  fsExit: '<svg viewBox="0 0 24 24"><path d="M7.5 3H10v7H3V7.5h4.5zM14 3h2.5v4.5H21V10h-7zM3 14h7v7H7.5v-4.5H3zm11 0h7v2.5h-4.5V21H14z"/></svg>',
 };
 
 // opts: onCommand(cmd) with cmd in forward|back|strafeLeft|strafeRight|left|right;
 //       extras: [{ label, code }] toggle chips that dispatch that keyboard code;
-//       swipeEl: element that takes swipe gestures; mount: where the controls go (default <body>).
-export function createTouch({ onCommand, extras = [], swipeEl, mount = document.body }) {
+//       swipeEl: element that takes swipe gestures; mount: where the controls go (default <body>);
+//       sideBars: { left, right } elements that hold the pads in landscape; fullscreen: add the toggle button.
+export function createTouch({ onCommand, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false }) {
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.appendChild(style);
@@ -98,6 +118,7 @@ export function createTouch({ onCommand, extras = [], swipeEl, mount = document.
       </div>
     </div>`;
   mount.appendChild(root);
+  const main = root.querySelector('.tp-main'), move = root.querySelector('.tp-move'), turn = root.querySelector('.tp-turn');
 
   // A finger held on a button repeats it.
   function bind(el, fire) {
@@ -138,9 +159,44 @@ export function createTouch({ onCommand, extras = [], swipeEl, mount = document.
     });
   }
 
+  // Fullscreen toggle. iPhone Safari has no fullscreen API for pages, so there the button is left out.
+  let fsBtn = null;
+  if (fullscreen) {
+    const el = document.documentElement;
+    const request = el.requestFullscreen?.bind(el) ?? el.webkitRequestFullscreen?.bind(el);
+    const exit = (document.exitFullscreen ?? document.webkitExitFullscreen)?.bind(document);
+    const allowed = document.fullscreenEnabled ?? document.webkitFullscreenEnabled ?? true;
+    if (request && exit && allowed) {
+      fsBtn = document.createElement('button');
+      fsBtn.type = 'button'; fsBtn.className = 'tp-fs';
+      const isFs = () => !!(document.fullscreenElement ?? document.webkitFullscreenElement);
+      const sync = () => {
+        fsBtn.innerHTML = isFs() ? ICON.fsExit : ICON.fsEnter;
+        fsBtn.setAttribute('aria-label', isFs() ? 'Exit full screen' : 'Full screen');
+        fsBtn.title = fsBtn.getAttribute('aria-label');
+      };
+      fsBtn.addEventListener('click', () => { Promise.resolve(isFs() ? exit() : request()).catch(() => {}); });
+      document.addEventListener('fullscreenchange', sync);
+      document.addEventListener('webkitfullscreenchange', sync);
+      sync();
+      document.body.appendChild(fsBtn);
+    }
+  }
+
   function layout() {
     const mode = layoutMode();
+    const side = !!sideBars && mode === 'landscape';
     document.documentElement.dataset.layout = mode;
+    document.documentElement.toggleAttribute('data-sidebars', side);
+    if (side) {
+      if (move.parentNode !== sideBars.left) sideBars.left.appendChild(move);
+      if (turn.parentNode !== sideBars.right) sideBars.right.appendChild(turn);
+      if (fsBtn && fsBtn.parentNode !== sideBars.right) { sideBars.right.prepend(fsBtn); fsBtn.classList.add('in-bar'); }
+    } else {
+      if (move.parentNode !== main) main.prepend(move);
+      if (turn.parentNode !== main) main.append(turn);
+      if (fsBtn && fsBtn.parentNode !== document.body) { document.body.appendChild(fsBtn); fsBtn.classList.remove('in-bar'); }
+    }
     return mode;
   }
   layout();

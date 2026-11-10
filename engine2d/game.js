@@ -2,6 +2,7 @@ import { createView } from './view.js';
 import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
+import { createSideBars } from './sidebars.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 
@@ -66,9 +67,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
   // use a bitmap font: a scalable one is too blurry at this size.
   const PW = Math.max(cw, 320);
+  const panelImage = await loadImage(`${uiAssetPath}/ui/panel.png`);
+  const portraitImage = await loadImage(`${uiAssetPath}/ui/portrait-hero.png`);
   const ui = createUI(uiCanvas, {
-    'ui/panel': { image: await loadImage(`${uiAssetPath}/ui/panel.png`) },
-    'ui/portrait-hero': { image: await loadImage(`${uiAssetPath}/ui/portrait-hero.png`) },
+    'ui/panel': { image: panelImage },
+    'ui/portrait-hero': { image: portraitImage },
   }, uiLayout, { width: PW, font: FONT });
 
   const p = { ...level.start, steps: 0 };
@@ -78,6 +81,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     typeAt: (x, z) => { const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
     billboards: level.entities.filter((e) => e.name).map((e) => ({ entity: e })),
   };
+  // On a phone in landscape the bottom panel gives way to a bar on each side of the view.
+  const bars = createSideBars({ panel: panelImage, portrait: portraitImage, layout: uiLayout, font: FONT, world, hero });
   window.__game2d = { view, images, level, p };
 
   // Log: messages over the bottom-left of the view, fading out.
@@ -143,7 +148,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     prev.getContext('2d').drawImage(next, 0, 0);
     render(next);
     fade = { start: performance.now() };
-    ui.draw({ world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 });
+    const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
+    ui.draw(hud);
+    bars.draw(hud);
     updateStatus();
   }
 
@@ -162,7 +169,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     KeyW: 'forward', ArrowUp: 'forward', KeyS: 'back', ArrowDown: 'back', KeyA: 'strafeLeft', KeyD: 'strafeRight',
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
-  const touch = createTouch({ onCommand: act, swipeEl: frame, extras: [{ label: 'Slot outlines', code: 'KeyO' }] });
+  const touch = createTouch({
+    onCommand: act, swipeEl: frame, extras: [{ label: 'Slot outlines', code: 'KeyO' }],
+    fullscreen: true, sideBars: { left: bars.left, right: bars.right },
+  });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
@@ -175,13 +185,15 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   // Desktop: view and panel stacked, scaled to fit. Phone portrait: full width, panel below, controls
-  // under that. Phone landscape: the view fills the screen, the panel is hidden, controls float over it.
+  // under that. Phone landscape: the view sits between two side bars that hold the HUD and the controls.
   function resize() {
     const mode = touch.layout();
     const vp = viewportSize();
     const DW = W * SHOWN, DH = H * SHOWN;
+    // landscape: the view sits between the two side bars (a bigger multiple of the pixels on a tall screen)
+    const barW = mode === 'landscape' ? bars.setScale(vp.h >= 700 ? 3 : 2) : 0;
     const avail = mode === 'portrait' ? vp.w / DW
-      : mode === 'landscape' ? Math.min(vp.w / DW, vp.h / DH)
+      : mode === 'landscape' ? Math.min((vp.w - 2 * barW) / DW, vp.h / DH)
       : Math.min(vp.w / DW, (vp.h - 70) / (DH + ui.height));
     const scale = mode === 'desktop' && avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
     viewCanvas.style.imageRendering = uiCanvas.style.imageRendering = mode !== 'desktop' && scale < 1 ? 'auto' : '';

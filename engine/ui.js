@@ -19,7 +19,7 @@ function roundRect(g, x, y, w, h, r, color) {
 
 // Copy only the letters (gold pixels and their dark outline) out of the panel,
 // so they can be stamped back over the live minimap.
-function extractLetters(panel, rects) {
+export function extractLetters(panel, rects) {
   const c = document.createElement('canvas');
   c.width = panel.width; c.height = panel.height;
   const g = c.getContext('2d');
