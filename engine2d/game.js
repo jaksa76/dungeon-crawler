@@ -3,16 +3,16 @@ import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
 import { createMobileHUD } from './mobile-hud.js';
+import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 
 // Grid crawler drawn by 2D compositing: every step and turn shows a new
-// composite of pre-painted slot images (see view.js). Movement is instant with a
-// short crossfade, like the classics.
+// composite of pre-painted slot images (see view.js). Movement is instant, softened by a very short, subtle
+// motion between the old and the new picture (transition.js); a swipe starts it before the finger lifts.
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
 const DIR_KEYS = 'NESW';
-const FADE_MS = 140;
 
 // Props and NPCs stand against a side of their tile (`side: 'N'|'E'|'S'|'W'`), at
 // most one per side, and never block the tile. Seen from a player facing `dir`, a
@@ -151,11 +151,64 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     lg.globalAlpha = 1;
   }
 
-  let fade = null;
-  function show() {
-    prev.getContext('2d').drawImage(next, 0, 0);
+  // What is on screen. Idle: the settled picture in `next`. After a move: `anim` carries the picture it came
+  // from to the one in `next`. While a swipe is going: `drag` shows the first part of the move it would make.
+  // A swipe let go of early settles back in `release`. At most one of the three is set.
+  let anim = null, drag = null, release = null;
+
+  // The state a command would lead to, or null when a wall is in the way.
+  function plan(cmd) {
+    if (cmd === 'left' || cmd === 'right') return { ...p, dir: (p.dir + (cmd === 'left' ? 3 : 1)) % 4 };
+    const off = { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd];
+    const [dx, dz] = DIRS[(p.dir + off) % 4];
+    const c = cell(p.x + dx, p.z + dz);
+    if (!c || c.wall) return null;
+    return { ...p, x: p.x + dx, z: p.z + dz, steps: p.steps + 1 };
+  }
+
+  // The view the player would see in `st`, drawn without moving them. Kept per command while a swipe lasts.
+  const peeks = new Map();
+  let peekKey = '';
+  function peekFor(cmd) {
+    const st = plan(cmd);
+    if (!st) return null;
+    const key = `${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
+    if (key !== peekKey) { peeks.clear(); peekKey = key; }
+    if (!peeks.has(cmd)) {
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+      const here = { ...p };
+      Object.assign(p, st); // render() reads where the player is
+      try { render(c); } finally { Object.assign(p, here); }
+      peeks.set(cmd, c);
+    }
+    return peeks.get(cmd);
+  }
+
+  function onSwipe(phase, cmd, amount) {
+    if (phase !== 'move' || bars.isOpen()) { settleDrag(); return; }
+    anim = null; release = null; // the picture in `next` is the settled one; start from it
+    if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
+    else drag.amount = amount;
+  }
+
+  // Let go of a swipe that did not count: the half-made move eases back.
+  function settleDrag() {
+    if (!drag) return;
+    release = { ...drag, from: drag.amount, t0: performance.now() };
+    drag = null;
+  }
+
+  // Show the player's new state. `cmd` is the command that led here, when one did.
+  function show(cmd) {
+    const motion = cmd ? motionFor(cmd) : null;
+    const continuing = !!drag && drag.cmd === cmd; // the swipe that made this move already showed its first part
+    // The picture to move away from: what is on screen right now, unless a swipe was already showing the
+    // settled one transformed, in which case the clean picture in `next`.
+    prev.getContext('2d').drawImage(continuing || !(anim || drag || release) ? next : viewCanvas, 0, 0);
     render(next);
-    fade = { start: performance.now() };
+    const u0 = continuing ? drag.amount * PEEK : 0;
+    drag = release = null;
+    anim = motion ? { motion, u0, t0: performance.now(), ms: motion.ms * (1 - u0) } : null;
     const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
     ui.draw(hud);
     bars.draw(hud);
@@ -164,13 +217,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   function act(cmd) {
     if (bars.isOpen()) return;
-    if (cmd === 'left' || cmd === 'right') { p.dir = (p.dir + (cmd === 'left' ? 3 : 1)) % 4; show(); look(); return; }
-    const off = { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd];
-    const [dx, dz] = DIRS[(p.dir + off) % 4];
-    const c = cell(p.x + dx, p.z + dz);
-    if (!c || c.wall) { say('You bump into a wall.'); return; }
-    p.x += dx; p.z += dz; p.steps++;
-    show();
+    const st = plan(cmd);
+    if (!st) { say('You bump into a wall.'); settleDrag(); return; }
+    Object.assign(p, st);
+    show(cmd);
     look();
   }
 
@@ -179,7 +229,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
   const touch = createTouch({
-    onCommand: act, swipeEl: viewCanvas, mount: bars.controls,
+    onCommand: act, onSwipe, swipeEl: viewCanvas, mount: bars.controls,
     extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
     fullscreen: true, sideBars: { left: bars.left, right: bars.right },
   });
@@ -222,17 +272,23 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   resize();
 
   say(`Welcome to ${level.name}.`);
-  render(next);
-  prev.getContext('2d').drawImage(next, 0, 0);
   show();
   look();
 
   function loop(now) {
-    const k = fade ? Math.min(1, (now - fade.start) / FADE_MS) : 1;
-    g.globalAlpha = 1; g.drawImage(prev, 0, 0);
-    g.globalAlpha = k; g.drawImage(next, 0, 0);
-    g.globalAlpha = 1;
-    if (k >= 1) fade = null;
+    if (drag) {
+      drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);
+    } else if (release) {
+      const k = Math.min(1, (now - release.t0) / RELEASE_MS);
+      drawTransition(g, next, release.peek, release.motion, release.from * PEEK * (1 - easeOut(k)));
+      if (k >= 1) release = null;
+    } else if (anim) {
+      const k = Math.min(1, (now - anim.t0) / anim.ms);
+      drawTransition(g, prev, next, anim.motion, anim.u0 + (1 - anim.u0) * easeOut(k));
+      if (k >= 1) anim = null;
+    } else {
+      g.drawImage(next, 0, 0);
+    }
     drawLog(now);
     requestAnimationFrame(loop);
   }

@@ -17,7 +17,7 @@
 
 const COARSE = matchMedia('(pointer: coarse)');
 const NARROW_PX = 700;
-const HOLD_MS = 350, REPEAT_MS = 220, SWIPE_PX = 40;
+const HOLD_MS = 350, REPEAT_MS = 220, SWIPE_PX = 40, DEAD_PX = 8;
 
 // The size to lay the page out in. On a phone, content wider than the screen (a 640px canvas before it is
 // sized) makes the browser widen the layout viewport, so innerWidth can read bigger than the screen;
@@ -90,9 +90,11 @@ const ICON = {
 
 // opts: onCommand(cmd) with cmd in forward|back|strafeLeft|strafeRight|left|right;
 //       extras: [{ label, code }] toggle chips that dispatch that keyboard code;
-//       swipeEl: element that takes swipe gestures; mount: where the controls go (default <body>);
+//       swipeEl: element that takes swipe gestures; onSwipe(phase, cmd, amount), if given, is told about a swipe
+//       while it is still going: phase 'move' with the command it would be and 0..1 of the way to counting,
+//       or 'cancel' when it is let go of early (a swipe that counts just calls onCommand, as always); mount: where the controls go (default <body>);
 //       sideBars: { left, right } elements that hold the pads in landscape; fullscreen: add the toggle button.
-export function createTouch({ onCommand, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false }) {
+export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false }) {
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.appendChild(style);
@@ -146,16 +148,29 @@ export function createTouch({ onCommand, extras = [], swipeEl, mount = document.
   if (swipeEl) {
     swipeEl.style.touchAction = 'none';
     let start = null;
+    // The command a drag of (dx, dy) means, and how far along it is: 0 to 1, where 1 is far enough to count.
+    const read = (dx, dy) => {
+      const dist = Math.max(Math.abs(dx), Math.abs(dy));
+      if (dist < DEAD_PX) return { cmd: null, amount: 0, dist };
+      // The world follows the finger: drag it down to go forward, left to turn right.
+      const cmd = Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'right' : 'left') : (dy < 0 ? 'back' : 'forward');
+      return { cmd, amount: Math.min(1, dist / SWIPE_PX), dist };
+    };
     swipeEl.addEventListener('pointerdown', (ev) => {
       start = ev.pointerType === 'touch' ? { id: ev.pointerId, x: ev.clientX, y: ev.clientY } : null;
     });
-    swipeEl.addEventListener('pointercancel', () => { start = null; });
+    swipeEl.addEventListener('pointermove', (ev) => {
+      if (!start || ev.pointerId !== start.id || layoutMode() === 'desktop') return;
+      const { cmd, amount } = read(ev.clientX - start.x, ev.clientY - start.y);
+      onSwipe?.(cmd ? 'move' : 'cancel', cmd, amount);
+    });
+    swipeEl.addEventListener('pointercancel', () => { if (start) onSwipe?.('cancel'); start = null; });
     swipeEl.addEventListener('pointerup', (ev) => {
       if (!start || ev.pointerId !== start.id || layoutMode() === 'desktop') return;
-      const dx = ev.clientX - start.x, dy = ev.clientY - start.y;
+      const { cmd, amount } = read(ev.clientX - start.x, ev.clientY - start.y);
       start = null;
-      if (Math.max(Math.abs(dx), Math.abs(dy)) < SWIPE_PX) return;
-      onCommand(Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'right' : 'left') : (dy < 0 ? 'back' : 'forward'));
+      if (cmd && amount >= 1) onCommand(cmd); // the game sees the drag it had been showing end in this command
+      else onSwipe?.('cancel');
     });
   }
 
