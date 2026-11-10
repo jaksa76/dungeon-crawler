@@ -1,6 +1,6 @@
 // Subtle motion between two composed views of the 2D crawler. Meant to be felt, not noticed.
 //
-//   turn / strafe  the view pans a few percent sideways while the old picture fades into the new one
+//   turn / strafe  the view pans sideways while the old picture slides out and the new one slides in and fades in
 //   forward / back the old picture zooms a few percent (in for forward, out for back) while the new one fades in
 //
 // drawTransition() draws one frame at progress u (0 = the old view, 1 = the new one); geometry and opacity are
@@ -12,7 +12,7 @@ export const RELEASE_MS = 120;   // a swipe that is let go of too early settles 
 
 // pan: `amp` is the sideways travel as a share of the view's width. zoom: `amt` is the scale change.
 const MOTION = {
-  turn: { kind: 'pan', amp: 0.05, ms: 160 },
+  turn: { kind: 'pan', amp: 0.5, ms: 160 },
   strafe: { kind: 'pan', amp: 0.03, ms: 150 },
   move: { kind: 'zoom', amt: 0.06, ms: 180 },
 };
@@ -42,8 +42,7 @@ export const easeOut = (t) => 1 - (1 - t) ** 3;
 // only leans a hair into the move, as a swipe into a wall does.
 export function drawTransition(g, from, to, motion, u) {
   const w = from.width, h = from.height;
-  // One picture, shifted by dx, scaled by s about the middle. Always called with s large enough for the
-  // picture to still cover the whole frame.
+  // One picture, shifted by dx, scaled by s about the middle.
   const layer = (img, dx, s, alpha) => {
     if (alpha <= 0) return;
     g.save();
@@ -57,11 +56,20 @@ export function drawTransition(g, from, to, motion, u) {
   if (!to) { layer(from, 0, 1 + 0.012 * u, 1); return; }
 
   if (motion.kind === 'pan') {
+    // travel < 0: the scene slides left (the view pans right). The old picture moves with it and stays opaque; the
+    // strip of frame it uncovers shows the new picture outright, and over the rest the new picture dissolves in.
+    // Whole pixels, so the seam between the two is clean.
     const travel = motion.amp * w * motion.sign * (PAN_SCENE_OPPOSITE ? -1 : 1);
-    const dxFrom = travel * u, dxTo = -travel * (1 - u);
-    // Scale each picture just enough that its shifted edge never leaves a gap at the frame's side.
-    layer(from, dxFrom, 1 + 2 * Math.abs(dxFrom) / w, 1);
-    layer(to, dxTo, 1 + 2 * Math.abs(dxTo) / w, u);
+    const dxFrom = Math.round(travel * u), dxTo = Math.round(-travel * (1 - u));
+    layer(from, dxFrom, 1, 1);
+    const clipped = (x, width, alpha) => {
+      if (width <= 0) return;
+      g.save(); g.beginPath(); g.rect(x, 0, width, h); g.clip();
+      layer(to, dxTo, 1, alpha);
+      g.restore();
+    };
+    if (dxFrom < 0) { clipped(w + dxFrom, -dxFrom, 1); clipped(0, w + dxFrom, u); }
+    else { clipped(0, dxFrom, 1); clipped(dxFrom, w - dxFrom, u); }
   } else if (motion.kind === 'zoom') {
     const z = motion.amt;
     if (motion.sign > 0) { // forward: the old view grows past the frame, the new one grows up to it
