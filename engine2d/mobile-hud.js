@@ -1,6 +1,7 @@
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 import { pixelSkin } from './pixel-skin.js';
+import { reloadFresh } from './reload.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
@@ -104,6 +105,13 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
   });
   iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, () => {
     open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Keyboard: W/S move, A/D strafe, Q/E turn.');
+    const reload = document.createElement('button'); reload.type = 'button';
+    reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
+    reload.addEventListener('click', async () => {
+      reload.disabled = true; reload.textContent = 'Refreshing game files...';
+      await reloadFresh();
+    });
+    body.append(reload);
     const label = document.createElement('label'); label.className = 'rpg-debug';
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = debug.get();
     checkbox.addEventListener('change', () => debug.set(checkbox.checked));

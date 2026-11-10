@@ -44,6 +44,9 @@ export function cellLookup(level, tileTypes, props) {
 }
 
 export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status }) {
+  // Keep the complete asset list for a fresh reload; the browser's default
+  // timing buffer holds only 250 entries, fewer than a full scene's images.
+  performance.setResourceTimingBufferSize(4096);
   const view = createView(level.view);
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1; // a pixel view is shown this many times larger (see view.js)
