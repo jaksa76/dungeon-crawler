@@ -370,7 +370,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       : mode === 'landscape' ? Math.min((vp.w - 2 * barW) / DW, vp.h / DH)
       : Math.min(vp.w / DW, (vp.h - 70) / (DH + ui.height));
     const scale = mode === 'desktop' && avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
-    viewCanvas.style.imageRendering = uiCanvas.style.imageRendering = mode !== 'desktop' && scale < 1 ? 'auto' : '';
+    // Compare with the actual internal canvas, not the nominal 640px view.
+    // A 532px phone view enlarges 320px art and should keep its pixel edges.
+    viewCanvas.style.imageRendering = DW * scale < cw ? 'auto' : 'pixelated';
+    uiCanvas.style.imageRendering = DW * scale < uiCanvas.width ? 'auto' : 'pixelated';
     viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
     viewCanvas.style.height = `${DH * scale}px`;
     uiCanvas.style.height = `${ui.height * scale}px`;

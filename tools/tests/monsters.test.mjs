@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createMonsters, actorDirection } from '../../engine2d/monsters.js';
 import { createView } from '../../engine2d/view.js';
 import { dungeon } from '../../game-2/dungeon.js';
@@ -71,4 +72,19 @@ test('monster frames select relative direction and shrink at each depth', () => 
 test('invalid wall spawns and instant entrance kills are rejected', () => {
   assert.throws(() => fixture(['#####', '#...#', '#####'], { x: 0, z: 0 }), /floor tile/);
   assert.throws(() => fixture(['#####', '#...#', '#####'], { x: 3, z: 1 }), /player entrance/);
+});
+
+test('the snake has all sixteen exported direction and distance frames', () => {
+  const manifest = JSON.parse(fs.readFileSync(new URL('../../game-2/art/snake-atlas.json', import.meta.url)));
+  const frames = new Set();
+  for (const frame of manifest.frames) {
+    const key = `${frame.direction}-d${frame.depth}`;
+    const png = fs.readFileSync(new URL(`../../game-2/dungeon/assets/monsters/snake/${key}.png`, import.meta.url));
+    assert.equal(png.toString('ascii', 1, 4), 'PNG');
+    assert.equal(png.readUInt32BE(16), frame.w); assert.equal(png.readUInt32BE(20), frame.h);
+    assert.equal(png[25], 6, 'sprites must retain an alpha channel');
+    frames.add(key);
+  }
+  assert.equal(frames.size, 16);
+  for (const direction of ['front', 'back', 'left', 'right']) for (let d = 0; d <= 3; d++) assert(frames.has(`${direction}-d${d}`));
 });

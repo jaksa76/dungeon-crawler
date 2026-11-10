@@ -1,6 +1,8 @@
 # Roaming dungeon creature
 
-The Undercrypt has one creature, currently drawn as an outlined red rectangle.
+The Undercrypt has one green snake with lime markings, red eyes and large
+ivory teeth, based on the supplied concept drawing. It has a transparent
+spritesheet with front, back, left and right views at four distances.
 It moves in real time independently of the player's steps. Sharing a floor
 tile with it is fatal, whether the player steps into it or it reaches the
 player. There is no combat or attack button in this pass.
@@ -32,7 +34,7 @@ Configure spawn, dimensions and perception in `game-2/dungeon.js`:
 monsterStepMs: 1100,
 monsterGraceMs: 3500,
 monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3,
-  w: .4, h: .9, sight: 4, art: null }],
+  w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true }],
 ```
 
 `x`/`z` are grid coordinates, and `dir` is north/east/south/west = 0/1/2/3.
@@ -43,8 +45,20 @@ the compositor owns how creatures look.
 
 ## Replacing the rectangle with concept-art sprites
 
-No monster artwork has been generated yet. The rendering contract is ready
-for four directions at four distances. Set `art` to an asset-folder name,
+The snake's source drawing is `game-2/art/ref/snake-concept.jpg`, and the
+generated atlas is `game-2/art/painted/monsters-snake.png`. Columns are front,
+back, left and right; rows run from contact (d0) to darkness (d3). The export
+manifest is `game-2/art/snake-atlas.json`. Regenerate the layout guide with
+`node tools/snake-art.mjs guide` and export the sixteen runtime PNGs with
+`node tools/snake-art.mjs slice` (Playwright and Chromium required).
+
+The export finds the complete silhouettes, preserving heads and tails even
+if generation shifts rows. It scales each onto a transparent card with a
+consistent baseline and aspect ratio. Distant cards have fewer pixels and
+less detail, with mostly the eyes and teeth emerging from a dark silhouette.
+
+The rendering contract supports four directions at four distances. Set
+`art` to an asset-folder name,
 for example `'prowler'`, and supply:
 
 ```text
@@ -66,8 +80,11 @@ scale across frames; use transparency around the creature. Lateral positions
 reuse the relevant direction/depth frame. Missing frames fall back to the
 rectangle, so artwork can be added incrementally.
 
-The renderer handles wall occlusion, distance scaling and the dungeon's
-darkness. Swipe previews render the creature without moving simulation or
+The renderer handles wall occlusion and distance scaling. `distanceShaded`
+means darkness is already painted into the direction/depth frames: it avoids
+applying wall fog a second time and preserves distant eye and tooth pixels.
+Other creatures can omit the flag to use runtime fog. Missing frames still
+use the fogged rectangle. Swipe previews render the creature without moving simulation or
 causing defeat; only a committed step changes the player's position.
 
 ## Checks

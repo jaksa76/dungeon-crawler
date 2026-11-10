@@ -34,7 +34,7 @@ export const dungeon = {
   entities: [],
   monsterStepMs: 1100,
   monsterGraceMs: 3500,
-  monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3, w: .4, h: .9, sight: 4, art: null }],
+  monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3, w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true }],
   exits: [{ x: 1, z: 1, dir: 3, to: 'village', spawn: { x: 3, z: 2, dir: 3 },
     message: 'The ironbound door leads back to the Old Quarter. Step forward to leave.' }],
 };

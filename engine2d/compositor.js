@@ -129,7 +129,10 @@ export function createCompositor(view, images) {
       const found = lookup(it);
       if (kind === 'actor') {
         const image = found?.img ?? placeholder(it.actor.direction);
-        drawFlipped(g, shade(image, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, false);
+        // These distance-specific frames already fade into darkness. Applying
+        // wall fog again would erase the distant snake's eye and fang pixels.
+        const fog = found && it.actor.distanceShaded ? null : atmosphere;
+        drawFlipped(g, shade(image, it.d + .35, fog), r.full.x, r.full.y, r.full.w, r.full.h, false);
       } else if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);
         if (found) drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
