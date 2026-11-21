@@ -61,7 +61,7 @@ test('unknown behaviour types are rejected', () => {
 
 test('the village props that carry a behaviour use known types', () => {
   for (const [name, prop] of Object.entries(props)) if (prop.behavior) assert.doesNotThrow(() => checkBehavior(prop.behavior, name));
-  for (const name of ['well', 'barrel', 'crate']) assert.equal(props[name].behavior.type, 'examine');
+  for (const name of ['well', 'barrel', 'crate']) assert.equal(props[name].behavior.type, 'open'); // hidden stashes, see inventory.test.mjs
   for (const entity of quarter.entities) {
     const text = (entity.behavior ?? props[entity.prop].behavior)?.text;
     if (text) assert.ok(text.length > 10);

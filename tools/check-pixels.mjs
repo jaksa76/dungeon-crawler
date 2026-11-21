@@ -42,7 +42,7 @@ for (const [name, viewport, mobile] of layouts) {
   await page.waitForTimeout(250);
   const { px, bad, count } = await page.evaluate(() => {
     const px = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--rpg-px'));
-    const canvases = [...document.querySelectorAll('canvas.rpg-portrait, canvas.rpg-map, .rpg-slots canvas, .rpg-menus canvas, .rpg-inventory canvas')]
+    const canvases = [...document.querySelectorAll('canvas.rpg-portrait, canvas.rpg-map, .rpg-slots canvas, .rpg-menus canvas, .rpg-cell canvas, .rpg-hero, .rpg-dialog-body > canvas')]
       .filter(c => c.clientWidth);
     const bad = canvases.filter(c => c.clientWidth !== c.width * px || c.clientHeight !== c.height * px)
       .map(c => `${c.className || c.parentElement.parentElement.className} ${c.width}px shown at ${c.clientWidth}px`);

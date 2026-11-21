@@ -31,9 +31,69 @@
 .rpg-game-over h2 { color: #ed8b74; font-size: calc(16px * var(--rpg-px, 2)); margin-bottom: 14px; }
 .rpg-game-over button { margin-top: 6px; }
 /* Icon canvases get their size and resolution from the art registry in mobile-hud.js. */
-.rpg-inventory { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
-.rpg-inventory button { display: grid; justify-items: center; gap: 4px; }
-.rpg-inventory canvas { image-rendering: pixelated; }
+.rpg-cell canvas, .rpg-row canvas, .rpg-hero, .rpg-dialog-body > canvas { image-rendering: pixelated; }
+.rpg-dialog-body > canvas { display: block; margin: 0 auto 8px; }
+.rpg-note { color: #f1dfbe; }
+
+/* The satchel: a panel laid out on the frames of engine2d/assets/inventory-bg.png, a 16:9 painting. The
+   columns and rows are the measured positions of its frames, as percentages of the panel: a tall niche for the
+   hero down the left, and on the right the slab (the grid), the description bar and a bottom bar. Repaint the
+   background and re-measure these if its frames move (see docs/inventory.md). */
+.rpg-bag-panel { display: grid; padding: 0; border: 0; image-rendering: auto; background: #100d0b;
+  grid-template-columns: 2.8% 21.8% 1.8% 70.8% 2.8%;
+  grid-template-rows: 3.2% 8% 2.9% 48.7% 2.9% 18.3% 3% 8.5% 4.5%; }
+html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 100% no-repeat, #100d0b; }
+.rpg-bag-panel header { grid-area: 2 / 2 / 3 / 5; display: flex; align-items: center; margin: 0; padding-left: 8px; }
+.rpg-bag-panel .rpg-dialog-body, .rpg-bag { display: contents; }
+.rpg-niche { grid-area: 4 / 2 / 9 / 3; display: grid; place-items: center; min-width: 0; min-height: 0; overflow: hidden; }
+.rpg-hero { border: calc(var(--rpg-px, 2) * 1px) solid #8c6949; }
+.rpg-slab { grid-area: 4 / 4; container-type: size; display: grid; place-items: center; padding: 1%; min-width: 0; min-height: 0; }
+.rpg-detail { grid-area: 6 / 4; display: flex; flex-direction: column; justify-content: space-between; gap: 2px; padding: 3px 10px; min-width: 0; min-height: 0; overflow: hidden; }
+.rpg-bag-panel footer { grid-area: 8 / 4; margin: 0; align-items: center; }
+.rpg-bag-panel footer button { position: relative; min-height: 0; height: 100%; padding: 0 14px; }
+.rpg-bag-panel footer button::after { content: ''; position: absolute; inset: -8px -4px; } /* a larger tap target than the slim bar */
+
+/* The grid: square cells sized to whichever of the slab's width and height is the tighter fit. */
+.rpg-grid { --cell: min(calc(100cqw / var(--cols)), calc(100cqh / var(--rows)));
+  display: grid; grid-template-columns: repeat(var(--cols), var(--cell)); grid-auto-rows: var(--cell); }
+.rpg-cell { position: relative; box-sizing: border-box; display: grid; place-items: center; min-width: 0; min-height: 0; padding: 0;
+  background: #1b1512b0; border: calc(var(--rpg-px, 2) * 1px) solid #3d2f25; }
+.rpg-panel button.rpg-cell { min-width: 0; min-height: 0; padding: 0; border-color: #8b6542; touch-action: none; user-select: none; }
+.rpg-cell.selected { border-color: #ffe0a0; background: #4a3522d0; }
+.rpg-cell.dragging canvas { opacity: .3; }
+.rpg-cell.drop-target { outline: calc(var(--rpg-px, 2) * 1px) solid #ffe0a0; outline-offset: calc(var(--rpg-px, 2) * -1px); }
+.rpg-cell b { position: absolute; right: calc(var(--rpg-px, 2) * 2px); bottom: 0; color: #fff3db; font: inherit;
+  text-shadow: calc(var(--rpg-px, 2) * 1px) calc(var(--rpg-px, 2) * 1px) #000; }
+.rpg-ghost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; opacity: .9; image-rendering: pixelated; }
+
+/* What is selected: name and description (one flowing paragraph on a short screen), and its actions. */
+.rpg-detail-text { flex: 0 1 auto; min-width: 0; line-height: 1.2; color: #ebd6ad; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rpg-detail-text h3 { display: inline; margin: 0 8px 0 0; font-size: inherit; color: #e8c688; }
+.rpg-detail-text p { display: inline; margin: 0; }
+.rpg-detail-text p + p { margin-left: 8px; }
+.rpg-compact .rpg-detail-text { -webkit-line-clamp: 1; }
+.rpg-detail .rpg-actions { flex: none; display: flex; justify-content: flex-end; gap: 6px; margin: 0; height: calc(var(--rpg-px, 2) * 12px); }
+.rpg-detail .rpg-actions button { min-height: 0; height: 100%; padding: 0 12px; }
+.rpg-compact .rpg-detail .rpg-actions button { padding: 0 8px; }
+.rpg-detail .rpg-actions button:disabled { opacity: .45; cursor: default; }
+
+/* Portrait phones are too short for the painted layout: no painting, and the satchel scrolls. */
+html[data-layout="portrait"] .rpg-bag-panel { display: flex; padding: 10px 12px; border: calc(var(--rpg-px, 2) * 1px) solid #715036; background: #100d0b; }
+html[data-layout="portrait"] .rpg-bag-panel .rpg-dialog-body { display: block; flex: 1; min-height: 0; overflow-y: auto; }
+html[data-layout="portrait"] .rpg-bag { display: flex; flex-direction: column; }
+html[data-layout="portrait"] .rpg-detail { order: -1; } /* above the grid, so a selection is seen without scrolling */
+html[data-layout="portrait"] .rpg-niche { display: none; }
+html[data-layout="portrait"] .rpg-slab { container-type: inline-size; padding: 0; }
+html[data-layout="portrait"] .rpg-grid { --cell: calc(100cqw / var(--cols)); }
+html[data-layout="portrait"] .rpg-detail { padding: 8px 0; flex-wrap: wrap; overflow: visible; }
+html[data-layout="portrait"] .rpg-detail-text { flex: 1 1 100%; } /* the buttons wrap below the text */
+html[data-layout="portrait"] .rpg-bag-panel header { padding: 0; }
+html[data-layout="portrait"] .rpg-bag-panel footer button { height: auto; min-height: 44px; }
+html[data-layout="portrait"] .rpg-detail-text, html[data-layout="portrait"] .rpg-compact .rpg-detail-text { display: block; overflow: visible; }
+html[data-layout="portrait"] .rpg-detail .rpg-actions { height: 44px; }
+.rpg-loot { display: grid; gap: 6px; margin-bottom: 4px; }
+.rpg-panel button.rpg-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 4px 12px; }
+.rpg-row .rpg-take { margin-left: auto; color: #e8c688; }
 .rpg-log { list-style: none; margin: 0; padding: 0; }
 .rpg-log li { padding: 3px 0; }
 .rpg-log li:first-child { color: #f1dfbe; }

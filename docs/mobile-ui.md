@@ -30,8 +30,8 @@ fractional scale (needs Playwright and Chromium).
 - Step/strafe with the movement pad; turn with the curved arrows. Hold a
   movement button to repeat, or drag the scene: down moves forward, up moves
   backward, left turns right, and right turns left.
-- Quick items and Inventory show the demo equipment descriptions. They do not
-  introduce combat, potion consumption, or an inventory persistence system.
+- The four quick items show descriptions only. The Bag opens the real pack (a grid of stacks you can
+  drop); see [inventory.md](inventory.md).
 - Journal describes the current exploration demo and has a Message log button. The minimap is always on screen.
 - **Use** (above the turn buttons; **F** or **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
 - On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the first four quick items are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine2d/panel-icons.js`).

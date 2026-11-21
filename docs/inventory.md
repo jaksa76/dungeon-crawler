@@ -1,0 +1,127 @@
+# Items, the pack and containers
+
+## Items
+
+`game-2/items.js` defines every item as data:
+
+```js
+'health-potion': { name: 'Health potion', type: 'potion', icon: 2, stack: 5, use: { hp: 20 },
+  description: 'A small vial of red tonic that mends wounds.' },
+```
+
+`icon` is the position of the picture in the row of eight item icons on the bottom
+panel (`game-1/assets/ui/panel.png`): sword, shield, red potion, blue potion, torch,
+scroll, crystal, key. New pictures need new art; until then items share these eight.
+`stack` is how many fit in one slot (default 1). `use` is `{ hp, mp }` to restore; items
+without it cannot be used yet. `startingItems` is what the player carries at the start.
+
+## The pack
+
+`engine2d/inventory.js` holds the logic, with no DOM. `add` fills existing stacks first,
+then empty slots, and returns how many did not fit. `remove` takes part or all of a slot.
+`move(from, to)` is what a drag does: into an empty slot, merged into the same item while
+the target has room, otherwise swapped.
+
+The pack has `inventorySize` slots (32) in `inventoryColumns` columns (8), both set in
+`game-2/items.js`. **12 columns by 10 rows (120 slots) is too much**: the satchel sits on a
+16:9 scene that is only 299 pixels tall on a phone held sideways, so cells would be
+about 20px, too small to see an icon or to drag. Rows are what is scarce. 8 by 4 gives
+roughly 35px cells on a phone and 62px on desktop. A taller grid is possible if the
+satchel is allowed to scroll, which it already does in portrait.
+
+## The satchel screen
+
+Press **I** (or tap the bag icon) to open it; press **I** again, or **Escape**, to close.
+
+- **Left:** a tall niche for the hero. It currently shows the portrait as a placeholder.
+  It is a full-height alcove so that a full-body picture can go here later, with
+  equipment slots placed on the figure.
+- **Right:** the pack as a grid. Tap a stack to select it. Drag a stack onto another slot
+  to move, merge or swap; the icon follows the pointer and the slot it would land on lights
+  up. Works with a mouse and with touch.
+- **Description bar:** the selected item's name, quantity and description, with **Use**
+  (greyed out when the item has no `use`), **Drop one** and **Drop all**. With nothing
+  selected it shows a hint. **Close** is in the bar underneath.
+- Using a potion restores health or mana and uses one up. If it would be wasted ("Your
+  health is already full.") it is kept.
+- Portrait phones are too short for this layout: there the painting is dropped, the hero is
+  hidden, and the satchel scrolls with the description above the grid.
+
+## Containers and loot
+
+An entity opens as a container with an `open` behaviour (see
+[interaction.md](interaction.md)); a prop can carry one as a default, as the barrel does:
+
+```js
+{ type: 'open', title: 'Chest', text: 'Packed in oilcloth are supplies for a descent.',
+  contents: [{ item: 'health-potion', qty: 2 }, { item: 'torch' }],      // always there
+  loot: { rolls: 1, none: 0, entries: [{ item: 'scroll', weight: 1 }] } } // rolled once
+```
+
+`qty` is a number or a `[min, max]` range. Each of `rolls` picks one entry by `weight`;
+`none` is the weight of finding nothing. What is inside is decided the first time the
+container is opened (`engine2d/loot.js`) and then kept, so it does not change if you
+close it and come back. Two barrels from the same prop roll separately.
+
+The panel lists each stack with a **Take** row, plus **Take all**. If the pack is full,
+whatever does not fit stays in the container.
+
+In the village: the chest holds the starting supplies; the well hides a crystal; one barrel
+and the crate roll a potion, torch or scroll; the second barrel is empty.
+
+## Dropping and the floor
+
+Dropping puts items in a pile on the tile you stand on, remembered per level. Standing on
+a pile, **Use** opens it like any container, unless a container is in reach. A person with
+nothing to do does not block it. Entering a tile with a pile says "Something lies on the
+floor here." Piles are not drawn in the scene yet.
+
+State (opened containers, piles, the pack) lasts for the page session; saving comes in a
+later milestone.
+
+## The background painting
+
+`engine2d/assets/inventory-bg.png` (1280×720, 16:9) is the satchel's background. It was
+painted by Codex from the prompt below, with `game-1/assets/ui/panel.png` as the style
+reference, and it contains only frames: no slots, text or figure. The software draws the
+slots, text and buttons on top, and the layout in `engine2d/mobile-hud.css` (`.rpg-bag-panel`)
+follows the painting's frames as percentages. If you repaint it, measure where the new frames
+are and update those column and row percentages.
+
+```
+codex exec -C <work dir> -s workspace-write --skip-git-repo-check -i style-panel.png - < prompt.txt
+```
+
+(`style-panel.png` is `game-1/assets/ui/panel.png`; the prompt starts with `$imagegen` to
+make Codex use its image tool, and the result lands in the work dir.) The prompt, in short:
+
+> Inventory-screen background, same style as the attached UI panel: dark purple-brown
+> stone, studded stone outer frame, thin bronze rims, flat and front-on, crisp pixel edges.
+> Canvas 1536×1024, all of the interface in the 16:9 band y 80 to 944. A slim title bar
+> across the top; a TALL NARROW recessed alcove at the left (x 3–24%, y 14–97%) for a full-length
+> figure; on the right a large empty slab (x 26–97%, y 14–62%), a description bar (y 65–86%)
+> and a slim bar along the bottom (y 89–97%). Empty everywhere: no grid, slots, text,
+> icons, figures or numbers.
+
+Then `node tools/crop-bag-bg.mjs painted.png` crops the band, scales it to 1280×720 and writes
+the asset. The measured frames of the current painting (percent of the panel):
+
+| | x | y |
+|---|---|---|
+| title bar | 2.8–97.2 | 3.2–11.2 |
+| hero niche | 2.8–24.6 | 14.1–95.5 |
+| slab (grid) | 26.4–97.2 | 14.1–62.8 |
+| description bar | 26.4–97.2 | 65.7–84.0 |
+| bottom bar (Close) | 26.4–97.2 | 87.0–95.5 |
+
+Codex may need a minute or two; its command exits before the image is saved, so wait for the
+file to appear. Nothing but the image is kept from the run.
+
+## Checks
+
+`node --test tools/tests/inventory.test.mjs` covers stacking, overflow, drag moves, take
+and take all, loot rolls, behaviour wiring, and that every village container names real
+items. `node tools/check-pixels.mjs` includes the satchel's icons and hero. In a browser:
+open the chest and take everything, press I, drag a stack, select a potion and use it
+(set `__game2d.hero.hp` lower first to see it heal), drop one, use on the floor to pick it
+up, and check the chest now reads "Nothing left."

@@ -6,7 +6,7 @@ and the Undercrypt (`game-2/`).
 One backlog, in build order. Each milestone lists the **engine** work first,
 then the **game** stories it unlocks, so no story appears before the engine
 feature it needs. Work top to bottom; items inside a milestone can go in any order.
-`[x]` means it already exists.
+`[x]` means it already exists; `[~]` is partly done.
 
 ## Done
 
@@ -32,15 +32,16 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 ## M2 — Items, containers and inventory
 
 **Engine**
-- [ ] Item definitions as data (type, icon, name, description)
-- [ ] Inventory grid view (will need to generate background image through codex)
-- [ ] Inventory that changes: pick up, drop, stack
-- [ ] Containers and loot tables (chests, hidden stashes)
-- [ ] Take all button when container is open
+- [x] Item definitions as data (type, icon, name, description)
+- [x] Inventory screen: painted background (Codex), tall hero niche, 8×4 grid with drag to move/merge/swap, item description with Use / Drop / Drop all, **I** key
+- [ ] Hero view: a full-body picture in the niche with equipment slots on it (a placeholder portrait is there now)
+- [x] Inventory that changes: pick up, drop, stack
+- [x] Containers and loot tables (chests, hidden stashes)
+- [x] Take all button when container is open
 
 **Game**
-- [ ] As a player, I want to open the chest by the dungeon door and find starting supplies.
-- [ ] As a player, I want to find something hidden in the well, barrels and crates.
+- [x] As a player, I want to open the chest by the dungeon door and find starting supplies.
+- [x] As a player, I want to find something hidden in the well, barrels and crates.
 
 ## M3 — Character stats and combat
 
@@ -48,7 +49,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 
 **Engine**
 - [ ] Character model: attributes derived into HP/MP, attack and defence
-- [ ] Consumables that really heal (health and mana potions)
+- [x] Consumables that really heal (health and mana potions): done early, via Use in the satchel
 - [ ] Equipment slots that change stats (weapon, shield, armour)
 - [ ] Monster stats (HP, damage, defence, speed)
 - [ ] Player melee attack with cooldown, hit and miss feedback

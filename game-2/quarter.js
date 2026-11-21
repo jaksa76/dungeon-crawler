@@ -20,9 +20,12 @@ export const props = {
   villager: { art: 'villager', w: 0.266, h: 0.68 },
   hooded: { art: 'hooded', w: 0.326, h: 0.7 },
   stall: { art: 'stall', w: 1.295, h: 1.05, sideW: 0.49, behavior: { type: 'examine', text: 'Dried herbs and corked vials crowd the alchemist’s stall.' } }, // sideW: its width seen from the side (the art's own proportions)
-  well: { art: 'well', w: 0.619, h: 0.8, behavior: { type: 'examine', text: 'Moss clings to the old stones. Far below, water glints in the dark.' } },
-  barrel: { art: 'barrel', w: 0.231, h: 0.32, behavior: { type: 'examine', text: 'A sealed barrel that smells faintly of pickled fish.' } },
-  crate: { art: 'crate', w: 0.265, h: 0.28, behavior: { type: 'examine', text: 'A battered crate stamped with a merchant’s mark, nailed shut.' } },
+  well: { art: 'well', w: 0.619, h: 0.8, behavior: { type: 'open', title: 'The well', text: 'Moss clings to the old stones. Something glints on a ledge just below the rim, within reach.',
+    contents: [{ item: 'crystal' }] } },
+  barrel: { art: 'barrel', w: 0.231, h: 0.32, behavior: { type: 'open', title: 'Barrel', text: 'You pry up the lid of the sealed barrel. It smells faintly of pickled fish.',
+    loot: { entries: [{ item: 'health-potion', weight: 2 }, { item: 'mana-potion' }] } } },
+  crate: { art: 'crate', w: 0.265, h: 0.28, behavior: { type: 'open', title: 'Crate', text: 'The nails are loose. Under the straw there is something wrapped in cloth.',
+    loot: { entries: [{ item: 'torch' }, { item: 'scroll' }] } } },
   chest: { art: 'chest', w: 0.289, h: 0.26 },
   lamppost: { art: 'lamppost', w: 0.62, h: 1.35, behavior: { type: 'examine', text: 'The lamp burns steadily, keeping the shadows at bay.' } },
 };
@@ -47,13 +50,15 @@ export const quarter = {
   entities: [
     { prop: 'stall', name: "the alchemist's stall", x: 2, z: 1, side: 'N' },
     { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
-    { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N' },
+    { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
+      text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
+      contents: [{ item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
     { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S' },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
     { prop: 'crate', x: 1, z: 3, side: 'S' },
     { prop: 'well', name: 'the well', x: 2, z: 2, side: 'N' },
     { prop: 'barrel', name: 'a barrel', x: 2, z: 3, side: 'S' },
-    { prop: 'barrel', x: 3, z: 3, side: 'E' },
+    { prop: 'barrel', x: 3, z: 3, side: 'E', behavior: { type: 'open', title: 'Barrel', text: 'Nothing but brine and fish bones.', contents: [] } },
   ],
 };

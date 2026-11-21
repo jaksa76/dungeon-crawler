@@ -1,0 +1,150 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createInventory, addToStacks, takeStack, takeAll, checkItems } from '../../engine2d/inventory.js';
+import { rollLoot, resolveContents } from '../../engine2d/loot.js';
+import { interact } from '../../engine2d/interaction.js';
+import { itemDefs, startingItems, inventorySize } from '../../game-2/items.js';
+import { quarter, props } from '../../game-2/quarter.js';
+
+const defs = {
+  potion: { name: 'Potion', type: 'potion', icon: 2, stack: 3, description: 'x' },
+  sword: { name: 'Sword', type: 'weapon', icon: 0, description: 'x' },
+};
+const add = defs => (stacks, id, qty) => addToStacks(defs, stacks, id, qty);
+
+test('adding items stacks them up to the stack size and then uses new slots', () => {
+  const pack = createInventory(defs, { size: 3 });
+  assert.equal(pack.add('potion', 2), 0);
+  assert.equal(pack.add('potion', 2), 0);
+  assert.deepEqual(pack.slots.map(s => s && [s.id, s.qty]), [['potion', 3], ['potion', 1], null]);
+  assert.equal(pack.count('potion'), 4);
+  assert.equal(pack.used, 2);
+});
+
+test('items that do not fit are handed back, and unknown items are rejected', () => {
+  const pack = createInventory(defs, { size: 1 });
+  assert.equal(pack.add('sword'), 0);
+  assert.equal(pack.add('sword'), 1);
+  assert.equal(pack.add('potion', 5), 5);
+  assert.throws(() => pack.add('nope'), /unknown item "nope"/);
+});
+
+test('removing takes part of a stack, or empties the slot', () => {
+  const pack = createInventory(defs, { size: 2, start: [{ item: 'potion', qty: 3 }] });
+  assert.deepEqual(pack.remove(0, 1), { id: 'potion', qty: 1 });
+  assert.equal(pack.slots[0].qty, 2);
+  assert.deepEqual(pack.remove(0), { id: 'potion', qty: 2 });
+  assert.equal(pack.slots[0], null);
+  assert.equal(pack.remove(1), null);
+});
+
+test('starting items that do not fit are an error', () => {
+  assert.throws(() => createInventory(defs, { size: 1, start: [{ item: 'sword' }, { item: 'sword' }] }), /do not fit/);
+});
+
+test('dragging a slot moves it, merges the same item, or swaps', () => {
+  const pack = createInventory(defs, { size: 4, start: [{ item: 'sword' }, { item: 'potion', qty: 3 }, { item: 'potion', qty: 3 }] });
+  // slots: sword, potion x3, potion x3, empty
+  assert.equal(pack.move(0, 3), true);                       // into an empty slot
+  assert.deepEqual(pack.slots.map(s => s && s.id), [null, 'potion', 'potion', 'sword']);
+  assert.equal(pack.move(1, 3), true);                       // different items swap
+  assert.deepEqual(pack.slots.map(s => s && s.id), [null, 'sword', 'potion', 'potion']);
+  // a full stack does not take more, so dropping onto it swaps
+  assert.equal(pack.move(2, 3), true);
+  assert.deepEqual(pack.slots.map(s => s && [s.id, s.qty]), [null, ['sword', 1], ['potion', 3], ['potion', 3]]);
+  pack.remove(2, 1); pack.remove(3, 2);                      // potion x2 in slot 2, x1 in slot 3
+  assert.equal(pack.move(3, 2), true);                       // the same item merges into room that is left
+  assert.deepEqual(pack.slots.map(s => s && [s.id, s.qty]), [null, ['sword', 1], ['potion', 3], null]);
+  assert.equal(pack.move(0, 1), false);                      // nothing to move
+  assert.equal(pack.move(1, 1), false);
+  assert.equal(pack.move(1, 9), false);
+});
+
+test('taking from a container moves what fits and leaves the rest', () => {
+  const pack = createInventory(defs, { size: 2, start: [{ item: 'sword' }] });
+  const box = [{ id: 'potion', qty: 3 }, { id: 'potion', qty: 3 }, { id: 'sword', qty: 1 }];
+  assert.equal(takeStack(pack, box, 0), 3);
+  assert.equal(box.length, 2);
+  assert.equal(takeStack(pack, box, 0), 0); // the pack is full
+  assert.equal(box.length, 2);
+  assert.equal(takeStack(pack, box, 5), 0);
+});
+
+test('take all takes every stack that fits and leaves the others behind', () => {
+  const pack = createInventory(defs, { size: 2 });
+  const box = [{ id: 'sword', qty: 1 }, { id: 'potion', qty: 3 }, { id: 'sword', qty: 1 }];
+  assert.deepEqual(takeAll(pack, box), [{ id: 'sword', qty: 1 }, { id: 'potion', qty: 3 }]);
+  assert.deepEqual(box, [{ id: 'sword', qty: 1 }]);
+  const roomy = createInventory(defs, { size: 4 });
+  assert.deepEqual(takeAll(roomy, box), [{ id: 'sword', qty: 1 }]);
+  assert.deepEqual(box, []);
+});
+
+test('piles of stacks merge up to the stack size', () => {
+  const pile = [];
+  addToStacks(defs, pile, 'potion', 2); addToStacks(defs, pile, 'potion', 4);
+  assert.deepEqual(pile, [{ id: 'potion', qty: 3 }, { id: 'potion', qty: 3 }]);
+});
+
+test('loot tables roll by weight, with ranges and an empty chance', () => {
+  const table = { entries: [{ item: 'potion', weight: 3, qty: [1, 2] }, { item: 'sword' }], none: 1 };
+  // total weight 5: [0, 3) potion, [3, 4) sword, [4, 5) nothing
+  assert.deepEqual(rollLoot(table, () => 0), [{ item: 'potion', qty: 1 }]);
+  assert.deepEqual(rollLoot(table, () => 0.59), [{ item: 'potion', qty: 2 }]);
+  assert.deepEqual(rollLoot(table, () => 0.7), [{ item: 'sword', qty: 1 }]);
+  assert.deepEqual(rollLoot(table, () => 0.9), []);
+  assert.equal(rollLoot({ rolls: 3, entries: [{ item: 'sword' }] }, () => 0.5).length, 3);
+});
+
+test('a container holds its contents plus what was rolled', () => {
+  const stacks = resolveContents({ contents: [{ item: 'sword' }, { item: 'potion', qty: 2 }], loot: { entries: [{ item: 'potion' }] } }, add(defs), () => 0);
+  assert.deepEqual(stacks, [{ id: 'sword', qty: 1 }, { id: 'potion', qty: 3 }]);
+  assert.deepEqual(resolveContents({ contents: [] }, add(defs)), []);
+});
+
+test('using a container hands its entity and behaviour to the game', () => {
+  const entity = { name: 'a chest', behavior: { type: 'open', contents: [] } };
+  const relCell = (l, d) => (d === 0 ? { props: [{ anchor: 'far', entity }] } : {});
+  const opened = [];
+  interact(relCell, { say() {}, openContainer: (e, b) => opened.push([e, b]) });
+  assert.deepEqual(opened, [[entity, entity.behavior]]);
+});
+
+test('a pile on the floor is opened when nothing else is in reach, before the door ahead', () => {
+  const said = [];
+  let piles = 0;
+  interact(() => ({}), { say: t => said.push(t), exit: { message: 'door' }, pile: () => { piles++; return true; } });
+  assert.equal(piles, 1);
+  assert.deepEqual(said, []);
+  interact(() => ({}), { say: t => said.push(t), exit: { message: 'door' }, pile: () => false });
+  assert.deepEqual(said, ['door']);
+});
+
+test('a pile also wins over a person with nothing to do, but not over a container', () => {
+  const guard = { name: 'a guard' }, chest = { name: 'a chest', behavior: { type: 'open', contents: [] } };
+  const facing = entity => (l, d) => (d === 0 ? { props: [{ anchor: 'far', entity }] } : {});
+  const log = [];
+  const ctx = { say: t => log.push(t), openContainer: () => log.push('chest'), pile: () => { log.push('pile'); return true; } };
+  interact(facing(guard), ctx);
+  interact(facing(chest), ctx);
+  assert.deepEqual(log, ['pile', 'chest']);
+});
+
+test('game two items are well formed and the starting kit fits', () => {
+  assert.doesNotThrow(() => checkItems(itemDefs));
+  assert.doesNotThrow(() => createInventory(itemDefs, { size: inventorySize, start: startingItems }));
+  for (const [id, def] of Object.entries(itemDefs)) assert.ok(def.icon <= 7, `${id} icon is on the panel's row of eight`);
+});
+
+test('every container in the village names real items', () => {
+  const behaviors = [...Object.values(props).map(p => p.behavior), ...quarter.entities.map(e => e.behavior)].filter(b => b?.type === 'open');
+  assert.ok(behaviors.length >= 5);
+  for (const b of behaviors) {
+    const ids = [...(b.contents ?? []).map(c => c.item), ...(b.loot?.entries ?? []).map(e => e.item)];
+    for (const id of ids) assert.ok(itemDefs[id], `unknown item ${id}`);
+  }
+  // the chest holds the starting supplies; the well, a barrel and a crate hide something
+  const chest = quarter.entities.find(e => e.prop === 'chest');
+  assert.ok(resolveContents(chest.behavior, add(itemDefs)).length >= 2);
+  for (const name of ['well', 'barrel', 'crate']) assert.ok(resolveContents(props[name].behavior, add(itemDefs), () => 0).length >= 1, name);
+});

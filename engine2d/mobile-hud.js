@@ -2,11 +2,18 @@ import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
 import { pixelSkin } from './pixel-skin.js';
 import { reloadFresh } from './reload.js';
+import { takeStack, takeAll } from './inventory.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
 
-export function createMobileHUD({ panel, portrait, world, hero, frame, debug, messages = [] }) {
+// The painted background of the satchel screen (see docs/inventory.md); null draws plain frames instead.
+const BAG_BACKGROUND = './assets/inventory-bg.png';
+
+// inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
+// drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
+// and returns { message } (or null).
+export function createMobileHUD({ panel, portrait, world, hero, frame, debug, messages = [], inventory, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -76,7 +83,7 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
   function closePanel() { menuPanel.hidden = true; shown = null; }
   close.addEventListener('click', closePanel);
   function open(title, text, kind = null) {
-    heading.textContent = title; body.replaceChildren(); shown = kind;
+    heading.textContent = title; body.replaceChildren(); shown = kind; menuPanel.classList.toggle('rpg-bag-panel', kind === 'inventory');
     if (text) { const p = document.createElement('p'); p.textContent = text; body.append(p); }
     menuPanel.hidden = false; body.scrollTop = 0; close.focus({ preventScroll: true });
   }
@@ -111,18 +118,141 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
   map.setAttribute('role', 'img'); map.setAttribute('aria-label', 'Map of the Old Quarter');
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
-  function inventory() {
-    open('Your satchel', 'Travel essentials for a visit to the Old Quarter.', 'inventory');
-    const grid = document.createElement('div'); grid.className = 'rpg-inventory';
-    for (const [label, text, i] of items) {
-      const b = iconButton(label, [545 + i * 76, 130, 76, 76], grid, () => open(label, text), 72);
-      const span = document.createElement('span'); span.textContent = label; b.append(span);
+  // An item's picture: its crop of the panel's row of item icons, drawn through the art registry. The crop
+  // leaves out the slot's hotkey number and edge bar, which belong to the panel.
+  function itemIcon(id, size) { // size: CSS pixels, or a function that returns them
+    const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
+    const i = itemDefs[id].icon;
+    addArt(c, size, (g, n) => g.drawImage(panel, 545 + i * 76 + 17, 130 + 15, 47, 47, 0, 0, n, n));
+    return c;
+  }
+  const stackLabel = ({ id, qty }) => `${itemDefs[id].name}${qty > 1 ? ` x${qty}` : ''}`;
+  const paragraph = (text, className = '') => { const p = document.createElement('p'); p.className = className; p.textContent = text; return p; };
+  const textButton = (label, handler) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', handler); return b; };
+  if (BAG_BACKGROUND) { document.documentElement.style.setProperty('--rpg-bag-bg', `url(${new URL(BAG_BACKGROUND, import.meta.url).href})`); document.documentElement.dataset.bagArt = ''; }
+
+  // The satchel. On the left the hero (a placeholder until there is equipment to place), on the right the pack
+  // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
+  let selected = null;
+  const make = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text) e.textContent = text; return e; };
+  function openInventory(note = '') {
+    open('Your satchel', null, 'inventory');
+    if (selected !== null && !inventory.slots[selected]) selected = null;
+    const bag = make('div', 'rpg-bag'), niche = make('div', 'rpg-niche'), slab = make('div', 'rpg-slab'), grid = make('div', 'rpg-grid'), detail = make('div', 'rpg-detail');
+    grid.style.setProperty('--cols', inventoryColumns); grid.style.setProperty('--rows', Math.ceil(inventory.size / inventoryColumns));
+    inventory.slots.forEach((stack, i) => {
+      const cell = make(stack ? 'button' : 'div', 'rpg-cell' + (i === selected ? ' selected' : ''));
+      cell.dataset.slot = i;
+      if (stack) {
+        cell.type = 'button'; cell.title = itemDefs[stack.id].name; cell.setAttribute('aria-label', stackLabel(stack));
+        if (stack.qty > 1) cell.append(make('b', '', stack.qty));
+      }
+      grid.append(cell);
+    });
+    slab.append(grid); bag.append(niche, slab, detail); body.append(bag); // in the page now, so the art below can measure its cells
+    const face = make('canvas', 'rpg-hero'); face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
+    addArt(face, () => niche.clientWidth * 0.85, (g, n) => g.drawImage(portrait, 0, 0, n, n));
+    niche.append(face);
+    for (const cell of grid.children) {
+      const stack = inventory.slots[cell.dataset.slot];
+      if (!stack) continue;
+      const icon = itemIcon(stack.id, () => cell.clientWidth * 0.8);
+      cell.prepend(icon);
     }
-    body.append(grid);
+    dragToRearrange(grid);
+
+    const stack = selected === null ? null : inventory.slots[selected], def = stack && itemDefs[stack.id];
+    const text = make('div', 'rpg-detail-text');
+    if (!stack) {
+      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them.'));
+    } else {
+      text.append(make('h3', '', `${def.name}${stack.qty > 1 ? ` x${stack.qty}` : ''}`), make('p', '', def.description));
+    }
+    if (note) text.append(make('p', 'rpg-note', note));
+    detail.append(text);
+    if (stack) {
+      const actions = make('div', 'rpg-actions');
+      const use = textButton('Use', () => { const result = onUse(selected); openInventory(result?.message ?? ''); });
+      use.disabled = !def.use;
+      const dropIt = qty => { const name = stackLabel({ id: stack.id, qty }); drop(selected, qty); say(`You drop ${name}.`); openInventory(`You drop ${name}.`); };
+      actions.append(use, textButton(stack.qty > 1 ? 'Drop one' : 'Drop', () => dropIt(1)));
+      if (stack.qty > 1) actions.append(textButton('Drop all', () => dropIt(stack.qty)));
+      detail.append(actions);
+    }
+  }
+
+  // Select by tapping; rearrange by dragging a stack onto another slot (an empty one moves it, the same item
+  // merges, anything else swaps). A drag shows the icon under the pointer and lights the slot it would land on.
+  function dragToRearrange(grid) {
+    const cellAt = (x, y) => document.elementFromPoint(x, y)?.closest('.rpg-cell[data-slot]');
+    let drag = null, ignoreClick = false;
+    grid.addEventListener('pointerdown', e => {
+      const cell = e.target.closest('.rpg-cell[data-slot]');
+      if (!cell || e.button > 0 || !inventory.slots[cell.dataset.slot]) return;
+      drag = { from: +cell.dataset.slot, cell, id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, over: null };
+      cell.setPointerCapture?.(e.pointerId);
+    });
+    grid.addEventListener('pointermove', e => {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (!drag.ghost) {
+        if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
+        const source = drag.cell.querySelector('canvas'), ghost = make('canvas', 'rpg-ghost');
+        ghost.width = source.width; ghost.height = source.height; ghost.style.width = source.style.width; ghost.style.height = source.style.height;
+        ghost.getContext('2d').drawImage(source, 0, 0);
+        document.body.append(ghost); drag.ghost = ghost; drag.cell.classList.add('dragging');
+      }
+      drag.ghost.style.transform = `translate(${e.clientX - drag.ghost.clientWidth / 2}px, ${e.clientY - drag.ghost.clientHeight / 2}px)`;
+      const over = cellAt(e.clientX, e.clientY);
+      if (over !== drag.over) { drag.over?.classList.remove('drop-target'); over?.classList.add('drop-target'); drag.over = over; }
+    });
+    const finish = (e, cancelled) => {
+      if (!drag || e.pointerId !== drag.id) return;
+      const { from, ghost } = drag; drag = null;
+      if (!ghost) return; // a tap: the click handler selects
+      ghost.remove(); ignoreClick = true;
+      const target = cancelled ? null : cellAt(e.clientX, e.clientY);
+      if (target && inventory.move(from, +target.dataset.slot)) selected = +target.dataset.slot;
+      openInventory();
+    };
+    grid.addEventListener('pointerup', e => finish(e, false));
+    grid.addEventListener('pointercancel', e => finish(e, true));
+    grid.addEventListener('click', e => {
+      if (ignoreClick) { ignoreClick = false; return; }
+      const cell = e.target.closest('.rpg-cell[data-slot]');
+      if (!cell) return;
+      selected = inventory.slots[cell.dataset.slot] ? +cell.dataset.slot : null;
+      openInventory();
+    });
+  }
+
+  // A chest, a hidden stash or a pile on the floor: stacks to take one at a time, or all at once.
+  // box is { title, text, stacks }; taking removes from box.stacks.
+  function openContainer(box, note) {
+    open(box.title, box.text, 'container');
+    if (note) body.append(paragraph(note, 'rpg-note'));
+    if (!box.stacks.length) { body.append(paragraph('Nothing left.')); return; }
+    const list = document.createElement('div'); list.className = 'rpg-loot';
+    box.stacks.forEach((stack, i) => {
+      const row = document.createElement('button'); row.type = 'button'; row.className = 'rpg-row';
+      const name = document.createElement('span'); name.textContent = stackLabel(stack);
+      const take = document.createElement('span'); take.className = 'rpg-take'; take.textContent = 'Take';
+      row.append(itemIcon(stack.id, 48), name, take);
+      row.addEventListener('click', () => {
+        const n = takeStack(inventory, box.stacks, i), label = stackLabel({ id: stack.id, qty: n });
+        const note = !n ? 'Your pack is full.' : `You take ${label}.${box.stacks.includes(stack) ? ' Your pack is full.' : ''}`;
+        say(note); openContainer(box, note);
+      });
+      list.append(row);
+    });
+    body.append(list, textButton('Take all', () => {
+      const taken = takeAll(inventory, box.stacks);
+      const note = !taken.length ? 'Your pack is full.' : `You take ${taken.map(stackLabel).join(', ')}.${box.stacks.length ? ' Your pack is full.' : ''}`;
+      say(note); openContainer(box, note);
+    }));
   }
   // A menu button opens its panel, or closes it when that panel is already showing.
   const toggle = (kind, openIt) => () => { if (shown === kind) closePanel(); else openIt(); };
-  iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, toggle('inventory', inventory));
+  iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, toggle('inventory', openInventory));
   // The messages the game has said, newest first.
   function openLog() {
     open('Message log', null, 'log');
@@ -145,7 +275,7 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
   }
   iconButton('Full screen', [545 + 4 * 99, 20, 99, 92], menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, L message log.', 'settings');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, I inventory, L message log.', 'settings');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -187,12 +317,13 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
-  const menu = { journal: toggle('journal', openJournal), inventory: toggle('inventory', inventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
-  return { left, right, controls, draw, open, openJournal, openLog, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
+  const menu = { journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
+  return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
     setView(height, pixel) {
       frame.style.setProperty('--rpg-view-h', height);
       document.documentElement.style.setProperty('--rpg-px', pixel);
+      menuPanel.classList.toggle('rpg-compact', parseFloat(height) < 400);
       px = pixel; art = art.filter(entry => entry.canvas.isConnected); art.forEach(renderArt);
       if (lastState) draw(lastState);
     },

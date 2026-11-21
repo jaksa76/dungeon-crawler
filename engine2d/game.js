@@ -8,6 +8,8 @@ import { createMonsters, actorDirection } from './monsters.js';
 import { createGameOver } from './game-over.js';
 import { interact, checkBehavior } from './interaction.js';
 import { withFullscreenIcon } from './panel-icons.js';
+import { createInventory, addToStacks, checkItems } from './inventory.js';
+import { resolveContents } from './loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
@@ -49,7 +51,7 @@ export function cellLookup(level, tileTypes, props) {
   };
 }
 
-export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village' }) {
+export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village', itemDefs = {}, startingItems = [], inventorySize = 32, inventoryColumns = 8 }) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
@@ -113,6 +115,47 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
   const messages = []; // every message said, kept for the journal's message log
+
+  // Items: the pack, containers (made the first time they are opened, so what is in them is rolled once) and
+  // piles of things the player dropped, keyed by level and tile.
+  checkItems(itemDefs);
+  const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
+  const containers = new Map();
+  const piles = new Map();
+  const pileKey = () => `${levelId}:${p.x},${p.z}`;
+  function openContainer(entity, behavior) {
+    let box = containers.get(entity);
+    if (!box) {
+      const stacks = resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty));
+      box = { title: behavior.title ?? entity.name ?? 'Container', text: behavior.text, stacks };
+      containers.set(entity, box);
+    }
+    bars.openContainer(box);
+  }
+  function openPile() {
+    const stacks = piles.get(pileKey());
+    if (!stacks?.length) return false;
+    bars.openContainer({ title: 'On the floor', text: 'Things lie here where they were dropped.', stacks });
+    return true;
+  }
+  // Potions and the like: def.use is { hp, mp } to restore. One is used up unless it would be wasted.
+  function useItem(index) {
+    const stack = inventory.slots[index], use = stack && itemDefs[stack.id].use;
+    if (!use) return { message: 'Nothing happens.' };
+    const hp = Math.min(use.hp ?? 0, hero.maxHp - hero.hp), mp = Math.min(use.mp ?? 0, hero.maxMp - hero.mp);
+    if (hp <= 0 && mp <= 0) return { message: use.hp ? 'Your health is already full.' : 'Your mana is already full.' };
+    hero.hp += hp; hero.mp += mp; inventory.remove(index, 1);
+    const message = `You use ${itemDefs[stack.id].name.toLowerCase()}${hp ? ` and recover ${hp} health` : ''}${mp ? ` and recover ${mp} mana` : ''}.`;
+    say(message); drawHud();
+    return { message };
+  }
+  function drop(index, qty) {
+    const gone = inventory.remove(index, qty);
+    if (!gone) return;
+    const pile = piles.get(pileKey()) ?? [];
+    piles.set(pileKey(), pile);
+    addToStacks(itemDefs, pile, gone.id, gone.qty);
+  }
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -121,7 +164,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, messages,
+  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, messages, inventory, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -140,7 +183,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame);
-  window.__game2d = { view, images, level, levelId, p, world, monsters, hero,
+  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory,
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 
@@ -192,6 +235,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function look() {
     const exit = exitAhead();
     if (exit?.message) { say(exit.message); return; }
+    if (piles.get(pileKey())?.length) say('Something lies on the floor here.');
     for (const d of [0, 1]) for (const pr of relCell(0, d)?.props ?? []) {
       const name = pr.entity.name;
       if (!name) continue;
@@ -271,6 +315,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     drag = null;
   }
 
+  function drawHud() {
+    const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
+    ui.draw(hud);
+    bars.draw(hud);
+  }
+
   // Show the player's new state. `cmd` is the command that led here, when one did.
   function show(cmd) {
     exploration.reveal(p);
@@ -283,9 +333,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const u0 = continuing ? drag.amount * PEEK : 0;
     drag = release = null;
     anim = motion ? { motion, u0, t0: performance.now(), ms: motion.ms * (1 - u0) } : null;
-    const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
-    ui.draw(hud);
-    bars.draw(hud);
+    drawHud();
     updateStatus();
   }
 
@@ -350,7 +398,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function act(cmd) {
     if (bars.isOpen() || transitioning || dead) return;
     if (monsters.caught(p)) { void die(); return; }
-    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead() }); return; }
+    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile }); return; }
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
@@ -377,6 +425,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
     if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
+    if (ev.code === 'KeyI' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
     if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyF' || ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
