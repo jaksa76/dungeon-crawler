@@ -3,6 +3,7 @@ import { font5x8 as FONT } from '../engine/font-5x8.js';
 import { pixelSkin } from './pixel-skin.js';
 import { reloadFresh } from './reload.js';
 import { takeStack, takeAll } from './inventory.js';
+import { HEAD_X } from './head.js';
 import { QUICK_ICONS } from './panel-icons.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
@@ -58,9 +59,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const face = document.createElement('canvas'); face.className = 'rpg-portrait';
   face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
   const shortScreen = () => matchMedia('(max-height: 380px) and (orientation: landscape), (max-height: 680px) and (orientation: portrait)').matches;
-  // The portrait is 32 x 32 pixel art, shown at a whole number of screen pixels per art pixel (the biggest that fits the target size).
+  // The portrait is the top of the 48 x 96 hero sprite, cropped to the frame (never scaled): one art pixel is one UI pixel.
   const faceTarget = () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80));
-  addArt(face, () => 32 * px * Math.max(1, Math.round(faceTarget() / (32 * px))), (g, n) => { g.imageSmoothingEnabled = false; g.drawImage(portrait, 0, 0, n, n); });
+  addArt(face, faceTarget, (g, n) => { g.imageSmoothingEnabled = false; g.drawImage(portrait, Math.round(HEAD_X - n / 2), 0, n, n, 0, 0, n, n); });
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];

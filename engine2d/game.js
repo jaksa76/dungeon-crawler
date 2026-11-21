@@ -9,6 +9,7 @@ import { createGameOver } from './game-over.js';
 import { interact, checkBehavior } from './interaction.js';
 import { withIcons, panelOverlay } from './panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
+import { HEAD_X } from './head.js';
 import { createEquipment } from './equipment.js';
 import { createCharacter, strike, createCooldown } from './combat.js';
 import { createInventory, addToStacks, checkItems } from './inventory.js';
@@ -109,14 +110,20 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const PW = Math.max(cw, 320);
   const icons = await loadIcons(iconsPath, savedIconStyle());
   const panelImage = withIcons(await loadImage(`${uiAssetPath}/ui/panel.png`), icons);
-  // The portrait is the head of the full-body pixel sprite (32 x 32, see docs/inventory.md). The painted desktop panel
-  // draws it smoothed, so it gets an enlarged copy (whole-number, nearest neighbour) that stays crisp.
-  const portraitImage = await loadImage(new URL('./assets/portrait-hero.png', import.meta.url).href);
-  const portraitBig = document.createElement('canvas'); portraitBig.width = portraitBig.height = portraitImage.width * 8;
-  Object.assign(portraitBig.getContext('2d'), { imageSmoothingEnabled: false }).drawImage(portraitImage, 0, 0, portraitBig.width, portraitBig.height);
+  // The portrait is the head of the full-body pixel sprite, cropped to its frame and never scaled: one art pixel is one
+  // UI pixel. (The painted desktop panel draws its portrait cover-fitted, so it is given a picture that is exactly the
+  // window's size.)
+  const portraitImage = await loadImage(new URL('./assets/hero-sprite.png', import.meta.url).href);
+  const portraitWindow = layout => {
+    const k = PW / panelImage.width, [, , w, h] = layout.portrait.map(v => Math.round(v * k));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.drawImage(portraitImage, Math.round(HEAD_X - w / 2), 0, w, h, 0, 0, w, h); // the head is at the top, centred on its column
+    return c;
+  };
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: panelImage },
-    'ui/portrait-hero': { image: portraitBig },
+    'ui/portrait-hero': { image: portraitWindow(uiLayout) },
   }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
 
   const p = { ...level.start, steps: 0 };

@@ -149,7 +149,8 @@ up, and check the chest now reads "Nothing left."
 
 ## The portrait
 
-The portrait in the HUD is the head of the full-body sprite: `engine2d/assets/portrait-hero.png`, a 32x32 crop
-(columns 7-38, rows 0-31) of `hero-sprite.png`, so the two always show the same character. Phones draw it at a whole
-number of screen pixels per art pixel; the desktop panel gets a nearest-neighbour 8x copy so it stays crisp.
-(`game-1/assets/ui/portrait-hero.png`, the original high-resolution one, is still used by games one and three.)
+The portrait in the HUD is the head of the full-body sprite, so the two always show the same character. It is only
+cropped, never scaled: the frame shows the top of `hero-sprite.png` around column 23 (`engine2d/head.js`), one art
+pixel per UI pixel, so a bigger frame shows more of the shoulders. The painted desktop panel cover-fits its
+portrait, so `game.js` gives it a picture exactly the window's size. (`game-1/assets/ui/portrait-hero.png`, the
+original high-resolution portrait, is still used by games one and three.)
