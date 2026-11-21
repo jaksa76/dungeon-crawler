@@ -145,8 +145,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // It never shows equipment: the slots lie over it, at the places on the body where each item is worn.
   const sprite = new Image(); sprite.src = new URL('./assets/hero-sprite.png', import.meta.url).href;
   sprite.onload = () => art.forEach(renderArt);
-  const SLOT_SPOTS = { head: [50, 10], amulet: [50, 25], armour: [50, 42], gloves: [50, 60], boots: [50, 91],
-    weapon: [14, 52], ring1: [14, 69], shield: [86, 52], ring2: [86, 69] }; // percent of the niche's width and the figure's height
+  // Two even columns down the figure's sides, boots between them at the feet: percent of the niche's width and the figure's height.
+  const SLOT_SPOTS = { head: [17, 12], amulet: [17, 34], weapon: [17, 56], ring1: [17, 78],
+    armour: [83, 12], gloves: [83, 34], shield: [83, 56], ring2: [83, 78], boots: [50, 91] };
 
   // The satchel. On the left the hero's full figure with the equipment slots beneath it, on the right the pack
   // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
