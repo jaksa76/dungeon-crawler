@@ -1,3 +1,5 @@
+import { monster } from './monsters.js';
+
 // A hand-editable labyrinth below Ravensmoor. E is the door back to the village.
 export const dungeonTileTypes = {
   '.': { floor: true },
@@ -8,7 +10,7 @@ export const dungeonTileTypes = {
 export const dungeon = {
   name: 'Ravensmoor · The Undercrypt',
   shortName: 'The Undercrypt',
-  journal: 'A snake roams the Undercrypt and follows movement it spots down the corridors. Face it and attack (X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
+  journal: 'The Undercrypt is full of creatures, from rats and kobolds near the door to an ogre, an owlbear and a troll deep inside: the stronger it looks, the stronger it is. They follow movement they spot down the corridors. Face it and attack (X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
   start: { x: 1, z: 1, dir: 2 },
   atmosphere: { color: '#08090e', near: 0.55, far: 3.2 },
   exploration: { radius: 3 },
@@ -34,8 +36,26 @@ export const dungeon = {
   entities: [],
   monsterStepMs: 1100,
   monsterGraceMs: 3500,
-  monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3, w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true,
-    name: 'snake', verb: 'bites', hp: 30, damage: 12, defence: 1, accuracy: 5, evasion: 3, attackMs: 1500, speed: 1 }],
+  // Placed by danger: vermin near the door, the dangerous ones in the far dead ends. See monsters.js for the stat blocks.
+  monsters: [
+    monster('snake', { id: 'prowler', x: 7, z: 3, dir: 3 }),
+    monster('rat', { id: 'rat-1', x: 5, z: 1, dir: 1 }),
+    monster('rat', { id: 'rat-2', x: 1, z: 9, dir: 2 }),
+    monster('kobold', { id: 'kobold-1', x: 11, z: 1, dir: 3 }),
+    monster('kobold', { id: 'kobold-2', x: 3, z: 5, dir: 1 }),
+    monster('goblin', { id: 'goblin-1', x: 1, z: 13, dir: 0 }),
+    monster('goblin', { id: 'goblin-2', x: 13, z: 3, dir: 3 }),
+    monster('skeleton', { id: 'skeleton-1', x: 5, z: 7, dir: 1 }),
+    monster('skeleton', { id: 'skeleton-2', x: 9, z: 9, dir: 3 }),
+    monster('zombie', { id: 'zombie-1', x: 11, z: 5, dir: 1 }),
+    monster('zombie', { id: 'zombie-2', x: 5, z: 13, dir: 1 }),
+    monster('orc', { id: 'orc-1', x: 14, z: 1, dir: 2 }),
+    monster('spider', { id: 'spider-1', x: 9, z: 11, dir: 1 }),
+    monster('ghoul', { id: 'ghoul-1', x: 13, z: 13, dir: 3 }),
+    monster('ogre', { id: 'ogre-1', x: 13, z: 15, dir: 3 }),
+    monster('owlbear', { id: 'owlbear-1', x: 12, z: 7, dir: 3 }),
+    monster('troll', { id: 'troll-1', x: 4, z: 11, dir: 1 }),
+  ],
   exits: [{ x: 1, z: 1, dir: 3, to: 'village', spawn: { x: 3, z: 2, dir: 3 },
     message: 'The ironbound door leads back to the Old Quarter. Step forward to leave.' }],
 };

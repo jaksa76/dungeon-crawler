@@ -120,3 +120,20 @@ wall occlusion, distance darkness, stepping into a monster, the monster
 reaching a stationary player, cancelled versus committed swipes, both village
 respawn routes, and pausing in menus. Repeat at mobile portrait, mobile
 landscape and desktop sizes.
+
+## The bestiary
+
+`game-2/monsters.js` holds eleven more creatures besides the snake, each a D&D 5e stat block (CR, hit points, AC,
+damage per round); `monster(kind, { id, x, z, dir })` derives the game stats: hp = D&D hp x 2.7, damage = D&D
+damage x 1.6, evasion = AC - 9, accuracy = 3 + 2 x sqrt(CR). So danger follows the tabletop: giant rat and kobold
+(CR 1/8), goblin, skeleton, zombie (slow) and snake (1/4), orc (1/2), giant spider and ghoul (1), ogre (2),
+owlbear (3), troll (5). The Undercrypt places 17, the weak ones near the door and the ogre, owlbear and troll
+in the far dead ends. The hero has no levelling yet, so the owlbear and troll are out of reach for now.
+
+Sprites are painted by Codex, one sheet per creature (four views on magenta, in the style of the snake sheet):
+`node tools/monster-art.mjs prompt <id> > prompt.txt`, then
+`codex exec -C <work dir> -s workspace-write --skip-git-repo-check -i <style.png> - < prompt.txt` with
+`game-2/art/painted/monsters-snake.png` as style.png, then
+`node tools/monster-art.mjs slice <id> <work dir>/sheet-<id>.png <height in tiles>`, which writes the sixteen PNGs
+(far frames are the near one shrunk; runtime fog darkens them) and prints the `w` to use. Roster and looks:
+`game-2/art/monsters/roster.json`. `node --test tools/tests/bestiary.test.mjs` checks the CR ordering and the frames.

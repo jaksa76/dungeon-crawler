@@ -1,0 +1,15 @@
+{
+  "monsters": [
+    { "id": "rat", "title": "Giant rat", "look": "a huge, mangy sewer rat the size of a dog, dirty brown-grey fur, long naked pink tail, yellow incisors, small red eyes, hunched on four legs" },
+    { "id": "kobold", "title": "Kobold", "look": "a small scaly reptilian kobold with a rust-red dog-like snout, small horns, yellow eyes, ragged leather scraps, holding a crude rusty short spear" },
+    { "id": "goblin", "title": "Goblin", "look": "a goblin: small, wiry, green skin, large pointed ears, sharp teeth, yellow eyes, ragged leather armour, holding a notched scimitar and a small round wooden shield" },
+    { "id": "skeleton", "title": "Skeleton", "look": "an animated human skeleton warrior, yellowed bones, glowing pale blue eye sockets, a dented iron helmet, a rusted shortsword in hand, tattered cloth at the waist" },
+    { "id": "zombie", "title": "Zombie", "look": "a shambling zombie, grey-green rotting flesh, torn peasant clothes, hunched, arms hanging forward, exposed ribs, vacant white eyes, slack jaw" },
+    { "id": "orc", "title": "Orc", "look": "a brutish orc warrior, grey-green skin, heavy lower jaw with two tusks, black topknot, scrap-iron armour with spikes, holding a big greataxe" },
+    { "id": "spider", "title": "Giant spider", "look": "a giant cave spider, eight long hairy dark-brown legs, a bulbous striped abdomen, a cluster of glowing red eyes, large dripping fangs; low and wide, legs spread" },
+    { "id": "ghoul", "title": "Ghoul", "look": "a ghoul: emaciated grey-skinned undead, stretched over its bones, long black claws, a gaping mouth of jagged teeth, sunken glowing yellow eyes, hunched, scraps of burial shroud" },
+    { "id": "ogre", "title": "Ogre", "look": "a huge ogre, pot-bellied, dull yellow-brown warty skin, small angry eyes, an underbite with tusks, a ragged animal-hide loincloth, holding a big spiked wooden club" },
+    { "id": "owlbear", "title": "Owlbear", "look": "an owlbear: the body of a huge brown bear covered in feathers and fur, the head of an owl with a sharp hooked beak and wide yellow eyes, big clawed paws, rearing up on its hind legs" },
+    { "id": "troll", "title": "Troll", "look": "a tall, gangling troll, mossy green rubbery skin with warts, very long arms with huge clawed hands, a hooked nose, tiny red eyes, tattered hide kilt, hunched, towering over a human" }
+  ]
+}
