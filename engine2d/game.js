@@ -118,6 +118,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const k = PW / panelImage.width, [, , w, h] = layout.portrait.map(v => Math.round(v * k));
     const c = document.createElement('canvas'); c.width = w; c.height = h;
     const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
+    g.fillStyle = '#0d0b10'; g.fillRect(0, 0, w, h); // solid: the panel painting has its own portrait underneath
     g.drawImage(portraitImage, Math.round(HEAD_X - w / 2), 0, w, h, 0, 0, w, h); // the head is at the top, centred on its column
     return c;
   };

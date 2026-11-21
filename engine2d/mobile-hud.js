@@ -61,7 +61,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const shortScreen = () => matchMedia('(max-height: 380px) and (orientation: landscape), (max-height: 680px) and (orientation: portrait)').matches;
   // The portrait is the top of the 48 x 96 hero sprite, cropped to the frame (never scaled): one art pixel is one UI pixel.
   const faceTarget = () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80));
-  addArt(face, faceTarget, (g, n) => { g.imageSmoothingEnabled = false; g.drawImage(portrait, Math.round(HEAD_X - n / 2), 0, n, n, 0, 0, n, n); });
+  addArt(face, faceTarget, (g, n) => { g.imageSmoothingEnabled = false; g.fillStyle = '#0d0b10'; g.fillRect(0, 0, n, n); g.drawImage(portrait, Math.round(HEAD_X - n / 2), 0, n, n, 0, 0, n, n); });
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];
