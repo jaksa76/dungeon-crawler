@@ -140,17 +140,8 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   function ghostIcon(iconId, size) {
     const c = itemIconCanvas(iconId, size); c.classList.add('ghost'); return c;
   }
-  // The hero's full figure: a placeholder drawn in blocky pixels until a painted one exists (see docs/inventory.md).
-  // Drawn on an n x n canvas; no equipment is drawn on it, so it never changes when things are worn.
-  function drawFigure(g, n) {
-    const u = n / 32; g.clearRect(0, 0, n, n); g.imageSmoothingEnabled = false;
-    const r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x * u), Math.round(y * u), Math.max(1, Math.round(w * u)), Math.max(1, Math.round(h * u))); };
-    r(12, 2, 8, 8, '#d9a77a'); r(12, 2, 8, 3, '#5a3a22'); r(11, 3, 1, 5, '#5a3a22'); r(14, 6, 1, 1, '#2b1a10'); r(17, 6, 1, 1, '#2b1a10'); // head, hair, eyes
-    r(14, 10, 4, 2, '#d9a77a');                                  // neck
-    r(10, 12, 12, 10, '#7a4f3a'); r(10, 12, 12, 2, '#9a6a4a'); r(10, 19, 12, 1, '#3d2a1f'); // tunic, belt
-    r(6, 12, 4, 9, '#7a4f3a'); r(22, 12, 4, 9, '#7a4f3a'); r(6, 21, 4, 2, '#d9a77a'); r(22, 21, 4, 2, '#d9a77a'); // arms, hands
-    r(11, 22, 4, 8, '#4a3b52'); r(17, 22, 4, 8, '#4a3b52'); r(10, 30, 5, 2, '#2b1f1a'); r(17, 30, 5, 2, '#2b1f1a'); // legs, boots
-  }
+  // The hero's full figure (painted by Codex from the portrait, see docs/inventory.md). It never shows equipment.
+  const FIGURE = new URL('./assets/hero-fullbody.png', import.meta.url).href;
 
   // The satchel. On the left the hero's full figure with the equipment slots beneath it, on the right the pack
   // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
@@ -173,8 +164,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       grid.append(cell);
     });
     slab.append(grid); bag.append(niche, slab, detail); body.append(bag); // in the page now, so the art below can measure its cells
-    const face = make('canvas', 'rpg-hero'); face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
-    addArt(face, () => niche.clientWidth * 0.85, (g, n) => drawFigure(g, n));
+    const face = make('img', 'rpg-hero'); face.src = FIGURE; face.alt = 'Your adventurer'; face.draggable = false;
     const gear = make('div', 'rpg-gear');
     for (const slot of equipment.slots) {
       const id = equipment.worn[slot.id];

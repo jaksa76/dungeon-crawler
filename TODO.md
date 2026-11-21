@@ -35,7 +35,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 **Engine**
 - [x] Item definitions as data (type, icon, name, description)
 - [x] Inventory screen: painted background (Codex), tall hero niche, 8×4 grid with drag to move/merge/swap, item description with Use / Drop / Drop all, **I** key
-- [~] Hero view: a full-body picture in the niche with equipment slots (a drawn placeholder figure is there; a Codex-painted one is still to do)
+- [x] Hero view: a full-body picture in the niche with equipment slots
 - [x] Inventory that changes: pick up, drop, stack
 - [x] Containers and loot tables (chests, hidden stashes)
 - [x] Take all button when container is open
@@ -47,7 +47,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 ## M2.1 - Equipping items
 
 **Engine**
-- [~] Inventory screen to display the full body of the character on the left side, not just the portrait. (placeholder figure drawn in code; generate the final image using codex)
+- [x] Inventory screen to display the full body of the character on the left side, not just the portrait. (generated with Codex)
 - [x] Inventory screen should have slots on the left side for equipment (weapon, shield, armour, head, rings, amulet, etc.)
 - [x] Player should be able to place items in compatible slots. No change in portrait.
 - [x] Equipped items do not appear in inventory.

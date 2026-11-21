@@ -31,7 +31,7 @@
 .rpg-game-over h2 { color: #ed8b74; font-size: calc(16px * var(--rpg-px, 2)); margin-bottom: 14px; }
 .rpg-game-over button { margin-top: 6px; }
 /* Icon canvases get their size and resolution from the art registry in mobile-hud.js. */
-.rpg-cell canvas, .rpg-row canvas, .rpg-hero, .rpg-dialog-body > canvas { image-rendering: pixelated; }
+.rpg-cell canvas, .rpg-row canvas, .rpg-dialog-body > canvas { image-rendering: pixelated; }
 .rpg-dialog-body > canvas { display: block; margin: 0 auto 8px; }
 .rpg-note { color: #f1dfbe; }
 
@@ -46,11 +46,11 @@ html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 
 .rpg-bag-panel header { grid-area: 2 / 2 / 3 / 7; display: flex; align-items: center; margin: 0; padding-left: 8px; }
 .rpg-bag-panel .rpg-dialog-body, .rpg-bag { display: contents; }
 .rpg-niche { grid-area: 4 / 2 / 9 / 3; display: grid; place-items: center; min-width: 0; min-height: 0; overflow: hidden; }
-.rpg-niche { align-content: start; justify-items: center; gap: calc(var(--rpg-px, 2) * 2px); padding-top: 2%; }
-.rpg-gear { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--rpg-px, 2) * 1px); width: 92%; }
+.rpg-niche { display: flex; flex-direction: column; align-items: center; gap: calc(var(--rpg-px, 2) * 2px); padding: 2% 0 1%; }
+.rpg-niche .rpg-hero { flex: 1 1 0; min-height: 0; max-width: 92%; object-fit: contain; image-rendering: auto; }
+.rpg-gear { flex: none; display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--rpg-px, 2) * 1px); width: 92%; }
 .rpg-gearcell { aspect-ratio: 1; }
 .rpg-cell canvas.ghost { opacity: .22; filter: grayscale(1); }
-.rpg-hero { border: calc(var(--rpg-px, 2) * 1px) solid #8c6949; }
 .rpg-slab { grid-area: 4 / 4 / 7 / 5; container-type: size; display: grid; place-items: center; padding: 1%; min-width: 0; min-height: 0; }
 .rpg-detail { grid-area: 4 / 6 / 7 / 7; display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--rpg-px, 2) * 1px); padding: calc(var(--rpg-px, 2) * 1px) calc(var(--rpg-px, 2) * 4px); min-width: 0; min-height: 0; overflow: hidden; }
 .rpg-bag-panel footer { grid-area: 8 / 4 / 9 / 7; margin: 0; align-items: center; }

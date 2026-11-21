@@ -56,8 +56,9 @@ rules. Worn items are not in the pack. `equip(inventory, index, slot?)` wears on
 returns what was there to the pack (refused if the pack has no room); `unequip(inventory, slot, toIndex?)`
 takes it off. In the satchel the slots sit under the figure: select a pack item and press **Equip**,
 or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
-The figure itself never changes. It is a placeholder drawn in code (`drawFigure` in
-`mobile-hud.js`) until Codex paints a full-body picture. On portrait phones the figure is hidden but the slots remain.
+The figure itself never changes. It is `engine2d/assets/hero-fullbody.png` (1024x1536), painted by Codex from
+`game-1/assets/ui/portrait-hero.png` with `codex exec -s workspace-write --skip-git-repo-check -i portrait-hero.png -`
+and a prompt asking for the same adventurer full-length, front-facing, unarmed, in plain clothes. On portrait phones the figure is hidden but the slots remain.
 
 The hero starts with no equipment; the village chest holds a sword and the crate can hold a leather cap.
 `node --test tools/tests/equipment.test.mjs` covers it.
