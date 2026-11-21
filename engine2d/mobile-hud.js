@@ -190,7 +190,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       gear.append(cell);
     }
     figure.append(face, gear); niche.append(figure);
-    addArt(face, () => Math.max(1, Math.floor(niche.clientHeight / 96)), g => { if (sprite.complete && sprite.naturalWidth) g.drawImage(sprite, 0, 0); }, true);
+    addArt(face, () => px, g => { if (sprite.complete && sprite.naturalWidth) g.drawImage(sprite, 0, 0); }, true);
     for (const cell of gear.children) {
       const slot = equipment.slots.find(s => s.id === cell.dataset.equip), id = equipment.worn[slot.id];
       const icon = id ? itemIcon(id, () => cell.clientWidth * 0.95) : ghostIcon(slot.ghost, () => cell.clientWidth * 0.95);
