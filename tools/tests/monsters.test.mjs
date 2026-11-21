@@ -23,14 +23,68 @@ test('a roaming monster takes single floor steps and never walks through walls',
   }
 });
 
-test('seeing the player starts pursuit, and reaching their tile catches them', () => {
+test('seeing the player starts pursuit, and the monster stops beside them instead of entering their tile', () => {
   const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, dir: 1 });
-  const player = { x: 3, z: 1 };
-  assert.equal(monsters.step(player), null);
-  assert.equal(monsters.actors[0].mode, 'hunting');
-  assert.equal(monsters.actors[0].x, 2);
-  assert.equal(monsters.step(player), monsters.actors[0]);
-  assert.equal(monsters.caught(player), monsters.actors[0]);
+  const player = { x: 3, z: 1 }, actor = monsters.actors[0];
+  monsters.step(player);
+  assert.equal(actor.mode, 'hunting');
+  assert.equal(actor.x, 2);
+  for (let i = 0; i < 5; i++) monsters.step(player);
+  assert.equal(actor.x, 2); // held beside the player
+  assert.deepEqual(monsters.adjacent(player), [actor]);
+  assert.equal(monsters.occupied(2, 1), true);
+  assert.equal(monsters.occupied(3, 1), false);
+});
+
+test('a roaming monster never steps onto the player either', () => {
+  const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, dir: 1, sight: 0 });
+  for (let i = 0; i < 20; i++) { monsters.step({ x: 2, z: 1 }); assert.notDeepEqual([monsters.actors[0].x, monsters.actors[0].z], [2, 1]); }
+});
+
+test('speed below 1 skips ticks', () => {
+  const monsters = fixture(['#######', '#.....#', '#######'], { x: 1, z: 1, dir: 1, speed: .5 });
+  const seen = [];
+  for (let i = 0; i < 4; i++) { monsters.step({ x: -20, z: -20 }); seen.push(monsters.version); }
+  assert.equal(seen[1] - seen[0], 1); assert.equal(seen[2], seen[1]); assert.equal(seen[3] - seen[2], 1);
+});
+
+test('a creature in reach winds up, strikes, then waits its attack time; out of reach it starts over', () => {
+  const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, attackMs: 1000 });
+  const player = { x: 2, z: 1 }, actor = monsters.actors[0];
+  assert.deepEqual(monsters.engage(player, 0), []);
+  assert.deepEqual(monsters.engage(player, 500), []);
+  assert.deepEqual(monsters.engage(player, 600), [actor]);
+  assert.deepEqual(monsters.engage(player, 1500), []);
+  assert.deepEqual(monsters.engage(player, 1600), [actor]);
+  monsters.freeze();
+  assert.deepEqual(monsters.engage(player, 2000), []);
+  assert.deepEqual(monsters.engage({ x: 3, z: 1 }, 2700), []);
+  assert.equal(actor.readyAt, null);
+});
+
+test('stats default sensibly and come from the definition', () => {
+  const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, hp: 30, damage: 12, defence: 1 });
+  const a = monsters.actors[0];
+  assert.deepEqual([a.hp, a.maxHp, a.attack, a.defence, a.speed, a.name], [30, 30, 12, 1, 1, 'creature']);
+});
+
+test('damage hurts, a killing blow makes it fade, reap removes it, reset brings it back whole', () => {
+  const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, hp: 10 });
+  const a = monsters.actors[0], v = monsters.version;
+  assert.equal(monsters.damage(a, 4, 100), false);
+  assert.equal(a.hp, 6); assert.ok(a.hurtUntil > 100); assert.ok(monsters.version > v);
+  assert.equal(monsters.animating(150), true); assert.equal(monsters.animating(1000), false);
+  assert.equal(monsters.damage(a, 99, 200), true);
+  assert.equal(a.hp, 0);
+  assert.equal(monsters.occupied(1, 1), false);
+  assert.deepEqual(monsters.adjacent({ x: 2, z: 1 }), []);
+  assert.deepEqual(monsters.engage({ x: 2, z: 1 }, 5000), []);
+  monsters.step({ x: -20, z: -20 }); assert.equal(a.x, 1);
+  assert.equal(monsters.at(1, 1).length, 1);
+  assert.deepEqual(monsters.reap(300), []);
+  assert.equal(monsters.reap(2000).length, 1); assert.equal(monsters.actors.length, 0);
+  monsters.reset();
+  assert.equal(monsters.actors[0].hp, 10); assert.equal(monsters.actors[0].dyingUntil, 0);
 });
 
 test('masonry blocks perception, including nearby parallel corridors', () => {
@@ -53,7 +107,6 @@ test('dead ends reverse direction, and reset restores a fresh encounter', () => 
   const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, dir: 3 });
   monsters.step({ x: -20, z: -20 });
   assert.equal(monsters.actors[0].dir, 1);
-  assert.equal(monsters.caught({ x: 2, z: 1 }), monsters.actors[0]);
   monsters.reset();
   assert.deepEqual({ x: monsters.actors[0].x, dir: monsters.actors[0].dir, target: monsters.actors[0].target }, { x: 1, dir: 3, target: null });
 });

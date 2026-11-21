@@ -14,7 +14,7 @@ const BAG_BACKGROUND = './assets/inventory-bg.png';
 // icons: the icon atlas (see icons.js); inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
 // and returns { message } (or null).
-export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {} }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -100,16 +100,17 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const items = [
     ['Sword', 'A trusty steel blade, ready for the road.', QUICK_ICONS[0]],
     ['Shield', 'A round shield with a worn wooden face.', QUICK_ICONS[1]],
-    ['Health potion', 'A small vial of red tonic. Your health is already full.', QUICK_ICONS[2]],
-    ['Mana potion', 'A small vial of blue tonic. Your mana is already full.', QUICK_ICONS[3]],
+    ['Health potion', 'A small vial of red tonic. Your health is already full.', QUICK_ICONS[2], 'hp'],
+    ['Mana potion', 'A small vial of blue tonic. Your mana is already full.', QUICK_ICONS[3], 'mp'],
   ];
   const slots = document.createElement('div'); slots.className = 'rpg-slots';
   slots.setAttribute('aria-label', 'Quick items');
   function caption(button, text) {
     const label = document.createElement('span'); label.className = 'rpg-icon-label'; label.textContent = text; button.append(label);
   }
-  for (const [label, text, icon] of items) {
-    const button = iconButton(label, icon, slots, () => open(label, text));
+  // The potions drink straight away (without opening a menu, so they work in a fight); the rest read a line.
+  for (const [label, text, icon, use] of items) {
+    const button = iconButton(label, icon, slots, () => (use ? onQuick(use) : open(label, text)));
     caption(button, label.replace(' potion', ''));
   }
   left.append(slots);
@@ -201,7 +202,8 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const def = stack ? itemDefs[stack.id] : worn ? itemDefs[worn] : null;
     const text = make('div', 'rpg-detail-text');
     if (!def) {
-      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'));
+      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'),
+        make('p', '', `Attack ${hero.attack}, defence ${hero.defence}.`));
     } else {
       text.append(make('h3', '', `${def.name}${stack?.qty > 1 ? ` x${stack.qty}` : ''}`), make('p', '', def.description));
       const bonus = Object.entries(def.bonus ?? {}).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(', ');
@@ -336,7 +338,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   }
   iconButton('Full screen', 'fullscreen', menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, Space use, F full screen, I inventory, L message log.', 'settings');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.', 'settings');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {

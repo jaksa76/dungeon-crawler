@@ -65,6 +65,13 @@ export function createCompositor(view, images) {
     return variants.get(key);
   }
 
+  let scratchCanvas = null;
+  function scratch(w, h) {
+    scratchCanvas ??= document.createElement('canvas');
+    scratchCanvas.width = Math.max(1, Math.round(w)); scratchCanvas.height = Math.max(1, Math.round(h));
+    return scratchCanvas;
+  }
+
   function drawFlipped(g, img, x, y, w, h, flip) {
     if (!flip) { g.drawImage(img, x, y, w, h); return; }
     g.save(); g.translate(x + w, y); g.scale(-1, 1); g.drawImage(img, 0, 0, w, h); g.restore();
@@ -132,7 +139,16 @@ export function createCompositor(view, images) {
         // These distance-specific frames already fade into darkness. Applying
         // wall fog again would erase the distant snake's eye and fang pixels.
         const fog = found && it.actor.distanceShaded ? null : atmosphere;
-        drawFlipped(g, shade(image, it.d + .35, fog), r.full.x, r.full.y, r.full.w, r.full.h, false);
+        const shaded = shade(image, it.d + .35, fog), now = performance.now();
+        if (it.actor.dyingUntil) { // fades and sinks
+          const k = Math.max(0, (it.actor.dyingUntil - now) / 700), sink = (1 - k) * r.full.h * .35;
+          g.save(); g.globalAlpha = k; g.drawImage(shaded, r.full.x, r.full.y + sink, r.full.w, r.full.h - sink); g.restore();
+        } else if (it.actor.hurtUntil > now) { // flashes red
+          const c = scratch(r.full.w, r.full.h), cg = c.getContext('2d');
+          cg.globalCompositeOperation = 'source-over'; cg.drawImage(shaded, 0, 0, c.width, c.height);
+          cg.globalCompositeOperation = 'source-atop'; cg.fillStyle = 'rgba(255,70,50,.65)'; cg.fillRect(0, 0, c.width, c.height);
+          g.drawImage(c, r.full.x, r.full.y, r.full.w, r.full.h);
+        } else drawFlipped(g, shaded, r.full.x, r.full.y, r.full.w, r.full.h, false);
       } else if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);
         if (found) drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, found.flip);

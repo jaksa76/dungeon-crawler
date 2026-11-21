@@ -3,9 +3,8 @@
 The Undercrypt has one green snake with lime markings, red eyes and large
 ivory teeth, based on the supplied concept drawing. It has a transparent
 spritesheet with front, back, left and right views at four distances.
-It moves in real time independently of the player's steps. Sharing a floor
-tile with it is fatal, whether the player steps into it or it reaches the
-player. There is no combat or attack button in this pass.
+It moves in real time independently of the player's steps and fights: it stops beside the player
+and bites, and the player swings back (see Combat below).
 
 ## Behaviour and defeat
 
@@ -18,24 +17,50 @@ player. There is no combat or attack button in this pass.
   period on dungeon entry gives the player time to orient themselves.
 - The creature pauses while a menu is open, during level loading, and while
   the tab is hidden. Resuming does not advance a backlog of missed steps.
-- Contact opens **GAME OVER** and blocks movement and gestures. After three
+- Running out of health opens **GAME OVER** and blocks movement and gestures. After three
   seconds, or when **Return to village** is pressed, the player respawns at
   the original village starting position with full health and mana. The
   defeat screen stays up until the village has loaded.
 - Held movement buttons and keyboard repeats are cancelled on defeat, so an
   old input does not move the newly respawned player. Release a held key to
   start using it again.
-- Monsters reset on re-entry and after defeat. Map discoveries remain for
+- Monsters reset (full health, back at their start) on re-entry and after defeat. Map discoveries remain for
   the current page session, as before.
 
-Configure spawn, dimensions and perception in `game-2/dungeon.js`:
+## Combat
+
+Rules are in `engine2d/combat.js` (pure numbers), wiring in `engine2d/game.js`.
+
+- **Hero.** Attributes (`heroAttributes`: strength, vitality, intellect, agility; default 6/6/4/5) give
+  HP `28 + 5 x vitality`, MP `4 + 5 x intellect`, attack `2 + strength`, defence `agility / 2` and accuracy and
+  evasion `agility`. Worn items add their `bonus` (`{ attack, defence }`, see inventory.md), so the sword takes
+  attack from 8 to 12. The satchel shows attack and defence when nothing is selected.
+- **Hitting.** A blow lands with 75% chance, plus or minus 4 points per point of accuracy over the
+  other side's evasion (20% to 95%). A hit does attack +-20% less defence, at least 1.
+- **Player attack.** **Attack** button, **X** or **Enter**. It hits the creature on the tile the player faces
+  (or shares), then waits 700 ms (`heroAttackMs`). A miss or a swing at nothing costs the same wait. The result
+  floats over the scene and goes in the message log.
+- **Creature attack.** A creature stops on the tile next to the player and does not enter their tile; the player
+  cannot walk into a living creature either. On coming into reach it winds up for 60% of `attackMs`, then strikes
+  every `attackMs`. Out of reach it starts over. It can attack from behind: turn to face it.
+- **Feedback.** A creature flashes red when hurt and sinks and fades when it dies (`HURT_MS`, `DEATH_MS` in
+  monsters.js); the screen flashes red when the hero is hit. There is no drop or XP yet (M4).
+- **Pausing.** A menu, loading or a hidden tab pause the fight and restart every wind-up. Press **1** or **2**
+  (or tap a potion in the quick slots) to drink a health or mana potion without opening the satchel.
+- A fight with the snake: unarmed it takes about five hits, with the sword three; its bite does about 10, so a
+  hero who never heals is beaten in about six bites and a potion is worth drinking.
+
+Configure spawn, dimensions, perception and stats in `game-2/dungeon.js`:
 
 ```js
 monsterStepMs: 1100,
 monsterGraceMs: 3500,
 monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3,
-  w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true }],
+  w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true,
+  name: 'snake', verb: 'bites', hp: 30, damage: 12, defence: 1, accuracy: 5, evasion: 3, attackMs: 1500, speed: 1 }],
 ```
+
+`speed` is steps per tick (below 1 is slower). Every stat has a default: hp 10, damage 3, defence 0, accuracy 4, evasion 3, attackMs 1500.
 
 `x`/`z` are grid coordinates, and `dir` is north/east/south/west = 0/1/2/3.
 `w` and `h` are world sizes in tiles. The creature starts at the cell centre,

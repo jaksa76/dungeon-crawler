@@ -60,16 +60,16 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Needs M2 (potions, weapon) and the existing monster simulation.*
 
 **Engine**
-- [ ] Character model: attributes derived into HP/MP, attack and defence
+- [x] Character model: attributes derived into HP/MP, attack and defence
 - [x] Consumables that really heal (health and mana potions): done early, via Use in the satchel
-- [ ] Equipment slots that change stats (weapon, shield, armour)
-- [ ] Monster stats (HP, damage, defence, speed)
-- [ ] Player melee attack with cooldown, hit and miss feedback
-- [ ] Monster attack replaces instant death on contact; hurt and death animations
+- [x] Equipment slots that change stats (weapon, shield, armour)
+- [x] Monster stats (HP, damage, defence, speed)
+- [x] Player melee attack with cooldown, hit and miss feedback
+- [x] Monster attack replaces instant death on contact; hurt and death animations
 
 **Game**
-- [ ] As a player, I want to fight the snake instead of dying the moment it touches me.
-- [ ] As a player, I want to drink a health potion mid-fight to survive.
+- [x] As a player, I want to fight the snake instead of dying the moment it touches me.
+- [x] As a player, I want to drink a health potion mid-fight to survive.
 
 ## M4 — Loot, XP and progression
 

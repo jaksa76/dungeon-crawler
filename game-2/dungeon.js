@@ -8,7 +8,7 @@ export const dungeonTileTypes = {
 export const dungeon = {
   name: 'Ravensmoor · The Undercrypt',
   shortName: 'The Undercrypt',
-  journal: 'A creature roams the Undercrypt and follows movement it spots down the corridors. Do not let it reach you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
+  journal: 'A snake roams the Undercrypt and follows movement it spots down the corridors. Face it and attack (X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
   start: { x: 1, z: 1, dir: 2 },
   atmosphere: { color: '#08090e', near: 0.55, far: 3.2 },
   exploration: { radius: 3 },
@@ -34,7 +34,8 @@ export const dungeon = {
   entities: [],
   monsterStepMs: 1100,
   monsterGraceMs: 3500,
-  monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3, w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true }],
+  monsters: [{ id: 'prowler', x: 7, z: 3, dir: 3, w: .4, h: .9, sight: 4, art: 'snake', distanceShaded: true,
+    name: 'snake', verb: 'bites', hp: 30, damage: 12, defence: 1, accuracy: 5, evasion: 3, attackMs: 1500, speed: 1 }],
   exits: [{ x: 1, z: 1, dir: 3, to: 'village', spawn: { x: 3, z: 2, dir: 3 },
     message: 'The ironbound door leads back to the Old Quarter. Step forward to leave.' }],
 };

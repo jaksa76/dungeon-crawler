@@ -47,7 +47,8 @@ html[data-layout="portrait"], html[data-layout="landscape"] { overscroll-behavio
 .tp-move .sr { grid-column: 3; grid-row: 2; }
 .tp-turn { display: grid; grid-template-columns: repeat(2, var(--b)); grid-template-rows: calc(var(--b) * 2 + 6px); gap: 6px; }
 .tp-turn.has-act { grid-template-rows: var(--b) var(--b); }
-.tp-turn .act { grid-column: 1 / 3; font: 15px/1 system-ui, sans-serif; }
+.tp-turn .acts { grid-column: 1 / 3; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: inherit; }
+.tp-turn .act { font: 15px/1 system-ui, sans-serif; }
 .tp-extras { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
 .tp button, .sb .tp-move button, .sb .tp-turn button, .tp-fs { appearance: none; margin: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
   color: #f0e4c8; background: rgba(46, 36, 66, .88); border: 2px solid #6b5a8a; border-radius: 14px;
@@ -97,8 +98,9 @@ const ICON = {
 //       while it is still going: phase 'move' with the command it would be and 0..1 of the way to counting,
 //       or 'cancel' when it is let go of early (a swipe that counts just calls onCommand, as always); mount: where the controls go (default <body>);
 //       sideBars: { left, right } elements that hold the pads in landscape; fullscreen: add the toggle button;
-//       action: { label, cmd } adds one labelled button above the turn buttons that sends `cmd` once per press.
+//       action: { label, cmd } (or a list of them) adds labelled buttons above the turn buttons that send `cmd` once per press.
 export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false, action = null }) {
+  const acts = [].concat(action ?? []);
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.appendChild(style);
@@ -118,8 +120,8 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
         ${btn('back', 'back', 'Step back', 'arrow', 'rotate(180deg)')}
         ${btn('sr', 'strafeRight', 'Step right', 'arrow', 'rotate(90deg)')}
       </div>
-      <div class="tp-turn${action ? ' has-act' : ''}">
-        ${action ? `<button type="button" class="act" data-act="${action.cmd}" aria-label="${action.label}">${action.label}</button>` : ''}
+      <div class="tp-turn${acts.length ? ' has-act' : ''}">
+        ${acts.length ? `<div class="acts">${acts.map(a => `<button type="button" class="act" data-act="${a.cmd}" aria-label="${a.label}">${a.label}</button>`).join('')}</div>` : ''}
         ${btn('tl', 'left', 'Turn left', 'turn')}
         ${btn('tr', 'right', 'Turn right', 'turn', 'scaleX(-1)')}
       </div>
