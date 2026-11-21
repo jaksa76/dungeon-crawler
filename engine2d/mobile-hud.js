@@ -6,7 +6,7 @@ import { reloadFresh } from './reload.js';
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
 
-export function createMobileHUD({ panel, portrait, world, hero, frame, debug, history = [] }) {
+export function createMobileHUD({ panel, portrait, world, hero, frame, debug, messages = [] }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -26,11 +26,27 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
   const notice = document.createElement('div'); notice.className = 'rpg-notice';
   notice.setAttribute('role', 'status'); frame.append(notice);
   let noticeTimer;
+  // One pixel size for the whole UI: `px` screen pixels per UI pixel (the same --rpg-px the CSS reads).
+  // Art canvases (icons, portrait) are drawn at size / px logical pixels and shown at exactly that many
+  // times px, so their pixels are always px screen pixels wide, never a fraction. `size` is the on-screen
+  // size to aim for, in CSS pixels (a number, or a function when the layout changes it).
+  let px = 2, art = [];
+  function renderArt(entry) {
+    const { canvas, size, draw } = entry;
+    const n = Math.max(8, Math.round((typeof size === 'function' ? size() : size) / px));
+    canvas.width = canvas.height = n;
+    canvas.style.width = canvas.style.height = `${n * px}px`;
+    const g = canvas.getContext('2d'); g.imageSmoothingQuality = 'high';
+    draw(g, n);
+  }
+  function addArt(canvas, size, draw) { const entry = { canvas, size, draw }; art.push(entry); renderArt(entry); }
   const character = document.createElement('div'); character.className = 'rpg-character';
   const heroTitle = document.createElement('h2'); heroTitle.className = 'rpg-rail-title'; heroTitle.textContent = 'Adventurer'; left.append(heroTitle);
   const face = document.createElement('canvas'); face.className = 'rpg-portrait';
-  face.width = face.height = 40; face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
-  face.getContext('2d').drawImage(portrait, 0, 0, 40, 40);
+  face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
+  const shortScreen = () => matchMedia('(max-height: 380px) and (orientation: landscape), (max-height: 680px) and (orientation: portrait)').matches;
+  addArt(face, () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80)),
+    (g, n) => g.drawImage(portrait, 0, 0, n, n));
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];
@@ -45,26 +61,30 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
   }
   character.append(vitals); left.append(character);
 
-  const dialog = document.createElement('dialog'); dialog.className = 'rpg-dialog';
+  // One panel for every menu and for the message log. It covers the scene (the view canvas) and nothing
+  // else, so the rails and controls stay in view. `shown` is 'log' while it holds the message log.
+  const menuPanel = document.createElement('section'); menuPanel.className = 'rpg-panel'; menuPanel.hidden = true;
+  menuPanel.setAttribute('role', 'dialog');
+  const header = document.createElement('header');
   const heading = document.createElement('h2'); heading.id = 'rpg-dialog-title';
-  dialog.setAttribute('aria-labelledby', heading.id);
+  menuPanel.setAttribute('aria-labelledby', heading.id);
+  const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Close';
   const body = document.createElement('div'); body.className = 'rpg-dialog-body';
-  const close = document.createElement('button'); close.type = 'button'; close.textContent = 'Return to the quarter';
-  close.addEventListener('click', () => dialog.close()); dialog.append(heading, body, close); document.body.append(dialog);
-  dialog.addEventListener('click', e => { if (e.target === dialog) {
-    const r = dialog.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dialog.close();
-  } });
-  function open(title, text) {
-    heading.textContent = title; body.replaceChildren();
+  const footer = document.createElement('footer');
+  header.append(heading); footer.append(close); menuPanel.append(header, body, footer); frame.append(menuPanel);
+  let shown = null;
+  function closePanel() { menuPanel.hidden = true; shown = null; }
+  close.addEventListener('click', closePanel);
+  function open(title, text, kind = null) {
+    heading.textContent = title; body.replaceChildren(); shown = kind;
     if (text) { const p = document.createElement('p'); p.textContent = text; body.append(p); }
-    if (!dialog.open) dialog.showModal();
+    menuPanel.hidden = false; body.scrollTop = 0; close.focus({ preventScroll: true });
   }
-  function iconButton(label, source, target, handler) {
+  function iconButton(label, source, target, handler, size = 48) {
     const button = document.createElement('button'); button.type = 'button';
     button.title = label; button.setAttribute('aria-label', label);
-    const c = document.createElement('canvas'); c.width = c.height = 24; c.setAttribute('aria-hidden', 'true');
-    c.getContext('2d').drawImage(panel, ...source, 0, 0, 24, 24);
+    const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
+    addArt(c, size, (g, n) => g.drawImage(panel, ...source, 0, 0, n, n));
     button.append(c); button.addEventListener('click', handler); target.append(button);
     return button;
   }
@@ -85,43 +105,38 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
   }
   left.append(slots);
   const mapTitle = document.createElement('h2'); mapTitle.className = 'rpg-rail-title'; mapTitle.textContent = 'Old Quarter'; right.append(mapTitle);
-  const map = document.createElement('canvas'); map.width = map.height = 56; map.className = 'rpg-map';
+  const map = document.createElement('canvas'); map.className = 'rpg-map';
+  let lastState = null; // the minimap is redrawn from it whenever its resolution changes
+  addArt(map, () => (shortScreen() ? (document.documentElement.dataset.layout === 'portrait' ? 72 : 88) : 112), () => {});
   map.setAttribute('role', 'img'); map.setAttribute('aria-label', 'Map of the Old Quarter');
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
   function inventory() {
-    open('Your satchel', 'Travel essentials for a visit to the Old Quarter.');
+    open('Your satchel', 'Travel essentials for a visit to the Old Quarter.', 'inventory');
     const grid = document.createElement('div'); grid.className = 'rpg-inventory';
     for (const [label, text, i] of items) {
-      const b = iconButton(label, [545 + i * 76, 130, 76, 76], grid, () => open(label, text));
+      const b = iconButton(label, [545 + i * 76, 130, 76, 76], grid, () => open(label, text), 72);
       const span = document.createElement('span'); span.textContent = label; b.append(span);
     }
     body.append(grid);
   }
-  iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, inventory);
-  // The messages the game has said, newest first, over the scene only: the rails and panels stay in view.
-  const logView = document.createElement('section'); logView.className = 'rpg-logview'; logView.hidden = true;
-  logView.setAttribute('aria-label', 'Message log');
-  const logHead = document.createElement('header');
-  const logTitle = document.createElement('h2'); logTitle.textContent = 'Message log';
-  const logClose = document.createElement('button'); logClose.type = 'button'; logClose.textContent = 'Close';
-  const logList = document.createElement('ol'); logList.className = 'rpg-log'; logList.tabIndex = 0;
-  logHead.append(logTitle, logClose); logView.append(logHead, logList); frame.append(logView);
-  function closeLog() { logView.hidden = true; }
-  logClose.addEventListener('click', closeLog);
+  // A menu button opens its panel, or closes it when that panel is already showing.
+  const toggle = (kind, openIt) => () => { if (shown === kind) closePanel(); else openIt(); };
+  iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, toggle('inventory', inventory));
+  // The messages the game has said, newest first.
   function openLog() {
-    if (dialog.open) dialog.close();
-    logList.replaceChildren();
-    for (const text of history.slice(-40).reverse()) { const li = document.createElement('li'); li.textContent = text; logList.append(li); }
-    if (!logList.children.length) { const li = document.createElement('li'); li.textContent = 'Nothing yet.'; logList.append(li); }
-    logList.scrollTop = 0; logView.hidden = false; logClose.focus({ preventScroll: true });
+    open('Message log', null, 'log');
+    const list = document.createElement('ol'); list.className = 'rpg-log'; list.setAttribute('aria-label', 'Recent messages');
+    for (const text of messages.slice(-40).reverse()) { const li = document.createElement('li'); li.textContent = text; list.append(li); }
+    if (!list.children.length) { const li = document.createElement('li'); li.textContent = 'Nothing yet.'; list.append(li); }
+    body.append(list);
   }
   function openJournal() {
-    open('Field journal', world.journal);
+    open('Field journal', world.journal, 'journal');
     const more = document.createElement('button'); more.type = 'button'; more.textContent = 'Message log';
     more.addEventListener('click', openLog); body.append(more);
   }
-  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, openJournal);
+  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, toggle('journal', openJournal));
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -130,7 +145,7 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
   }
   iconButton('Full screen', [545 + 4 * 99, 20, 99, 92], menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, L message log.');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, L message log.', 'settings');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -142,20 +157,8 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = debug.get();
     checkbox.addEventListener('change', () => debug.set(checkbox.checked));
     label.append(checkbox, 'Developer: show slot outlines'); body.append(label);
-    if (document.fullscreenEnabled) {
-      const fullscreen = document.createElement('button'); fullscreen.type = 'button';
-      fullscreen.textContent = document.fullscreenElement ? 'Exit full screen' : 'Enter full screen';
-      fullscreen.addEventListener('click', async () => {
-        try {
-          if (document.fullscreenElement) await document.exitFullscreen();
-          else await document.documentElement.requestFullscreen();
-          dialog.close();
-        } catch { fullscreen.textContent = 'Full screen unavailable'; }
-      });
-      body.append(fullscreen);
-    }
   }
-  iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, openSettings);
+  iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, toggle('settings', openSettings));
   for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title === 'Full screen' ? 'Screen' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
@@ -163,11 +166,13 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
     for (const { key, meter, number } of vitalNodes) {
       meter.value = hero[key]; number.textContent = `${hero[key]}/${meter.max}`;
     }
-    const g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, 56, 56);
-    const cell = 5, cx = 28, cy = 28;
+    lastState = state;
+    // The minimap's resolution follows its on-screen size (see addArt): 56 logical pixels when large.
+    const n = map.width, g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, n, n);
+    const cell = Math.max(3, Math.floor(n / 11)), tile = cell - 1, cx = n / 2, cy = n / 2;
     for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
       const t = world.typeAt(state.tileX + dx, state.tileZ + dz); if (!t) continue;
-      g.fillStyle = t.wall ? '#3b3335' : '#95816a'; g.fillRect(cx + dx * cell - 2, cy + dz * cell - 2, 4, 4);
+      g.fillStyle = t.wall ? '#3b3335' : '#95816a'; g.fillRect(cx + dx * cell - (tile >> 1), cy + dz * cell - (tile >> 1), tile, tile);
     }
     for (const b of world.billboards) {
       const x = cx + (b.entity.x - state.tileX) * cell, y = cy + (b.entity.z - state.tileZ) * cell;
@@ -176,19 +181,24 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, hi
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
     // Integer rectangles keep the facing marker as crisp as the map cells.
     g.fillStyle = '#ff6348'; g.fillRect(-1, -3, 2, 5); g.fillRect(-2, 0, 4, 2); g.restore();
-    for (const [s, x, y] of [['N', 26, 1], ['S', 26, 47], ['W', 1, 24], ['E', 50, 24]]) {
+    for (const [s, x, y] of [['N', n / 2 - 2, 1], ['S', n / 2 - 2, n - 9], ['W', 1, n / 2 - 4], ['E', n - 6, n / 2 - 4]]) {
       drawText(g, FONT, s, x, y, '#e5c48c');
     }
     map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
-  const menu = { journal: openJournal, inventory, fullscreen: toggleFullscreen, settings: openSettings };
-  return { left, right, controls, draw, open, openJournal, openLog, menu, items, closeLog, isLogOpen: () => !logView.hidden, ready,
+  const menu = { journal: toggle('journal', openJournal), inventory: toggle('inventory', inventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
+  return { left, right, controls, draw, open, openJournal, openLog, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
-    setView(height, pixel) { frame.style.setProperty('--rpg-view-h', height); frame.style.setProperty('--rpg-px', pixel); },
+    setView(height, pixel) {
+      frame.style.setProperty('--rpg-view-h', height);
+      document.documentElement.style.setProperty('--rpg-px', pixel);
+      px = pixel; art = art.filter(entry => entry.canvas.isConnected); art.forEach(renderArt);
+      if (lastState) draw(lastState);
+    },
     setLevel(level) { title.textContent = level.name; mapTitle.textContent = level.shortName ?? level.name; },
     notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
-    isOpen: () => dialog.open || !logView.hidden,
+    isOpen: () => !menuPanel.hidden,
     setLayout(mode, width) {
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));
       document.documentElement.style.setProperty('--rpg-rail', `${rail}px`);

@@ -4,36 +4,37 @@
 .rpg-hud { display: none; }
 .rpg-rail-title, .rpg-icon-label { display: none; }
 .rpg-location, .rpg-notice { display: none; }
-.rpg-dialog, .rpg-rail, .rpg-ui .tp button, .rpg-ui .tp-fs {
+.rpg-rail, .rpg-ui .tp button, .rpg-ui .tp-fs {
   background: #1c1818; color: var(--ink);
   border: 7px solid #715036; border-image: var(--rpg-panel) 3 fill / 7px / 0 stretch;
 }
 .rpg-ui button { cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .rpg-ui button:focus-visible, .rpg-ui input:focus-visible { outline: 2px solid #ffe0a0; outline-offset: 2px; }
 .rpg-ui button:active, .rpg-ui button.down { filter: brightness(1.35); transform: translateY(1px); }
-.rpg-dialog { box-sizing: border-box; width: min(460px, 92vw); max-height: 88dvh; padding: 20px; font: 16px/1.5 'RPG Pixel', monospace; }
-.rpg-dialog::backdrop { background: #08060bd9; }
-.rpg-dialog h2 { font: 16px 'RPG Pixel', monospace; color: #e8c688; margin: 0 0 14px; }
-.rpg-game-over { text-align: center; }
-.rpg-game-over h2 { color: #ed8b74; font-size: 24px; margin-bottom: 24px; }
-.rpg-game-over::backdrop { background: #08060bf0; }
-.rpg-dialog p { margin: 0 0 18px; }
-.rpg-dialog button { min-height: 44px; color: var(--ink); background: #211c19; border: 1px solid var(--bronze); padding: 8px 16px; font: inherit; }
-.rpg-dialog > button { width: 100%; margin-top: 18px; }
-.rpg-dialog .rpg-reload { width: 100%; margin-bottom: 12px; }
-.rpg-dialog button:disabled { opacity: .65; cursor: wait; }
-.rpg-inventory { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.rpg-inventory button { display: grid; justify-items: center; gap: 4px; }
-.rpg-inventory canvas { width: 48px; height: 48px; image-rendering: pixelated; }
-/* The message log covers the scene (the view canvas) and nothing else. */
-.rpg-logview { position: absolute; z-index: 5; top: 0; left: 0; width: 100%; height: var(--rpg-view-h, 100%); box-sizing: border-box;
+/* Every menu, the message log and the game-over screen share one panel. It covers the scene (the view canvas)
+   and nothing else, and sets its text at a whole multiple of the 8-pixel font so its pixels match the UI. */
+.rpg-panel { position: absolute; z-index: 5; top: 0; left: 0; width: 100%; height: var(--rpg-view-h, 100%); box-sizing: border-box;
   display: flex; flex-direction: column; padding: 10px 12px; background: #100d0b; color: #cdb99a;
-  font: calc(8px * var(--rpg-px, 2)) / 1.4 'RPG Pixel', monospace; border: 2px solid #715036; }
-.rpg-logview[hidden] { display: none; }
-.rpg-logview header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.rpg-logview h2 { margin: 0; font-size: inherit; color: #e8c688; }
-.rpg-logview button { min-width: 44px; min-height: 36px; padding: 2px 14px; color: #efd7aa; background: #211c19; border: 1px solid #8b6542; font: inherit; cursor: pointer; }
-.rpg-log { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+  font: calc(8px * var(--rpg-px, 2)) / 1.4 'RPG Pixel', monospace; border: calc(var(--rpg-px, 2) * 1px) solid #715036; image-rendering: pixelated; }
+.rpg-panel[hidden] { display: none; }
+.rpg-panel header { flex: none; margin-bottom: 6px; }
+.rpg-panel footer { flex: none; display: flex; justify-content: center; margin-top: 8px; }
+.rpg-panel footer button { min-width: min(60%, calc(50px * var(--rpg-px, 2))); }
+.rpg-panel h2 { margin: 0; font-size: inherit; color: #e8c688; }
+.rpg-panel p { margin: 0 0 12px; color: #ebd6ad; }
+.rpg-panel button { min-width: 44px; min-height: 44px; padding: 2px 14px; color: #efd7aa; background: #211c19; border: calc(var(--rpg-px, 2) * 1px) solid #8b6542; font: inherit; cursor: pointer; }
+.rpg-panel button:disabled { opacity: .65; cursor: wait; }
+.rpg-dialog-body { flex: 1; min-height: 0; overflow-y: auto; }
+.rpg-dialog-body > button { display: block; width: 100%; margin-top: 12px; }
+.rpg-dialog-body .rpg-reload { margin: 0 0 12px; }
+.rpg-game-over { align-items: center; justify-content: center; text-align: center; background: #08060b; }
+.rpg-game-over h2 { color: #ed8b74; font-size: calc(16px * var(--rpg-px, 2)); margin-bottom: 14px; }
+.rpg-game-over button { margin-top: 6px; }
+/* Icon canvases get their size and resolution from the art registry in mobile-hud.js. */
+.rpg-inventory { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.rpg-inventory button { display: grid; justify-items: center; gap: 4px; }
+.rpg-inventory canvas { image-rendering: pixelated; }
+.rpg-log { list-style: none; margin: 0; padding: 0; }
 .rpg-log li { padding: 3px 0; }
 .rpg-log li:first-child { color: #f1dfbe; }
 .rpg-log li { padding: 3px 0; color: #cdb99a; }
@@ -53,11 +54,11 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-locatio
 }
 .rpg-rail { box-sizing: border-box; display: flex; flex-direction: column; gap: 8px; padding: 6px; }
 .rpg-character { display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.rpg-character .rpg-portrait { width: 82px; height: 82px; object-fit: cover; border: 2px solid #8c6949; image-rendering: pixelated; }
+.rpg-character .rpg-portrait { border: calc(var(--rpg-px, 2) * 1px) solid #8c6949; image-rendering: pixelated; }
 .rpg-vitals { width: 100%; }
 .rpg-vital { position: relative; height: 19px; display: flex; align-items: center; gap: 4px; margin: 2px 0; font: 16px 'RPG Pixel', monospace; }
 .rpg-vital span { width: 20px; }
-.rpg-vital meter { appearance: none; flex: 1; min-width: 0; height: 15px; border: 1px solid #5a4031; background: #26181a; border-radius: 0; }
+.rpg-vital meter { appearance: none; flex: 1; min-width: 0; height: 15px; border: calc(var(--rpg-px, 2) * 1px) solid #5a4031; background: #26181a; border-radius: 0; }
 .rpg-vital meter::-webkit-meter-bar { background: #26181a; border: 0; border-radius: 0; }
 .rpg-vital meter::-webkit-meter-optimum-value { background: #b63b34; }
 .rpg-vital.mp meter::-webkit-meter-optimum-value { background: #3c68b4; }
@@ -65,9 +66,9 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-locatio
 .rpg-vital.mp meter::-moz-meter-bar { background: #365cb4; }
 .rpg-vital b { position: absolute; left: 24px; right: 0; text-align: center; font: 16px/1 'RPG Pixel', monospace; color: #fff3db; text-shadow: 1px 1px #000; }
 .rpg-slots, .rpg-menus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
-.rpg-slots button, .rpg-menus button { min-width: 44px; min-height: 44px; padding: 0; border: 1px solid #5e4538; background: #100e10; }
-.rpg-slots canvas, .rpg-menus canvas { display: block; width: 100%; height: 42px; object-fit: contain; image-rendering: pixelated; pointer-events: none; }
-.rpg-map { width: 100%; max-height: 112px; object-fit: contain; image-rendering: pixelated; background: #100e10; border: 1px solid #6d5139; box-sizing: border-box; }
+.rpg-slots button, .rpg-menus button { min-width: 44px; min-height: 44px; padding: 0; border: calc(var(--rpg-px, 2) * 1px) solid #5e4538; background: #100e10; }
+.rpg-slots canvas, .rpg-menus canvas { display: block; margin: 0 auto; image-rendering: pixelated; pointer-events: none; }
+.rpg-map { display: block; margin: 0 auto; image-rendering: pixelated; background: #100e10; border: calc(var(--rpg-px, 2) * 1px) solid #6d5139; }
 .rpg-ui .tp button, .rpg-ui .tp-fs { border-radius: 0; color: #efd7aa; }
 .rpg-ui .tp button.down { background-color: #664426; }
 .rpg-ui .tp-move, .rpg-ui .tp-turn { gap: 3px; }
@@ -91,27 +92,21 @@ html.rpg-ui[data-layout="portrait"] body { justify-content: flex-start; box-sizi
 html.rpg-ui[data-layout="portrait"] .rpg-hud { display: grid; grid-template-columns: 1.25fr 1fr; grid-template-rows: minmax(0, 1fr) auto; width: 100%; flex: 1; min-height: 0; }
 html.rpg-ui[data-layout="portrait"] .rpg-rail { border-width: 5px; padding: 10px; gap: 10px; justify-content: center; }
 html.rpg-ui[data-layout="portrait"] .rpg-character { flex-direction: column; gap: 10px; }
-html.rpg-ui[data-layout="portrait"] .rpg-character .rpg-portrait { width: 88px; height: 96px; }
 html.rpg-ui[data-layout="portrait"] .rpg-rail-title { display: block; margin: 0 0 5px; text-align: center; font: 16px 'RPG Pixel', monospace; letter-spacing: 0; color: #d6b47f; }
 html.rpg-ui[data-layout="portrait"] .rpg-icon-label { display: block; padding: 4px 0; font: 12px/1.34 'RPG Pixel', monospace; color: #dbc29b; }
 html.rpg-ui[data-layout="portrait"] .rpg-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
 html.rpg-ui[data-layout="portrait"] .rpg-slots button { min-width: 0; min-height: 44px; }
-html.rpg-ui[data-layout="portrait"] .rpg-map { height: clamp(80px, 16dvh, 130px); }
 html.rpg-ui[data-layout="portrait"] .rpg-controls { grid-column: 1 / -1; align-self: end; padding-bottom: env(safe-area-inset-bottom); }
 html.rpg-ui[data-layout="portrait"] .tp { --b: clamp(48px, 14vw, 64px); margin: 0; padding: 12px; border-top: 1px solid #715036; background: #181415; }
 html.rpg-ui[data-layout="portrait"] .tp-fs { display: none; }
 @media (max-height: 380px) and (orientation: landscape) {
-  .rpg-character .rpg-portrait { width: 58px; height: 58px; }
   .rpg-rail { gap: 4px; }
-  .rpg-map { max-height: 88px; }
   .rpg-rail .tp-fs.in-bar { display: none; }
 }
 @media (max-height: 680px) and (orientation: portrait) {
   html.rpg-ui[data-layout="portrait"] .rpg-rail { padding: 5px; gap: 5px; }
-  html.rpg-ui[data-layout="portrait"] .rpg-character .rpg-portrait { width: 48px; height: 54px; }
   html.rpg-ui[data-layout="portrait"] .rpg-character { flex-direction: row; gap: 5px; }
   html.rpg-ui[data-layout="portrait"] .rpg-rail-title { font-size: 8px; letter-spacing: 0; margin-bottom: 0; }
-  html.rpg-ui[data-layout="portrait"] .rpg-map { height: 70px; }
   html.rpg-ui[data-layout="portrait"] .tp { padding: 6px 12px; }
 }
 
@@ -127,7 +122,7 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-notice:
 .rpg-ui .rpg-rail :is(button[data-cmd], button[data-act]) { border: 5px solid #8b6542; border-image: var(--rpg-panel) 3 fill / 5px / 0 stretch; }
 
 /* Keep the logical pixels coarse across panels, portraits, icons and controls. */
-.rpg-ui .rpg-rail, .rpg-ui .tp button, .rpg-ui .tp-fs, .rpg-dialog {
+.rpg-ui .rpg-rail, .rpg-ui .tp button, .rpg-ui .tp-fs {
   image-rendering: pixelated;
 }
 .rpg-control-icon { display: block; width: 24px; height: 24px; image-rendering: pixelated; pointer-events: none; }

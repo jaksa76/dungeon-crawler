@@ -24,22 +24,23 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 **Engine**
 - [x] Interact action (Use button, F/Space) that triggers the entity on the faced tile side
 - [x] Entity behaviours as data (`examine`, later `talk`, `open`, `shop`) instead of names only
-- [x] Message log history viewable in a menu (Message log dialog, L)
+- [x] Message log history viewable in a menu (Message log panel, L)
 
 **Game**
 - [x] As a player, I want to examine the well, barrels and crates and read a line about each.
 
-## M2 — Items and containers
+## M2 — Items, containers and inventory
 
 **Engine**
-- [ ] Item definitions as data (type, icon, stack size, effects, value)
-- [ ] Inventory that changes: pick up, drop, stack (replaces the four hard-coded items)
+- [ ] Item definitions as data (type, icon, name, description)
+- [ ] Inventory grid view (will need to generate background image through codex)
+- [ ] Inventory that changes: pick up, drop, stack
 - [ ] Containers and loot tables (chests, hidden stashes)
-- [ ] Quick-item slots bound to inventory items
+- [ ] Take all button when container is open
 
 **Game**
 - [ ] As a player, I want to open the chest by the dungeon door and find starting supplies.
-- [ ] As a player, I want to sometimes find something hidden in the well, barrels and crates.
+- [ ] As a player, I want to find something hidden in the well, barrels and crates.
 
 ## M3 — Character stats and combat
 

@@ -112,7 +112,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
-  const history = []; // every message said, kept for the journal's message log
+  const messages = []; // every message said, kept for the journal's message log
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -121,7 +121,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, history,
+  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, messages,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -137,9 +137,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const x = (ev.clientX - r.left) * panelImage.width / r.width, y = (ev.clientY - r.top) * panelImage.height / r.height;
     return hotspots.find(({ rect: [rx, ry, rw, rh] }) => x >= rx && x < rx + rw && y >= ry && y < ry + rh);
   };
-  uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning && !bars.isOpen()) hotspotAt(ev)?.run(); });
+  uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
-  const gameOver = createGameOver();
+  const gameOver = createGameOver(frame);
   window.__game2d = { view, images, level, levelId, p, world, monsters, hero,
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
@@ -165,8 +165,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
   function say(text) {
     bars.notice(text);
-    history.push(text);
-    if (history.length > 100) history.shift();
+    messages.push(text);
+    if (messages.length > 100) messages.shift();
     const t = performance.now();
     for (const line of wrap(text)) log.push({ text: line, t });
     while (log.length > LOG_LINES) log.shift();
@@ -376,7 +376,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       heldKeys.add(ev.code);
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
-    if (bars.isLogOpen() && (ev.code === 'Escape' || ev.code === 'KeyL')) { ev.preventDefault(); bars.closeLog(); return; }
+    if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
     if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyF' || ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }

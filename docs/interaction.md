@@ -35,8 +35,9 @@ nothing to do yet."
 Every message goes to the on-screen log, which now wraps long lines, and to a
 history of the last 100. **L**, or the **Message log** button in the Field
 journal, opens them newest first in a panel that covers only the scene, so the side
-rails, meters and controls stay visible. The list scrolls; **Close**, **L** or
-Escape closes it. Movement and monsters pause while it is open. Its text is set
+rails, meters and controls stay visible. It is the same panel every menu uses
+(journal, bag, settings, item descriptions) and the game-over screen too. The
+content scrolls; **Close**, **L** (for the log) or Escape closes it. Movement and monsters pause while it is open. Its text is set
 at a whole multiple of the 8-pixel font, matching the pixel size of the UI around
 it (3× on a 960px desktop view, 2× on phones).
 
