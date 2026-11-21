@@ -49,7 +49,9 @@ export function extractLetters(panel, rects) {
 
 // `font`: an optional bitmap font (engine/bitmapfont.js) for the numbers, instead of the VT323 web font. Use
 // it for a small canvas, where a scalable font is too blurry to read.
-export function createUI(canvas, assets, layout, { width = UI_W, font } = {}) {
+// `overlay(g, s)`: an optional function called at the end of every draw, with `s` = canvas pixels per panel-image pixel,
+// for things that must be drawn crisply at the canvas's own resolution.
+export function createUI(canvas, assets, layout, { width = UI_W, font, overlay } = {}) {
   const g = canvas.getContext('2d');
   const panel = assets[layout.image].image;
   const s = width / panel.width;                     // panel pixels -> canvas pixels
@@ -88,24 +90,25 @@ export function createUI(canvas, assets, layout, { width = UI_W, font } = {}) {
     const [x, y, w, h] = R(layout.map);
     g.save(); g.beginPath(); g.rect(x, y, w, h); g.clip();
     g.fillStyle = '#0d0b10'; g.fillRect(x, y, w, h);
-    const cell = Math.max(2, Math.round(7 * k)), view = 9, half = Math.floor(cell / 2);
-    const cx = Math.round(x + w / 2), cy = Math.round(y + h / 2);
-    for (let dz = -view; dz <= view; dz++) {
-      for (let dx = -view; dx <= view; dx++) {
-        const t = state.world.typeAt(state.tileX + dx, state.tileZ + dz);
+    // `zoom` (default 1) enlarges the map; tileX/tileZ may be fractional, so the map can slide while the player moves.
+    const zoom = state.zoom ?? 1, cell = Math.max(2, Math.round(7 * k * zoom)), view = Math.ceil(Math.max(w, h) / cell / 2) + 1, half = cell / 2;
+    const cx = Math.round(x + w / 2), cy = Math.round(y + h / 2), ux = Math.round(state.tileX), uz = Math.round(state.tileZ);
+    for (let tz = uz - view; tz <= uz + view; tz++) {
+      for (let tx = ux - view; tx <= ux + view; tx++) {
+        const t = state.world.typeAt(tx, tz);
         if (!t) continue;
         g.fillStyle = t.wall ? (t.low ? '#5a4e5e' : '#2e2632') : '#7a6a72';
-        g.fillRect(cx + dx * cell - half, cy + dz * cell - half, cell - 1, cell - 1);
+        g.fillRect(Math.round(cx + (tx - state.tileX) * cell - half), Math.round(cy + (tz - state.tileZ) * cell - half), cell - 1, cell - 1);
       }
     }
     for (const b of state.world.billboards) {
       if (!b.entity.name) continue; // scenery
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#e0b040';
-      const m = Math.max(2, Math.round(3 * k));
+      const m = Math.max(2, Math.round(3 * k * zoom));
       g.fillRect(Math.round(cx + dx * cell - m / 2), Math.round(cy + dz * cell - m / 2), m, m);
     }
-    g.translate(cx, cy); g.rotate(-state.yaw); g.scale(k, k);
+    g.translate(cx, cy); g.rotate(-state.yaw); g.scale(k * zoom, k * zoom);
     g.fillStyle = '#140c10'; g.beginPath(); g.moveTo(0, -7); g.lineTo(6, 6); g.lineTo(-6, 6); g.fill();
     g.fillStyle = '#ff3a20'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 4); g.lineTo(-4, 4); g.fill();
     g.restore();
@@ -125,6 +128,7 @@ export function createUI(canvas, assets, layout, { width = UI_W, font } = {}) {
     bar(layout.mp, state.hero.mp, state.hero.maxMp, '#2454d0', '#7ab0ff');
     minimap(state);
     g.drawImage(letters, 0, 0, width, H);
+    overlay?.(g, s);
   }
 
   return { draw, height: Math.round(panel.height * UI_W / panel.width) };

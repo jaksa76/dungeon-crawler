@@ -33,9 +33,9 @@ fractional scale (needs Playwright and Chromium).
 - The four quick items show descriptions only. The Bag opens the real pack (a grid of stacks you can
   drop); see [inventory.md](inventory.md).
 - Journal describes the current exploration demo and has a Message log button. The minimap is always on screen.
-- **Use** (above the turn buttons; **F** or **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
+- **Use** (above the turn buttons; **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
 - On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the first four quick items are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine2d/panel-icons.js`).
-- On desktop, full screen (Settings, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
+- On desktop, full screen (the panel's full screen icon, **F**, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
 - Settings contains control help, a cache-free reload, and slot outlines. Full screen has its own button.
 - Game two's eastern village door connects to the Undercrypt; see
   [dungeon-level.md](dungeon-level.md) for travel, visibility and art authoring.
@@ -65,3 +65,9 @@ one and three since they share touch control code.
 
 Browser emulation covers layout and interactions; device-specific safe areas
 and fullscreen behavior should also be checked on an actual phone.
+
+## Minimap
+
+The minimap shows about six tiles across, on the phone rails and on the desktop panel (`MAP_ZOOM` in `engine2d/game.js`). When the
+player steps or turns, the map slides and rotates to the new position over 220 ms instead of jumping; a new level or a
+respawn jumps. The map is redrawn every frame only while it is sliding.

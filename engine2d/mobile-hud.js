@@ -3,6 +3,7 @@ import { font5x8 as FONT } from '../engine/font-5x8.js';
 import { pixelSkin } from './pixel-skin.js';
 import { reloadFresh } from './reload.js';
 import { takeStack, takeAll } from './inventory.js';
+import { QUICK_ICONS } from './panel-icons.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
@@ -10,10 +11,10 @@ const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
 // The painted background of the satchel screen (see docs/inventory.md); null draws plain frames instead.
 const BAG_BACKGROUND = './assets/inventory-bg.png';
 
-// inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
+// icons: the icon atlas (see icons.js); inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
 // and returns { message } (or null).
-export function createMobileHUD({ panel, portrait, world, hero, frame, debug, messages = [], inventory, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -87,27 +88,28 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     if (text) { const p = document.createElement('p'); p.textContent = text; body.append(p); }
     menuPanel.hidden = false; body.scrollTop = 0; close.focus({ preventScroll: true });
   }
-  function iconButton(label, source, target, handler, size = 48) {
+  function iconButton(label, iconId, target, handler, size = 48) {
     const button = document.createElement('button'); button.type = 'button';
     button.title = label; button.setAttribute('aria-label', label);
     const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
-    addArt(c, size, (g, n) => g.drawImage(panel, ...source, 0, 0, n, n));
+    const native = icons.native(iconId); // a pixel-art icon is shown at its own size, so every pixel stays whole
+    addArt(c, native ? () => native * px : size, (g, n) => icons.draw(g, iconId, 0, 0, n, n));
     button.append(c); button.addEventListener('click', handler); target.append(button);
     return button;
   }
   const items = [
-    ['Sword', 'A trusty steel blade, ready for the road.', 0],
-    ['Shield', 'A round shield with a worn wooden face.', 1],
-    ['Health potion', 'A small vial of red tonic. Your health is already full.', 2],
-    ['Mana potion', 'A small vial of blue tonic. Your mana is already full.', 3],
+    ['Sword', 'A trusty steel blade, ready for the road.', QUICK_ICONS[0]],
+    ['Shield', 'A round shield with a worn wooden face.', QUICK_ICONS[1]],
+    ['Health potion', 'A small vial of red tonic. Your health is already full.', QUICK_ICONS[2]],
+    ['Mana potion', 'A small vial of blue tonic. Your mana is already full.', QUICK_ICONS[3]],
   ];
   const slots = document.createElement('div'); slots.className = 'rpg-slots';
   slots.setAttribute('aria-label', 'Quick items');
   function caption(button, text) {
     const label = document.createElement('span'); label.className = 'rpg-icon-label'; label.textContent = text; button.append(label);
   }
-  for (const [label, text, i] of items) {
-    const button = iconButton(label, [545 + i * 76, 130, 76, 76], slots, () => open(label, text));
+  for (const [label, text, icon] of items) {
+    const button = iconButton(label, icon, slots, () => open(label, text));
     caption(button, label.replace(' potion', ''));
   }
   left.append(slots);
@@ -118,12 +120,13 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
   map.setAttribute('role', 'img'); map.setAttribute('aria-label', 'Map of the Old Quarter');
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
-  // An item's picture: its crop of the panel's row of item icons, drawn through the art registry. The crop
-  // leaves out the slot's hotkey number and edge bar, which belong to the panel.
+  // An item's picture, from the icon atlas, drawn through the art registry.
   function itemIcon(id, size) { // size: CSS pixels, or a function that returns them
     const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
-    const i = itemDefs[id].icon;
-    addArt(c, size, (g, n) => g.drawImage(panel, 545 + i * 76 + 17, 130 + 15, 47, 47, 0, 0, n, n));
+    // A pixel-art icon is shown at a whole multiple of its own size (the largest that fits), so every pixel stays whole.
+    const native = icons.native(itemDefs[id].icon);
+    const fitted = () => { const wanted = typeof size === 'function' ? size() : size, unit = native * px; return unit * Math.max(1, Math.floor(wanted / unit)); };
+    addArt(c, native ? fitted : size, (g, n) => icons.draw(g, itemDefs[id].icon, 0, 0, n, n));
     return c;
   }
   const stackLabel = ({ id, qty }) => `${itemDefs[id].name}${qty > 1 ? ` x${qty}` : ''}`;
@@ -156,7 +159,7 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     for (const cell of grid.children) {
       const stack = inventory.slots[cell.dataset.slot];
       if (!stack) continue;
-      const icon = itemIcon(stack.id, () => cell.clientWidth * 0.8);
+      const icon = itemIcon(stack.id, () => cell.clientWidth * 0.95); // the atlas tiles carry a little padding of their own
       cell.prepend(icon);
     }
     dragToRearrange(grid);
@@ -252,7 +255,7 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
   }
   // A menu button opens its panel, or closes it when that panel is already showing.
   const toggle = (kind, openIt) => () => { if (shown === kind) closePanel(); else openIt(); };
-  iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, toggle('inventory', openInventory));
+  iconButton('Inventory', 'bag', menus, toggle('inventory', openInventory));
   // The messages the game has said, newest first.
   function openLog() {
     open('Message log', null, 'log');
@@ -266,16 +269,16 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     const more = document.createElement('button'); more.type = 'button'; more.textContent = 'Message log';
     more.addEventListener('click', openLog); body.append(more);
   }
-  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, toggle('journal', openJournal));
+  iconButton('Journal', 'journal', menus, toggle('journal', openJournal));
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
       else await document.documentElement.requestFullscreen();
     } catch { open('Full screen', 'Full screen is not available in this browser.'); }
   }
-  iconButton('Full screen', [545 + 4 * 99, 20, 99, 92], menus, toggleFullscreen);
+  iconButton('Full screen', 'fullscreen', menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, I inventory, L message log.', 'settings');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, Space use, F full screen, I inventory, L message log.', 'settings');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -287,8 +290,12 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = debug.get();
     checkbox.addEventListener('change', () => debug.set(checkbox.checked));
     label.append(checkbox, 'Developer: show slot outlines'); body.append(label);
+    // Icon style: 16x16 pixel art, or the detailed painted set. The panel and every icon are drawn once at startup, so
+    // switching saves the choice and reloads (the game returns to where the page URL says: the same level, its entrance).
+    const detailed = icons.style === 'detailed';
+    body.append(textButton(`Icons: ${detailed ? 'detailed' : 'pixel 16x16'} (tap to switch)`, () => setIconStyle(detailed ? 'pixel' : 'detailed')));
   }
-  iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, toggle('settings', openSettings));
+  iconButton('Settings and controls', 'settings', menus, toggle('settings', openSettings));
   for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title === 'Full screen' ? 'Screen' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
@@ -299,18 +306,22 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug, me
     lastState = state;
     // The minimap's resolution follows its on-screen size (see addArt): 56 logical pixels when large.
     const n = map.width, g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, n, n);
-    const cell = Math.max(3, Math.floor(n / 11)), tile = cell - 1, cx = n / 2, cy = n / 2;
-    for (let dz = -4; dz <= 4; dz++) for (let dx = -4; dx <= 4; dx++) {
-      const t = world.typeAt(state.tileX + dx, state.tileZ + dz); if (!t) continue;
-      g.fillStyle = t.wall ? '#3b3335' : '#95816a'; g.fillRect(cx + dx * cell - (tile >> 1), cy + dz * cell - (tile >> 1), tile, tile);
+    // Zoomed in: about 6 cells across. tileX/tileZ may be fractional while the map slides to a new position.
+    const cell = Math.max(4, Math.floor(n / 6.5)), tile = cell - 1, cx = n / 2, cy = n / 2, ux = Math.round(state.tileX), uz = Math.round(state.tileZ);
+    for (let tz = uz - 4; tz <= uz + 4; tz++) for (let tx = ux - 4; tx <= ux + 4; tx++) {
+      const t = world.typeAt(tx, tz); if (!t) continue;
+      g.fillStyle = t.wall ? '#3b3335' : '#95816a';
+      g.fillRect(Math.round(cx + (tx - state.tileX) * cell - tile / 2), Math.round(cy + (tz - state.tileZ) * cell - tile / 2), tile, tile);
     }
+    const dot = Math.max(2, cell >> 1);
     for (const b of world.billboards) {
-      const x = cx + (b.entity.x - state.tileX) * cell, y = cy + (b.entity.z - state.tileZ) * cell;
-      g.fillStyle = '#e9b65e'; g.fillRect(x - 1, y - 1, 2, 2);
+      g.fillStyle = '#e9b65e';
+      g.fillRect(Math.round(cx + (b.entity.x - state.tileX) * cell - dot / 2), Math.round(cy + (b.entity.z - state.tileZ) * cell - dot / 2), dot, dot);
     }
+    // The player: an arrow built from integer rectangles so it is as crisp as the cells, turning with the player.
+    const u = Math.max(1, cell >> 2);
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
-    // Integer rectangles keep the facing marker as crisp as the map cells.
-    g.fillStyle = '#ff6348'; g.fillRect(-1, -3, 2, 5); g.fillRect(-2, 0, 4, 2); g.restore();
+    g.fillStyle = '#ff6348'; g.fillRect(-u, -3 * u, 2 * u, 5 * u); g.fillRect(-2 * u, 0, 4 * u, 2 * u); g.restore();
     for (const [s, x, y] of [['N', n / 2 - 2, 1], ['S', n / 2 - 2, n - 9], ['W', 1, n / 2 - 4], ['E', n - 6, n / 2 - 4]]) {
       drawText(g, FONT, s, x, y, '#e5c48c');
     }

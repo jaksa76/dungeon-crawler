@@ -6,7 +6,7 @@
 export function checkItems(defs) {
   for (const [id, def] of Object.entries(defs)) {
     for (const key of ['name', 'type', 'description']) if (typeof def[key] !== 'string' || !def[key]) throw new Error(`item "${id}" needs a ${key}`);
-    if (!Number.isInteger(def.icon) || def.icon < 0) throw new Error(`item "${id}" needs an icon index`);
+    if (typeof def.icon !== 'string' || !def.icon) throw new Error(`item "${id}" needs an icon id`);
     if (def.stack !== undefined && !(Number.isInteger(def.stack) && def.stack >= 1)) throw new Error(`item "${id}" has a bad stack size`);
   }
 }

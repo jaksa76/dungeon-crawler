@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
 import { createInventory, addToStacks, takeStack, takeAll, checkItems } from '../../engine2d/inventory.js';
 import { rollLoot, resolveContents } from '../../engine2d/loot.js';
 import { interact } from '../../engine2d/interaction.js';
@@ -133,7 +134,36 @@ test('a pile also wins over a person with nothing to do, but not over a containe
 test('game two items are well formed and the starting kit fits', () => {
   assert.doesNotThrow(() => checkItems(itemDefs));
   assert.doesNotThrow(() => createInventory(itemDefs, { size: inventorySize, start: startingItems }));
-  for (const [id, def] of Object.entries(itemDefs)) assert.ok(def.icon <= 7, `${id} icon is on the panel's row of eight`);
+  for (const [id, def] of Object.entries(itemDefs)) assert.ok(atlas.icons[def.icon] !== undefined, `${id} uses an icon that is not in the atlas: ${def.icon}`);
+});
+
+const iconDir = new URL('../../game-2/art/icons/', import.meta.url);
+const atlas = JSON.parse(fs.readFileSync(new URL('atlas.json', iconDir), 'utf8'));
+const sheets = JSON.parse(fs.readFileSync(new URL('sheets.json', iconDir), 'utf8')).sheets;
+
+test('the icon list has 100 to 200 unique icons, a full sheet of interface icons, and all of them are in the atlas', () => {
+  const ids = sheets.flatMap(s => s.icons.map(line => line.split('|')[0]));
+  assert.equal(new Set(ids).size, ids.length, 'icon ids are unique');
+  assert.ok(ids.length >= 100 && ids.length <= 200, `${ids.length} icons`);
+  assert.ok(sheets.every(s => s.icons.length === 24), 'every sheet is 6 x 4');
+  for (const id of ids) assert.ok(atlas.icons[id] !== undefined, `${id} is missing from the atlas; run node tools/icon-sheets.mjs pack`);
+  assert.equal(Object.keys(atlas.icons).length, ids.length);
+});
+
+test('every icon is true 16x16 pixel art, stored enlarged 4x so the atlas tiles stay 64x64', () => {
+  const ids = sheets.flatMap(s => s.icons.map(line => line.split('|')[0]));
+  for (const id of ids) assert.equal(atlas.native[id], 16, id);
+  assert.equal(Object.keys(atlas.native).length, ids.length);
+  assert.equal(atlas.size / 16, 4);
+});
+
+test('the atlas image is as large as its manifest says, and the panel and HUD use icons that exist', async () => {
+  const { MENU_ICONS, QUICK_ICONS } = await import('../../engine2d/panel-icons.js').catch(() => ({}));
+  const header = fs.readFileSync(new URL('atlas.png', iconDir));
+  const width = header.readUInt32BE(16), height = header.readUInt32BE(20);
+  assert.equal(width, atlas.cols * atlas.size);
+  assert.equal(height, Math.ceil(Object.keys(atlas.icons).length / atlas.cols) * atlas.size);
+  if (MENU_ICONS) for (const id of [...MENU_ICONS, ...QUICK_ICONS]) assert.ok(atlas.icons[id] !== undefined, id);
 });
 
 test('every container in the village names real items', () => {
@@ -147,4 +177,12 @@ test('every container in the village names real items', () => {
   const chest = quarter.entities.find(e => e.prop === 'chest');
   assert.ok(resolveContents(chest.behavior, add(itemDefs)).length >= 2);
   for (const name of ['well', 'barrel', 'crate']) assert.ok(resolveContents(props[name].behavior, add(itemDefs), () => 0).length >= 1, name);
+});
+
+test('the detailed icon set has the same 144 ids as the pixel set, none of them pixel art', () => {
+  const hd = JSON.parse(fs.readFileSync(new URL('atlas-hd.json', iconDir), 'utf8'));
+  assert.deepEqual(Object.keys(hd.icons).sort(), Object.keys(atlas.icons).sort());
+  assert.deepEqual(hd.native, {});
+  const header = fs.readFileSync(new URL('atlas-hd.png', iconDir));
+  assert.equal(header.readUInt32BE(16), hd.cols * hd.size);
 });

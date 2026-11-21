@@ -48,9 +48,9 @@ html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 
 .rpg-niche { grid-area: 4 / 2 / 9 / 3; display: grid; place-items: center; min-width: 0; min-height: 0; overflow: hidden; }
 .rpg-hero { border: calc(var(--rpg-px, 2) * 1px) solid #8c6949; }
 .rpg-slab { grid-area: 4 / 4; container-type: size; display: grid; place-items: center; padding: 1%; min-width: 0; min-height: 0; }
-.rpg-detail { grid-area: 6 / 4; display: flex; flex-direction: column; justify-content: space-between; gap: 2px; padding: 3px 10px; min-width: 0; min-height: 0; overflow: hidden; }
+.rpg-detail { grid-area: 6 / 4; display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--rpg-px, 2) * 1px); padding: calc(var(--rpg-px, 2) * 1px) calc(var(--rpg-px, 2) * 4px); min-width: 0; min-height: 0; overflow: hidden; }
 .rpg-bag-panel footer { grid-area: 8 / 4; margin: 0; align-items: center; }
-.rpg-bag-panel footer button { position: relative; min-height: 0; height: 100%; padding: 0 14px; }
+.rpg-bag-panel footer button { position: relative; }
 .rpg-bag-panel footer button::after { content: ''; position: absolute; inset: -8px -4px; } /* a larger tap target than the slim bar */
 
 /* The grid: square cells sized to whichever of the slab's width and height is the tighter fit. */
@@ -67,14 +67,17 @@ html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 
 .rpg-ghost { position: fixed; left: 0; top: 0; z-index: 100; pointer-events: none; opacity: .9; image-rendering: pixelated; }
 
 /* What is selected: name and description (one flowing paragraph on a short screen), and its actions. */
-.rpg-detail-text { flex: 0 1 auto; min-width: 0; line-height: 1.2; color: #ebd6ad; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.rpg-detail-text { flex: 0 1 auto; min-width: 0; line-height: 1.1; color: #ebd6ad; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .rpg-detail-text h3 { display: inline; margin: 0 8px 0 0; font-size: inherit; color: #e8c688; }
 .rpg-detail-text p { display: inline; margin: 0; }
 .rpg-detail-text p + p { margin-left: 8px; }
 .rpg-compact .rpg-detail-text { -webkit-line-clamp: 1; }
-.rpg-detail .rpg-actions { flex: none; display: flex; justify-content: flex-end; gap: 6px; margin: 0; height: calc(var(--rpg-px, 2) * 12px); }
-.rpg-detail .rpg-actions button { min-height: 0; height: 100%; padding: 0 12px; }
-.rpg-compact .rpg-detail .rpg-actions button { padding: 0 8px; }
+/* Every satchel button is the same size: 50 UI pixels wide and 10 tall, whatever its label. */
+.rpg-bag-panel { --btn-w: calc(var(--rpg-px, 2) * 50px); --btn-h: calc(var(--rpg-px, 2) * 10px); }
+.rpg-bag-panel :is(.rpg-detail .rpg-actions button, footer button) { box-sizing: border-box; flex: none; width: var(--btn-w); height: var(--btn-h); min-width: 0; min-height: 0; padding: 0; display: grid; place-items: center; white-space: nowrap; line-height: 1; overflow: hidden; }
+.rpg-detail .rpg-actions { flex: none; display: flex; justify-content: flex-end; gap: calc(var(--rpg-px, 2) * 2px); margin: 0; height: var(--btn-h); }
+
+
 .rpg-detail .rpg-actions button:disabled { opacity: .45; cursor: default; }
 
 /* Portrait phones are too short for the painted layout: no painting, and the satchel scrolls. */
@@ -88,9 +91,9 @@ html[data-layout="portrait"] .rpg-grid { --cell: calc(100cqw / var(--cols)); }
 html[data-layout="portrait"] .rpg-detail { padding: 8px 0; flex-wrap: wrap; overflow: visible; }
 html[data-layout="portrait"] .rpg-detail-text { flex: 1 1 100%; } /* the buttons wrap below the text */
 html[data-layout="portrait"] .rpg-bag-panel header { padding: 0; }
-html[data-layout="portrait"] .rpg-bag-panel footer button { height: auto; min-height: 44px; }
+html[data-layout="portrait"] .rpg-bag-panel :is(footer button, .rpg-detail .rpg-actions button) { height: calc(var(--btn-h) * 1.4); }
 html[data-layout="portrait"] .rpg-detail-text, html[data-layout="portrait"] .rpg-compact .rpg-detail-text { display: block; overflow: visible; }
-html[data-layout="portrait"] .rpg-detail .rpg-actions { height: 44px; }
+html[data-layout="portrait"] .rpg-detail .rpg-actions { height: auto; flex-wrap: wrap; justify-content: flex-start; }
 .rpg-loot { display: grid; gap: 6px; margin-bottom: 4px; }
 .rpg-panel button.rpg-row { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; padding: 4px 12px; }
 .rpg-row .rpg-take { margin-left: auto; color: #e8c688; }

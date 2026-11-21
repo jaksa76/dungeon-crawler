@@ -7,7 +7,8 @@ import { createExploration } from './exploration.js';
 import { createMonsters, actorDirection } from './monsters.js';
 import { createGameOver } from './game-over.js';
 import { interact, checkBehavior } from './interaction.js';
-import { withFullscreenIcon } from './panel-icons.js';
+import { withIcons, panelOverlay } from './panel-icons.js';
+import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
 import { createInventory, addToStacks, checkItems } from './inventory.js';
 import { resolveContents } from './loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
@@ -51,7 +52,7 @@ export function cellLookup(level, tileTypes, props) {
   };
 }
 
-export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village', itemDefs = {}, startingItems = [], inventorySize = 32, inventoryColumns = 8 }) {
+export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village', itemDefs = {}, startingItems = [], inventorySize = 32, inventoryColumns = 8, iconsPath }) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
@@ -103,12 +104,13 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
   // use a bitmap font: a scalable one is too blurry at this size.
   const PW = Math.max(cw, 320);
-  const panelImage = withFullscreenIcon(await loadImage(`${uiAssetPath}/ui/panel.png`));
+  const icons = await loadIcons(iconsPath, savedIconStyle());
+  const panelImage = withIcons(await loadImage(`${uiAssetPath}/ui/panel.png`), icons);
   const portraitImage = await loadImage(`${uiAssetPath}/ui/portrait-hero.png`);
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: panelImage },
     'ui/portrait-hero': { image: portraitImage },
-  }, uiLayout, { width: PW, font: FONT });
+  }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
 
   const p = { ...level.start, steps: 0 };
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
@@ -119,6 +121,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // Items: the pack, containers (made the first time they are opened, so what is in them is rolled once) and
   // piles of things the player dropped, keyed by level and tile.
   checkItems(itemDefs);
+  for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the atlas`);
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const containers = new Map();
   const piles = new Map();
@@ -164,7 +167,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, messages, inventory, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem,
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -315,10 +318,25 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     drag = null;
   }
 
-  function drawHud() {
-    const hud = { world, hero, tileX: p.x, tileZ: p.z, yaw: -p.dir * Math.PI / 2 };
+  // The minimap slides and turns to the player's new position over MAP_MS instead of jumping.
+  const MAP_MS = 220, MAP_ZOOM = 1.7;
+  let mapShown = { x: p.x, z: p.z, yaw: -p.dir * Math.PI / 2 }, mapFrom = null, mapStart = 0;
+  function drawHud(now = performance.now()) {
+    const to = { x: p.x, z: p.z, yaw: -p.dir * Math.PI / 2 };
+    if (mapFrom) {
+      const k = Math.min(1, (now - mapStart) / MAP_MS), e = 1 - (1 - k) * (1 - k);
+      let turn = to.yaw - mapFrom.yaw; turn -= Math.round(turn / (2 * Math.PI)) * 2 * Math.PI; // the short way round
+      mapShown = { x: mapFrom.x + (to.x - mapFrom.x) * e, z: mapFrom.z + (to.z - mapFrom.z) * e, yaw: mapFrom.yaw + turn * e };
+      if (k >= 1) { mapFrom = null; mapShown = to; }
+    } else mapShown = to;
+    const hud = { world, hero, tileX: mapShown.x, tileZ: mapShown.z, yaw: mapShown.yaw, zoom: MAP_ZOOM };
     ui.draw(hud);
     bars.draw(hud);
+  }
+  // Start sliding from wherever the map is now (the player moved or turned, or changed level: then jump).
+  function moveMap(jump) {
+    if (jump) { mapFrom = null; return; }
+    mapFrom = { ...mapShown }; mapStart = performance.now();
   }
 
   // Show the player's new state. `cmd` is the command that led here, when one did.
@@ -333,6 +351,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const u0 = continuing ? drag.amount * PEEK : 0;
     drag = release = null;
     anim = motion ? { motion, u0, t0: performance.now(), ms: motion.ms * (1 - u0) } : null;
+    moveMap(!cmd); // a step or turn slides the minimap; anything else (start, new level, respawn) jumps
     drawHud();
     updateStatus();
   }
@@ -425,10 +444,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
     if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
+    if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void bars.menu.fullscreen(); return; }
     if (ev.code === 'KeyI' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
     if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
-    if (ev.code === 'KeyF' || ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
+    if (ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
     if (ev.code === 'KeyL') { ev.preventDefault(); bars.openLog(); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
@@ -501,6 +521,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   function loop(now) {
     updateMonsters(now);
+    if (mapFrom) drawHud(now);
     if (drag) {
       drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);
     } else if (release) {

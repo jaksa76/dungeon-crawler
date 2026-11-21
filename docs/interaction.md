@@ -1,6 +1,6 @@
 # Using what you face
 
-Press **F** or **Space**, or tap **Use** on a phone, to act on whatever you
+Press **Space**, or tap **Use** on a phone, to act on whatever you
 are facing. Nothing blocks a tile, so "facing" follows the rule used by the
 "You see…" messages:
 

@@ -9,9 +9,9 @@
   description: 'A small vial of red tonic that mends wounds.' },
 ```
 
-`icon` is the position of the picture in the row of eight item icons on the bottom
-panel (`game-1/assets/ui/panel.png`): sword, shield, red potion, blue potion, torch,
-scroll, crystal, key. New pictures need new art; until then items share these eight.
+`icon` is an id from the icon atlas: 120 item icons and 24 interface icons, listed in
+`game-2/art/icons/sheets.json` and described in [icons.md](icons.md). Only eight items are
+defined so far, but an icon exists for every common item below them.
 `stack` is how many fit in one slot (default 1). `use` is `{ hp, mp }` to restore; items
 without it cannot be used yet. `startingItems` is what the player carries at the start.
 

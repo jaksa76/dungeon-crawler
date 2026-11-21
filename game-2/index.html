@@ -30,7 +30,7 @@
     <canvas id="ui"></canvas>
   </div>
   <div class="help keys">
-    <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn · <b>F</b> or <b>Space</b> use · <b>I</b> inventory · <b>L</b> message log · <b>O</b> slot outlines
+    <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn · <b>Space</b> use · <b>F</b> full screen · <b>I</b> inventory · <b>L</b> message log · <b>O</b> slot outlines
   </div>
   <div class="help" id="status">Loading…</div>
   <script type="module">
@@ -42,7 +42,7 @@
     startGame2d({
       level: quarter, tileTypes, props, uiLayout, levels, itemDefs, startingItems, inventorySize, inventoryColumns,
       initialLevel: new URLSearchParams(location.search).get('level') ?? 'village',
-      assetPath: './assets', uiAssetPath: '../game-1/assets',
+      assetPath: './assets', uiAssetPath: '../game-1/assets', iconsPath: './art/icons',
       viewCanvas: document.getElementById('view'),
       uiCanvas: document.getElementById('ui'),
       frame: document.getElementById('frame'),
