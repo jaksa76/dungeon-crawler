@@ -57,7 +57,7 @@ returns what was there to the pack (refused if the pack has no room); `unequip(i
 takes it off. In the satchel the slots sit under the figure: select a pack item and press **Equip**,
 or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
 The figure itself never changes. It is true 48x96 pixel art, `engine2d/assets/hero-sprite.png`, shown at the
-largest whole multiple of the UI pixel that fits the panel's height, with the slots lying over it in two even columns
+largest whole number of screen pixels per art pixel that fits the panel height, with the slots lying over it in two even columns
 along its sides (head, amulet, weapon, ring left; armour, gloves, shield, ring right) and the boots between at the feet (`SLOT_SPOTS` in `mobile-hud.js`). It was painted by Codex from the portrait
 (`game-1/assets/ui/portrait-hero.png`, attached with `-i`) with a prompt asking for the same adventurer,
 full-length, front-facing, unarmed, plain clothes, as 48x96 pixel art enlarged to hard 12x12 blocks on flat

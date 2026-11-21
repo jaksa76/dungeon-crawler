@@ -41,6 +41,11 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   let px = 2, art = [];
   function renderArt(entry) {
     const { canvas, size, draw } = entry;
+    if (entry.tall) { // 48 x 96 art at a whole number of screen pixels per art pixel: `size()` returns that number
+      const k = size();
+      canvas.width = 48; canvas.height = 96; canvas.style.width = `${48 * k}px`; canvas.style.height = `${96 * k}px`;
+      canvas.parentElement.style.height = `${96 * k}px`; draw(canvas.getContext('2d'), 96); return;
+    }
     const n = Math.max(8, Math.round((typeof size === 'function' ? size() : size) / px));
     canvas.height = n; canvas.width = entry.tall ? n / 2 : n; // a tall one is twice as high as it is wide
     canvas.style.width = `${canvas.width * px}px`; canvas.style.height = `${n * px}px`;
@@ -141,7 +146,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const c = itemIconCanvas(iconId, size); c.classList.add('ghost'); return c;
   }
   // The hero's full figure: true 48 x 96 pixel art (engine2d/assets/hero-sprite.png, painted by Codex from the
-  // portrait; see docs/inventory.md), shown at the largest whole multiple of the UI pixel that fits the panel.
+  // portrait; see docs/inventory.md), shown at the largest whole number of screen pixels per art pixel that fits the panel.
   // It never shows equipment: the slots lie over it, at the places on the body where each item is worn.
   const sprite = new Image(); sprite.src = new URL('./assets/hero-sprite.png', import.meta.url).href;
   sprite.onload = () => art.forEach(renderArt);
@@ -183,9 +188,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       gear.append(cell);
     }
     figure.append(face, gear); niche.append(figure);
-    addArt(face, () => 96 * px * Math.max(1, Math.floor(niche.clientHeight / (96 * px))), (g, n) => {
-      g.imageSmoothingEnabled = false; if (sprite.complete && sprite.naturalWidth) g.drawImage(sprite, 0, 0, n / 2, n);
-    }, true);
+    addArt(face, () => Math.max(1, Math.floor(niche.clientHeight / 96)), g => { if (sprite.complete && sprite.naturalWidth) g.drawImage(sprite, 0, 0); }, true);
     for (const cell of gear.children) {
       const slot = equipment.slots.find(s => s.id === cell.dataset.equip), id = equipment.worn[slot.id];
       const icon = id ? itemIcon(id, () => cell.clientWidth * 0.95) : ghostIcon(slot.ghost, () => cell.clientWidth * 0.95);
