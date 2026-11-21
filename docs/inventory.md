@@ -104,14 +104,15 @@ make Codex use its image tool, and the result lands in the work dir.) The prompt
 > icons, figures or numbers.
 
 Then `node tools/crop-bag-bg.mjs painted.png` crops the band, scales it to 1280×720 and writes
-the asset. The measured frames of the current painting (percent of the panel):
+the asset. The grid frame and the description frame on its right were then made by recomposing the painting
+(the original two frames, grid and description, merged and split side by side). The measured frames of the current painting (percent of the panel):
 
 | | x | y |
 |---|---|---|
 | title bar | 2.8–97.2 | 3.2–11.2 |
 | hero niche | 2.8–24.6 | 14.1–95.5 |
-| slab (grid) | 26.4–97.2 | 14.1–62.8 |
-| description bar | 26.4–97.2 | 65.7–84.0 |
+| slab (grid, 8 x 6) | 26.4–71.2 | 14.1–84.0 |
+| description + actions | 74.1–97.2 | 14.1–84.0 |
 | bottom bar (Close) | 26.4–97.2 | 87.0–95.5 |
 
 Codex may need a minute or two; its command exits before the image is saved, so wait for the

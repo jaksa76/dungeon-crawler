@@ -13,7 +13,7 @@ export const itemDefs = {
 
 // The satchel is a grid: 8 columns of 4 rows is what fits a phone held sideways. A taller grid scrolls on a small screen.
 export const inventoryColumns = 8;
-export const inventorySize = 32;
+export const inventorySize = 48;
 
 // What the player carries at the start.
 export const startingItems = [
