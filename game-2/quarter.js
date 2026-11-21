@@ -19,12 +19,12 @@ export const props = {
   guard: { art: 'guard', w: 0.416, h: 0.88 },
   villager: { art: 'villager', w: 0.266, h: 0.68 },
   hooded: { art: 'hooded', w: 0.326, h: 0.7 },
-  stall: { art: 'stall', w: 1.295, h: 1.05, sideW: 0.49 }, // sideW: its width seen from the side (the art's own proportions)
-  well: { art: 'well', w: 0.619, h: 0.8 },
-  barrel: { art: 'barrel', w: 0.231, h: 0.32 },
-  crate: { art: 'crate', w: 0.265, h: 0.28 },
+  stall: { art: 'stall', w: 1.295, h: 1.05, sideW: 0.49, behavior: { type: 'examine', text: 'Dried herbs and corked vials crowd the alchemist’s stall.' } }, // sideW: its width seen from the side (the art's own proportions)
+  well: { art: 'well', w: 0.619, h: 0.8, behavior: { type: 'examine', text: 'Moss clings to the old stones. Far below, water glints in the dark.' } },
+  barrel: { art: 'barrel', w: 0.231, h: 0.32, behavior: { type: 'examine', text: 'A sealed barrel that smells faintly of pickled fish.' } },
+  crate: { art: 'crate', w: 0.265, h: 0.28, behavior: { type: 'examine', text: 'A battered crate stamped with a merchant’s mark, nailed shut.' } },
   chest: { art: 'chest', w: 0.289, h: 0.26 },
-  lamppost: { art: 'lamppost', w: 0.62, h: 1.35 },
+  lamppost: { art: 'lamppost', w: 0.62, h: 1.35, behavior: { type: 'examine', text: 'The lamp burns steadily, keeping the shadows at bay.' } },
 };
 
 // Every entity stands against one side of its tile (`side`: N, E, S or W), at most one

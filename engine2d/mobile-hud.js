@@ -6,7 +6,7 @@ import { reloadFresh } from './reload.js';
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
 
-export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) {
+export function createMobileHUD({ panel, portrait, world, hero, frame, debug, history = [] }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -99,14 +99,38 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
     body.append(grid);
   }
   iconButton('Inventory', [545 + 3 * 99, 20, 99, 92], menus, inventory);
-  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, () => open('Field journal', world.journal));
-  iconButton('Map', [545 + 4 * 99, 20, 99, 92], menus, () => {
-    open(world.name, 'North is up. Amber marks people and landmarks; the red arrow marks your position. Dark areas are unexplored.');
-    const large = document.createElement('canvas'); large.width = large.height = 56;
-    large.getContext('2d').drawImage(map, 0, 0); large.className = 'rpg-large-map'; body.append(large);
-  });
-  iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, () => {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Keyboard: W/S move, A/D strafe, Q/E turn.');
+  // The messages the game has said, newest first, over the scene only: the rails and panels stay in view.
+  const logView = document.createElement('section'); logView.className = 'rpg-logview'; logView.hidden = true;
+  logView.setAttribute('aria-label', 'Message log');
+  const logHead = document.createElement('header');
+  const logTitle = document.createElement('h2'); logTitle.textContent = 'Message log';
+  const logClose = document.createElement('button'); logClose.type = 'button'; logClose.textContent = 'Close';
+  const logList = document.createElement('ol'); logList.className = 'rpg-log'; logList.tabIndex = 0;
+  logHead.append(logTitle, logClose); logView.append(logHead, logList); frame.append(logView);
+  function closeLog() { logView.hidden = true; }
+  logClose.addEventListener('click', closeLog);
+  function openLog() {
+    if (dialog.open) dialog.close();
+    logList.replaceChildren();
+    for (const text of history.slice(-40).reverse()) { const li = document.createElement('li'); li.textContent = text; logList.append(li); }
+    if (!logList.children.length) { const li = document.createElement('li'); li.textContent = 'Nothing yet.'; logList.append(li); }
+    logList.scrollTop = 0; logView.hidden = false; logClose.focus({ preventScroll: true });
+  }
+  function openJournal() {
+    open('Field journal', world.journal);
+    const more = document.createElement('button'); more.type = 'button'; more.textContent = 'Message log';
+    more.addEventListener('click', openLog); body.append(more);
+  }
+  iconButton('Journal', [545 + 2 * 99, 20, 99, 92], menus, openJournal);
+  async function toggleFullscreen() {
+    try {
+      if (document.fullscreenElement) await document.exitFullscreen();
+      else await document.documentElement.requestFullscreen();
+    } catch { open('Full screen', 'Full screen is not available in this browser.'); }
+  }
+  iconButton('Full screen', [545 + 4 * 99, 20, 99, 92], menus, toggleFullscreen);
+  function openSettings() {
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, F or Space use, L message log.');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -130,8 +154,9 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
       });
       body.append(fullscreen);
     }
-  });
-  for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title);
+  }
+  iconButton('Settings and controls', [545 + 5 * 99, 20, 99, 92], menus, openSettings);
+  for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title === 'Full screen' ? 'Screen' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
   function draw(state) {
@@ -156,10 +181,14 @@ export function createMobileHUD({ panel, portrait, world, hero, frame, debug }) 
     }
     map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
-  return { left, right, controls, draw, open, ready,
+  // The desktop panel is a painted canvas; it calls these from its icons.
+  const menu = { journal: openJournal, inventory, fullscreen: toggleFullscreen, settings: openSettings };
+  return { left, right, controls, draw, open, openJournal, openLog, menu, items, closeLog, isLogOpen: () => !logView.hidden, ready,
+    // The scene's height, and how many screen pixels one pixel of the UI font covers.
+    setView(height, pixel) { frame.style.setProperty('--rpg-view-h', height); frame.style.setProperty('--rpg-px', pixel); },
     setLevel(level) { title.textContent = level.name; mapTitle.textContent = level.shortName ?? level.name; },
     notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
-    isOpen: () => dialog.open,
+    isOpen: () => dialog.open || !logView.hidden,
     setLayout(mode, width) {
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));
       document.documentElement.style.setProperty('--rpg-rail', `${rail}px`);

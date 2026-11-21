@@ -19,7 +19,10 @@ keep controls accessible independently of the painted art.
   backward, left turns right, and right turns left.
 - Quick items and Inventory show the demo equipment descriptions. They do not
   introduce combat, potion consumption, or an inventory persistence system.
-- Journal describes the current exploration demo; Map expands the live minimap.
+- Journal describes the current exploration demo and has a Message log button. The minimap is always on screen.
+- **Use** (above the turn buttons; **F** or **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
+- On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the first four quick items are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine2d/panel-icons.js`).
+- On desktop, full screen (Settings, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
 - Settings contains control help, fullscreen where supported, and slot outlines.
 - Game two's eastern village door connects to the Undercrypt; see
   [dungeon-level.md](dungeon-level.md) for travel, visibility and art authoring.
@@ -41,7 +44,7 @@ between the dashboard and rails without duplication.
 
 Open Inventory from the starting position. Confirm the dialog opens, blocks
 movement, closes with Escape or Return, and restores keyboard movement. Check
-all four quick items and the Inventory, Journal, Map, and Settings buttons.
+all four quick items and the Inventory, Journal, Full screen, and Settings buttons.
 Toggle slot outlines, move, and confirm the minimap follows the player. Check
 desktop `/game-2/` and the pixel slice `/game-2/px.html`, and smoke-check demos
 one and three since they share touch control code.

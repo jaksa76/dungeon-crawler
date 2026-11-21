@@ -6,6 +6,8 @@ import { createMobileHUD } from './mobile-hud.js';
 import { createExploration } from './exploration.js';
 import { createMonsters, actorDirection } from './monsters.js';
 import { createGameOver } from './game-over.js';
+import { interact, checkBehavior } from './interaction.js';
+import { withFullscreenIcon } from './panel-icons.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
@@ -32,6 +34,7 @@ export function cellLookup(level, tileTypes, props) {
     if (!props[e.prop]) throw new Error(`${label}: unknown prop "${e.prop}"`);
     if (!DIR_KEYS.includes(e.side) || e.side.length !== 1) throw new Error(`${label} at (${where}) needs a side: N, E, S or W`);
     if (tileTypes[rows[e.z]?.[e.x]]?.floor !== true) throw new Error(`${label} at (${where}) is not on a floor tile`);
+    checkBehavior(e.behavior ?? props[e.prop].behavior, label);
     const list = entitiesAt.get(where) ?? [];
     if (list.some((o) => o.side === e.side)) throw new Error(`two things on the ${e.side} side of tile (${where})`);
     entitiesAt.set(where, [...list, e]);
@@ -98,7 +101,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
   // use a bitmap font: a scalable one is too blurry at this size.
   const PW = Math.max(cw, 320);
-  const panelImage = await loadImage(`${uiAssetPath}/ui/panel.png`);
+  const panelImage = withFullscreenIcon(await loadImage(`${uiAssetPath}/ui/panel.png`));
   const portraitImage = await loadImage(`${uiAssetPath}/ui/portrait-hero.png`);
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: panelImage },
@@ -109,6 +112,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const hero = { hp: 58, maxHp: 58, mp: 24, maxMp: 24 };
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
+  const history = []; // every message said, kept for the journal's message log
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -117,11 +121,24 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame,
+  const bars = createMobileHUD({ panel: panelImage, portrait: portraitImage, world, hero, frame, history,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
   bars.setLevel(level);
+  // Desktop: the painted panel's icons (regions in the panel image's pixels) open the same menus as the phone buttons.
+  const hotspots = [
+    ...[['Journal', 2, 'journal'], ['Inventory', 3, 'inventory'], ['Full screen', 4, 'fullscreen'], ['Settings', 5, 'settings']]
+      .map(([label, i, name]) => ({ label, rect: [545 + i * 99, 20, 99, 92], run: () => bars.menu[name]() })),
+    ...bars.items.map(([label, text], i) => ({ label, rect: [545 + i * 76, 130, 76, 76], run: () => bars.open(label, text) })),
+  ];
+  const hotspotAt = ev => {
+    const r = uiCanvas.getBoundingClientRect();
+    const x = (ev.clientX - r.left) * panelImage.width / r.width, y = (ev.clientY - r.top) * panelImage.height / r.height;
+    return hotspots.find(({ rect: [rx, ry, rw, rh] }) => x >= rx && x < rx + rw && y >= ry && y < ry + rh);
+  };
+  uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning && !bars.isOpen()) hotspotAt(ev)?.run(); });
+  uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver();
   window.__game2d = { view, images, level, levelId, p, world, monsters, hero,
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
@@ -136,10 +153,23 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const lg = logCanvas.getContext('2d');
   const maxChars = Math.floor((PW - 2 * LOG_PAD) / FONT.w);
   const log = [];
+  // The on-screen log wraps a long message over several lines; the notice and the history keep it whole.
+  function wrap(text) {
+    const lines = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      if (line && line.length + 1 + word.length > maxChars) { lines.push(line); line = word; }
+      else line = line ? `${line} ${word}` : word;
+    }
+    return line ? [...lines, line] : lines;
+  }
   function say(text) {
     bars.notice(text);
-    log.push({ text, t: performance.now() });
-    if (log.length > 4) log.shift();
+    history.push(text);
+    if (history.length > 100) history.shift();
+    const t = performance.now();
+    for (const line of wrap(text)) log.push({ text: line, t });
+    while (log.length > LOG_LINES) log.shift();
   }
 
   // The cell `d` ahead and `l` to the right of the player, with its props placed
@@ -320,6 +350,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function act(cmd) {
     if (bars.isOpen() || transitioning || dead) return;
     if (monsters.caught(p)) { void die(); return; }
+    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead() }); return; }
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
@@ -336,16 +367,20 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const touch = createTouch({
     onCommand: act, onSwipe, swipeEl: viewCanvas, mount: bars.controls,
+    action: { label: 'Use', cmd: 'interact' },
     extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
-    fullscreen: true, sideBars: { left: bars.left, right: bars.right },
+    sideBars: { left: bars.left, right: bars.right },
   });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) {
       heldKeys.add(ev.code);
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
+    if (bars.isLogOpen() && (ev.code === 'Escape' || ev.code === 'KeyL')) { ev.preventDefault(); bars.closeLog(); return; }
     if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
+    if (ev.code === 'KeyF' || ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
+    if (ev.code === 'KeyL') { ev.preventDefault(); bars.openLog(); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
   window.addEventListener('keyup', ev => { heldKeys.delete(ev.code); blockedKeys.delete(ev.code); });
@@ -363,13 +398,16 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function resize() {
     const mode = touch.layout();
     const vp = viewportSize();
+    // Full screen (the API, or the browser's own F11): drop the shortcut line and frame, and fill the screen.
+    const full = !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches;
+    document.documentElement.toggleAttribute('data-fullscreen', full);
     const DW = W * SHOWN, DH = H * SHOWN;
     // Reserve room for the landscape rails before fitting the scene.
     const barW = bars.setLayout(mode, vp.w);
     const avail = mode === 'portrait' ? vp.w / DW
       : mode === 'landscape' ? Math.min((vp.w - 2 * barW) / DW, vp.h / DH)
-      : Math.min(vp.w / DW, (vp.h - 70) / (DH + ui.height));
-    const scale = mode === 'desktop' && avail >= 1 ? Math.floor(avail * 4) / 4 : avail;
+      : Math.min(vp.w / DW, (vp.h - (full ? 0 : 70)) / (DH + ui.height));
+    const scale = mode === 'desktop' && avail >= 1 && !full ? Math.floor(avail * 4) / 4 : avail;
     // Compare with the actual internal canvas, not the nominal 640px view.
     // A 532px phone view enlarges 320px art and should keep its pixel edges.
     viewCanvas.style.imageRendering = DW * scale < cw ? 'auto' : 'pixelated';
@@ -377,6 +415,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
     viewCanvas.style.height = `${DH * scale}px`;
     uiCanvas.style.height = `${ui.height * scale}px`;
+    // The font is 8 pixels tall: the canvas panel shows each UI pixel this many screen pixels wide (3 at 960px); phones use 2.
+    bars.setView(`${DH * scale}px`, mode === 'desktop' ? Math.max(2, Math.round(DW * scale / PW)) : 2);
     logCanvas.style.width = `${DW * scale}px`;
     logCanvas.style.height = `${logCanvas.height * DW * scale / PW}px`;
     if (mode !== 'desktop') {
@@ -384,6 +424,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     } else { logCanvas.style.top = 'auto'; logCanvas.style.bottom = `${ui.height * scale}px`; }
   }
   window.addEventListener('resize', resize);
+  document.addEventListener('fullscreenchange', resize);
+  matchMedia('(display-mode: fullscreen)').addEventListener('change', resize);
   resize();
 
   document.title = `${level.shortName ?? level.name} · Ravensmoor`;

@@ -46,6 +46,8 @@ html[data-layout="portrait"], html[data-layout="landscape"] { overscroll-behavio
 .tp-move .back { grid-column: 2; grid-row: 2; }
 .tp-move .sr { grid-column: 3; grid-row: 2; }
 .tp-turn { display: grid; grid-template-columns: repeat(2, var(--b)); grid-template-rows: calc(var(--b) * 2 + 6px); gap: 6px; }
+.tp-turn.has-act { grid-template-rows: var(--b) var(--b); }
+.tp-turn .act { grid-column: 1 / 3; font: 15px/1 system-ui, sans-serif; }
 .tp-extras { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
 .tp button, .sb .tp-move button, .sb .tp-turn button, .tp-fs { appearance: none; margin: 0; padding: 0; display: grid; place-items: center; cursor: pointer;
   color: #f0e4c8; background: rgba(46, 36, 66, .88); border: 2px solid #6b5a8a; border-radius: 14px;
@@ -66,6 +68,7 @@ html[data-sidebars] .tp { display: none; }
 .sb .tp-move, .sb .tp-turn { width: 100%; margin-top: auto; gap: 4px; flex: none; }
 .sb .tp-move { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 46px); }
 .sb .tp-turn { grid-template-columns: repeat(2, 1fr); grid-template-rows: 96px; }
+.sb .tp-turn.has-act { grid-template-rows: 46px 46px; }
 .sb .tp button { width: 100%; height: 100%; border-radius: 10px; }
 .sb .tp-move button svg { width: 46%; height: 46%; }
 .sb .tp-turn button svg { width: 46%; height: 46%; }
@@ -93,8 +96,9 @@ const ICON = {
 //       swipeEl: element that takes swipe gestures; onSwipe(phase, cmd, amount), if given, is told about a swipe
 //       while it is still going: phase 'move' with the command it would be and 0..1 of the way to counting,
 //       or 'cancel' when it is let go of early (a swipe that counts just calls onCommand, as always); mount: where the controls go (default <body>);
-//       sideBars: { left, right } elements that hold the pads in landscape; fullscreen: add the toggle button.
-export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false }) {
+//       sideBars: { left, right } elements that hold the pads in landscape; fullscreen: add the toggle button;
+//       action: { label, cmd } adds one labelled button above the turn buttons that sends `cmd` once per press.
+export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = document.body, sideBars, fullscreen = false, action = null }) {
   const style = document.createElement('style');
   style.textContent = STYLE;
   document.head.appendChild(style);
@@ -114,7 +118,8 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
         ${btn('back', 'back', 'Step back', 'arrow', 'rotate(180deg)')}
         ${btn('sr', 'strafeRight', 'Step right', 'arrow', 'rotate(90deg)')}
       </div>
-      <div class="tp-turn">
+      <div class="tp-turn${action ? ' has-act' : ''}">
+        ${action ? `<button type="button" class="act" data-act="${action.cmd}" aria-label="${action.label}">${action.label}</button>` : ''}
         ${btn('tl', 'left', 'Turn left', 'turn')}
         ${btn('tr', 'right', 'Turn right', 'turn', 'scaleX(-1)')}
       </div>
@@ -125,7 +130,7 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
   // A finger held on a button repeats it.
   const stops = [];
   let cancelSwipe = () => {};
-  function bind(el, fire) {
+  function bind(el, fire, repeat = true) {
     let hold = 0, rep = 0, down = false;
     const stop = () => { down = false; clearTimeout(hold); clearInterval(rep); el.classList.remove('down'); };
     stops.push(stop);
@@ -136,12 +141,13 @@ export function createTouch({ onCommand, onSwipe, extras = [], swipeEl, mount = 
       el.classList.add('down');
       fire();
       // A command can open a defeat screen and cancel input synchronously.
-      if (down) hold = setTimeout(() => { if (down) rep = setInterval(fire, REPEAT_MS); }, HOLD_MS);
+      if (down && repeat) hold = setTimeout(() => { if (down) rep = setInterval(fire, REPEAT_MS); }, HOLD_MS);
     });
     for (const t of ['pointerup', 'pointercancel', 'lostpointercapture']) el.addEventListener(t, stop);
     el.addEventListener('contextmenu', (ev) => ev.preventDefault());
   }
   for (const el of root.querySelectorAll('[data-cmd]')) bind(el, () => onCommand(el.dataset.cmd));
+  for (const el of root.querySelectorAll('[data-act]')) bind(el, () => onCommand(el.dataset.act), false);
   for (const el of root.querySelectorAll('[data-extra]')) {
     const { code } = extras[+el.dataset.extra];
     el.addEventListener('pointerdown', () => el.classList.add('down'));

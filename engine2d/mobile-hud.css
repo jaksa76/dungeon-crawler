@@ -25,7 +25,19 @@
 .rpg-inventory { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .rpg-inventory button { display: grid; justify-items: center; gap: 4px; }
 .rpg-inventory canvas { width: 48px; height: 48px; image-rendering: pixelated; }
-.rpg-large-map { display: block; width: min(260px, 100%); margin: auto; image-rendering: pixelated; }
+/* The message log covers the scene (the view canvas) and nothing else. */
+.rpg-logview { position: absolute; z-index: 5; top: 0; left: 0; width: 100%; height: var(--rpg-view-h, 100%); box-sizing: border-box;
+  display: flex; flex-direction: column; padding: 10px 12px; background: #100d0b; color: #cdb99a;
+  font: calc(8px * var(--rpg-px, 2)) / 1.4 'RPG Pixel', monospace; border: 2px solid #715036; }
+.rpg-logview[hidden] { display: none; }
+.rpg-logview header { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+.rpg-logview h2 { margin: 0; font-size: inherit; color: #e8c688; }
+.rpg-logview button { min-width: 44px; min-height: 36px; padding: 2px 14px; color: #efd7aa; background: #211c19; border: 1px solid #8b6542; font: inherit; cursor: pointer; }
+.rpg-log { flex: 1; min-height: 0; list-style: none; margin: 0; padding: 0; overflow-y: auto; }
+.rpg-log li { padding: 3px 0; }
+.rpg-log li:first-child { color: #f1dfbe; }
+.rpg-log li { padding: 3px 0; color: #cdb99a; }
+.rpg-log li:first-child { color: #f1dfbe; }
 .rpg-debug { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .rpg-debug input { width: 22px; height: 22px; accent-color: #b48952; }
 html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) body {
@@ -69,7 +81,10 @@ html.rpg-ui[data-layout="landscape"] .tp { display: none; }
 .rpg-rail .tp-move, .rpg-rail .tp-turn { margin-top: auto; display: grid; width: 100%; gap: 3px; }
 .rpg-rail .tp-move { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 44px); }
 .rpg-rail .tp-turn { grid-template-columns: repeat(2, 1fr); grid-template-rows: 48px; }
-.rpg-ui .rpg-rail button[data-cmd] { min-width: 0; width: 100%; height: 100%; padding: 0; display: grid; place-items: center; border: 1px solid #8b6542; border-radius: 0; background: #302720; color: #efd7aa; touch-action: none; }
+.rpg-ui .tp-turn.has-act { grid-template-rows: var(--b) var(--b); }
+.rpg-rail .tp-turn.has-act { grid-template-rows: 44px 48px; }
+.rpg-ui .tp button.act { font: 14px 'RPG Pixel', monospace; }
+.rpg-ui .rpg-rail :is(button[data-cmd], button[data-act]) { min-width: 0; width: 100%; height: 100%; padding: 0; display: grid; place-items: center; border: 1px solid #8b6542; border-radius: 0; background: #302720; color: #efd7aa; touch-action: none; }
 .rpg-rail button[data-cmd] svg { width: 26px; height: 26px; fill: currentColor; pointer-events: none; }
 .rpg-rail .tp-fs.in-bar { order: 5; min-height: 32px; height: 32px; width: 100%; padding: 0; }
 html.rpg-ui[data-layout="portrait"] body { justify-content: flex-start; box-sizing: border-box; padding-top: env(safe-area-inset-top); }
@@ -109,7 +124,7 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-notice:
   color: #f1dfbe; text-shadow: 2px 2px #100b09;
   font: 16px/1.5 'RPG Pixel', monospace; pointer-events: none;
 }
-.rpg-ui .rpg-rail button[data-cmd] { border: 5px solid #8b6542; border-image: var(--rpg-panel) 3 fill / 5px / 0 stretch; }
+.rpg-ui .rpg-rail :is(button[data-cmd], button[data-act]) { border: 5px solid #8b6542; border-image: var(--rpg-panel) 3 fill / 5px / 0 stretch; }
 
 /* Keep the logical pixels coarse across panels, portraits, icons and controls. */
 .rpg-ui .rpg-rail, .rpg-ui .tp button, .rpg-ui .tp-fs, .rpg-dialog {
@@ -117,3 +132,8 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-notice:
 }
 .rpg-control-icon { display: block; width: 24px; height: 24px; image-rendering: pixelated; pointer-events: none; }
 .rpg-ui .tp-fs .rpg-control-icon { width: 16px; height: 16px; }
+
+/* Full screen: no shortcut line, no frame shadow; the game fills the screen to its edges. */
+html.rpg-ui[data-fullscreen] .keys { display: none !important; }
+html.rpg-ui[data-fullscreen] .frame { box-shadow: none; }
+html.rpg-ui[data-fullscreen] body { gap: 0; }
