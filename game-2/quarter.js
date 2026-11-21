@@ -25,7 +25,7 @@ export const props = {
   barrel: { art: 'barrel', w: 0.231, h: 0.32, behavior: { type: 'open', title: 'Barrel', text: 'You pry up the lid of the sealed barrel. It smells faintly of pickled fish.',
     loot: { entries: [{ item: 'health-potion', weight: 2 }, { item: 'mana-potion' }] } } },
   crate: { art: 'crate', w: 0.265, h: 0.28, behavior: { type: 'open', title: 'Crate', text: 'The nails are loose. Under the straw there is something wrapped in cloth.',
-    loot: { entries: [{ item: 'torch' }, { item: 'scroll' }] } } },
+    loot: { entries: [{ item: 'torch' }, { item: 'scroll' }, { item: 'leather-cap' }] } } },
   chest: { art: 'chest', w: 0.289, h: 0.26 },
   lamppost: { art: 'lamppost', w: 0.62, h: 1.35, behavior: { type: 'examine', text: 'The lamp burns steadily, keeping the shadows at bay.' } },
 };
@@ -52,7 +52,7 @@ export const quarter = {
     { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
     { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
       text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
-      contents: [{ item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
+      contents: [{ item: 'sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
     { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S' },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { prop: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },

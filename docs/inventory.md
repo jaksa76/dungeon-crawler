@@ -47,6 +47,21 @@ Press **I** (or tap the bag icon) to open it; press **I** again, or **Escape**, 
 - Portrait phones are too short for this layout: there the painting is dropped, the hero is
   hidden, and the satchel scrolls with the description above the grid.
 
+## Equipment
+
+`engine2d/equipment.js` (no DOM). The hero has nine slots: head, amulet, weapon, shield, armour,
+gloves, two rings and boots. An item is wearable when its definition has `slot` (`'ring'` fits
+either ring slot); `bonus: { attack, defence }` is summed by `equipment.bonuses()` for the combat
+rules. Worn items are not in the pack. `equip(inventory, index, slot?)` wears one item and
+returns what was there to the pack (refused if the pack has no room); `unequip(inventory, slot, toIndex?)`
+takes it off. In the satchel the slots sit under the figure: select a pack item and press **Equip**,
+or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
+The figure itself never changes. It is a placeholder drawn in code (`drawFigure` in
+`mobile-hud.js`) until Codex paints a full-body picture. On portrait phones the figure is hidden but the slots remain.
+
+The hero starts with no equipment; the village chest holds a sword and the crate can hold a leather cap.
+`node --test tools/tests/equipment.test.mjs` covers it.
+
 ## Containers and loot
 
 An entity opens as a container with an `open` behaviour (see
@@ -66,7 +81,7 @@ close it and come back. Two barrels from the same prop roll separately.
 The panel lists each stack with a **Take** row, plus **Take all**. If the pack is full,
 whatever does not fit stays in the container.
 
-In the village: the chest holds the starting supplies; the well hides a crystal; one barrel
+In the village: the chest holds the sword and starting supplies; the well hides a crystal; one barrel
 and the crate roll a potion, torch or scroll; the second barrel is empty.
 
 ## Dropping and the floor

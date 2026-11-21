@@ -14,7 +14,7 @@ const BAG_BACKGROUND = './assets/inventory-bg.png';
 // icons: the icon atlas (see icons.js); inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
 // and returns { message } (or null).
-export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -121,26 +121,45 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
   // An item's picture, from the icon atlas, drawn through the art registry.
-  function itemIcon(id, size) { // size: CSS pixels, or a function that returns them
+  function itemIconCanvas(iconId, size) {
     const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
     // A pixel-art icon is shown at a whole multiple of its own size (the largest that fits), so every pixel stays whole.
-    const native = icons.native(itemDefs[id].icon);
+    const native = icons.native(iconId);
     const fitted = () => { const wanted = typeof size === 'function' ? size() : size, unit = native * px; return unit * Math.max(1, Math.floor(wanted / unit)); };
-    addArt(c, native ? fitted : size, (g, n) => icons.draw(g, itemDefs[id].icon, 0, 0, n, n));
+    addArt(c, native ? fitted : size, (g, n) => icons.draw(g, iconId, 0, 0, n, n));
     return c;
   }
+  const itemIcon = (id, size) => itemIconCanvas(itemDefs[id].icon, size);
   const stackLabel = ({ id, qty }) => `${itemDefs[id].name}${qty > 1 ? ` x${qty}` : ''}`;
   const paragraph = (text, className = '') => { const p = document.createElement('p'); p.className = className; p.textContent = text; return p; };
   const textButton = (label, handler) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', handler); return b; };
   if (BAG_BACKGROUND) { document.documentElement.style.setProperty('--rpg-bag-bg', `url(${new URL(BAG_BACKGROUND, import.meta.url).href})`); document.documentElement.dataset.bagArt = ''; }
 
-  // The satchel. On the left the hero (a placeholder until there is equipment to place), on the right the pack
+  // An empty equipment slot shows a faint picture of what goes in it.
+  function ghostIcon(iconId, size) {
+    const c = itemIconCanvas(iconId, size); c.classList.add('ghost'); return c;
+  }
+  // The hero's full figure: a placeholder drawn in blocky pixels until a painted one exists (see docs/inventory.md).
+  // Drawn on an n x n canvas; no equipment is drawn on it, so it never changes when things are worn.
+  function drawFigure(g, n) {
+    const u = n / 32; g.clearRect(0, 0, n, n); g.imageSmoothingEnabled = false;
+    const r = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x * u), Math.round(y * u), Math.max(1, Math.round(w * u)), Math.max(1, Math.round(h * u))); };
+    r(12, 2, 8, 8, '#d9a77a'); r(12, 2, 8, 3, '#5a3a22'); r(11, 3, 1, 5, '#5a3a22'); r(14, 6, 1, 1, '#2b1a10'); r(17, 6, 1, 1, '#2b1a10'); // head, hair, eyes
+    r(14, 10, 4, 2, '#d9a77a');                                  // neck
+    r(10, 12, 12, 10, '#7a4f3a'); r(10, 12, 12, 2, '#9a6a4a'); r(10, 19, 12, 1, '#3d2a1f'); // tunic, belt
+    r(6, 12, 4, 9, '#7a4f3a'); r(22, 12, 4, 9, '#7a4f3a'); r(6, 21, 4, 2, '#d9a77a'); r(22, 21, 4, 2, '#d9a77a'); // arms, hands
+    r(11, 22, 4, 8, '#4a3b52'); r(17, 22, 4, 8, '#4a3b52'); r(10, 30, 5, 2, '#2b1f1a'); r(17, 30, 5, 2, '#2b1f1a'); // legs, boots
+  }
+
+  // The satchel. On the left the hero's full figure with the equipment slots beneath it, on the right the pack
   // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
-  let selected = null;
+  // `selected` is a pack slot, or `selectedGear` a worn slot's id; never both.
+  let selected = null, selectedGear = null;
   const make = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text) e.textContent = text; return e; };
   function openInventory(note = '') {
     open('Your satchel', null, 'inventory');
     if (selected !== null && !inventory.slots[selected]) selected = null;
+    if (selectedGear !== null && !equipment.worn[selectedGear]) selectedGear = null;
     const bag = make('div', 'rpg-bag'), niche = make('div', 'rpg-niche'), slab = make('div', 'rpg-slab'), grid = make('div', 'rpg-grid'), detail = make('div', 'rpg-detail');
     grid.style.setProperty('--cols', inventoryColumns); grid.style.setProperty('--rows', Math.ceil(inventory.size / inventoryColumns));
     inventory.slots.forEach((stack, i) => {
@@ -154,48 +173,76 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     });
     slab.append(grid); bag.append(niche, slab, detail); body.append(bag); // in the page now, so the art below can measure its cells
     const face = make('canvas', 'rpg-hero'); face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
-    addArt(face, () => niche.clientWidth * 0.85, (g, n) => g.drawImage(portrait, 0, 0, n, n));
-    niche.append(face);
+    addArt(face, () => niche.clientWidth * 0.85, (g, n) => drawFigure(g, n));
+    const gear = make('div', 'rpg-gear');
+    for (const slot of equipment.slots) {
+      const id = equipment.worn[slot.id];
+      const cell = make(id ? 'button' : 'div', 'rpg-cell rpg-gearcell' + (slot.id === selectedGear ? ' selected' : ''));
+      cell.dataset.equip = slot.id; cell.title = id ? `${slot.label}: ${itemDefs[id].name}` : slot.label;
+      cell.setAttribute('aria-label', cell.title);
+      if (id) cell.type = 'button';
+      gear.append(cell);
+    }
+    niche.append(face, gear);
+    for (const cell of gear.children) {
+      const slot = equipment.slots.find(s => s.id === cell.dataset.equip), id = equipment.worn[slot.id];
+      const icon = id ? itemIcon(id, () => cell.clientWidth * 0.95) : ghostIcon(slot.ghost, () => cell.clientWidth * 0.95);
+      cell.prepend(icon);
+    }
     for (const cell of grid.children) {
       const stack = inventory.slots[cell.dataset.slot];
       if (!stack) continue;
       const icon = itemIcon(stack.id, () => cell.clientWidth * 0.95); // the atlas tiles carry a little padding of their own
       cell.prepend(icon);
     }
-    dragToRearrange(grid);
+    dragToRearrange(bag);
 
-    const stack = selected === null ? null : inventory.slots[selected], def = stack && itemDefs[stack.id];
+    const stack = selected === null ? null : inventory.slots[selected], worn = selectedGear === null ? null : equipment.worn[selectedGear];
+    const def = stack ? itemDefs[stack.id] : worn ? itemDefs[worn] : null;
     const text = make('div', 'rpg-detail-text');
-    if (!stack) {
-      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them.'));
+    if (!def) {
+      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'));
     } else {
-      text.append(make('h3', '', `${def.name}${stack.qty > 1 ? ` x${stack.qty}` : ''}`), make('p', '', def.description));
+      text.append(make('h3', '', `${def.name}${stack?.qty > 1 ? ` x${stack.qty}` : ''}`), make('p', '', def.description));
+      const bonus = Object.entries(def.bonus ?? {}).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(', ');
+      if (bonus) text.append(make('p', '', bonus));
     }
     if (note) text.append(make('p', 'rpg-note', note));
     detail.append(text);
-    if (stack) {
+    if (worn) {
       const actions = make('div', 'rpg-actions');
+      actions.append(textButton('Take off', () => { const r = equipment.unequip(inventory, selectedGear); if (r.ok) { selectedGear = null; say(r.message); } openInventory(r.message); }));
+      detail.append(actions);
+    } else if (stack) {
+      const actions = make('div', 'rpg-actions');
+      if (def.slot) actions.append(textButton('Equip', () => {
+        const r = equipment.equip(inventory, selected); if (r.ok) { selected = null; say(r.message); } openInventory(r.message);
+      }));
       const use = textButton('Use', () => { const result = onUse(selected); openInventory(result?.message ?? ''); });
       use.disabled = !def.use;
       const dropIt = qty => { const name = stackLabel({ id: stack.id, qty }); drop(selected, qty); say(`You drop ${name}.`); openInventory(`You drop ${name}.`); };
-      actions.append(use, textButton(stack.qty > 1 ? 'Drop one' : 'Drop', () => dropIt(1)));
+      if (def.use || !def.slot) actions.append(use);
+      actions.append(textButton(stack.qty > 1 ? 'Drop one' : 'Drop', () => dropIt(1)));
       if (stack.qty > 1) actions.append(textButton('Drop all', () => dropIt(stack.qty)));
       detail.append(actions);
     }
   }
 
   // Select by tapping; rearrange by dragging a stack onto another slot (an empty one moves it, the same item
-  // merges, anything else swaps). A drag shows the icon under the pointer and lights the slot it would land on.
-  function dragToRearrange(grid) {
-    const cellAt = (x, y) => document.elementFromPoint(x, y)?.closest('.rpg-cell[data-slot]');
+  // merges, anything else swaps). A pack item dropped on a matching equipment slot is worn; a worn item dropped
+  // on a pack slot is taken off into it. A drag shows the icon under the pointer and lights the slot it would land on.
+  function dragToRearrange(bag) {
+    const SEL = '.rpg-cell[data-slot], .rpg-cell[data-equip]';
+    const cellAt = (x, y) => document.elementFromPoint(x, y)?.closest(SEL);
+    const held = cell => cell.dataset.equip ? equipment.worn[cell.dataset.equip] : inventory.slots[cell.dataset.slot];
     let drag = null, ignoreClick = false;
-    grid.addEventListener('pointerdown', e => {
-      const cell = e.target.closest('.rpg-cell[data-slot]');
-      if (!cell || e.button > 0 || !inventory.slots[cell.dataset.slot]) return;
-      drag = { from: +cell.dataset.slot, cell, id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, over: null };
+    bag.addEventListener('pointerdown', e => {
+      const cell = e.target.closest(SEL);
+      if (!cell || e.button > 0 || !held(cell)) return;
+      drag = { cell, id: e.pointerId, x: e.clientX, y: e.clientY, ghost: null, over: null };
       cell.setPointerCapture?.(e.pointerId);
     });
-    grid.addEventListener('pointermove', e => {
+    bag.addEventListener('pointermove', e => {
       if (!drag || e.pointerId !== drag.id) return;
       if (!drag.ghost) {
         if (Math.hypot(e.clientX - drag.x, e.clientY - drag.y) < 6) return;
@@ -210,20 +257,31 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     });
     const finish = (e, cancelled) => {
       if (!drag || e.pointerId !== drag.id) return;
-      const { from, ghost } = drag; drag = null;
+      const { cell, ghost } = drag; drag = null;
       if (!ghost) return; // a tap: the click handler selects
       ghost.remove(); ignoreClick = true;
       const target = cancelled ? null : cellAt(e.clientX, e.clientY);
-      if (target && inventory.move(from, +target.dataset.slot)) selected = +target.dataset.slot;
-      openInventory();
+      let note = '';
+      if (target && target !== cell) {
+        if (cell.dataset.slot && target.dataset.slot) { if (inventory.move(+cell.dataset.slot, +target.dataset.slot)) { selected = +target.dataset.slot; selectedGear = null; } }
+        else if (cell.dataset.slot) { // pack -> equipment slot
+          const r = equipment.equip(inventory, +cell.dataset.slot, target.dataset.equip);
+          note = r.message; if (r.ok) { selected = null; selectedGear = target.dataset.equip; say(r.message); }
+        } else if (target.dataset.slot) { // equipment slot -> pack
+          const r = equipment.unequip(inventory, cell.dataset.equip, +target.dataset.slot);
+          note = r.message; if (r.ok) { selectedGear = null; selected = inventory.slots[+target.dataset.slot] ? +target.dataset.slot : null; say(r.message); }
+        }
+      }
+      openInventory(note);
     };
-    grid.addEventListener('pointerup', e => finish(e, false));
-    grid.addEventListener('pointercancel', e => finish(e, true));
-    grid.addEventListener('click', e => {
+    bag.addEventListener('pointerup', e => finish(e, false));
+    bag.addEventListener('pointercancel', e => finish(e, true));
+    bag.addEventListener('click', e => {
       if (ignoreClick) { ignoreClick = false; return; }
-      const cell = e.target.closest('.rpg-cell[data-slot]');
+      const cell = e.target.closest(SEL);
       if (!cell) return;
-      selected = inventory.slots[cell.dataset.slot] ? +cell.dataset.slot : null;
+      if (cell.dataset.equip) { selectedGear = equipment.worn[cell.dataset.equip] ? cell.dataset.equip : null; selected = null; }
+      else { selected = inventory.slots[cell.dataset.slot] ? +cell.dataset.slot : null; selectedGear = null; }
       openInventory();
     });
   }

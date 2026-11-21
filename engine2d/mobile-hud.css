@@ -46,6 +46,10 @@ html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 
 .rpg-bag-panel header { grid-area: 2 / 2 / 3 / 7; display: flex; align-items: center; margin: 0; padding-left: 8px; }
 .rpg-bag-panel .rpg-dialog-body, .rpg-bag { display: contents; }
 .rpg-niche { grid-area: 4 / 2 / 9 / 3; display: grid; place-items: center; min-width: 0; min-height: 0; overflow: hidden; }
+.rpg-niche { align-content: start; justify-items: center; gap: calc(var(--rpg-px, 2) * 2px); padding-top: 2%; }
+.rpg-gear { display: grid; grid-template-columns: repeat(3, 1fr); gap: calc(var(--rpg-px, 2) * 1px); width: 92%; }
+.rpg-gearcell { aspect-ratio: 1; }
+.rpg-cell canvas.ghost { opacity: .22; filter: grayscale(1); }
 .rpg-hero { border: calc(var(--rpg-px, 2) * 1px) solid #8c6949; }
 .rpg-slab { grid-area: 4 / 4 / 7 / 5; container-type: size; display: grid; place-items: center; padding: 1%; min-width: 0; min-height: 0; }
 .rpg-detail { grid-area: 4 / 6 / 7 / 7; display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--rpg-px, 2) * 1px); padding: calc(var(--rpg-px, 2) * 1px) calc(var(--rpg-px, 2) * 4px); min-width: 0; min-height: 0; overflow: hidden; }
@@ -84,7 +88,9 @@ html[data-layout="portrait"] .rpg-bag-panel { display: flex; padding: 10px 12px;
 html[data-layout="portrait"] .rpg-bag-panel .rpg-dialog-body { display: block; flex: 1; min-height: 0; overflow-y: auto; }
 html[data-layout="portrait"] .rpg-bag { display: flex; flex-direction: column; }
 html[data-layout="portrait"] .rpg-detail { order: -1; } /* above the grid, so a selection is seen without scrolling */
-html[data-layout="portrait"] .rpg-niche { display: none; }
+html[data-layout="portrait"] .rpg-niche { display: flex; flex-direction: column; order: -2; }
+html[data-layout="portrait"] .rpg-hero { display: none; }
+html[data-layout="portrait"] .rpg-gear { grid-template-columns: repeat(9, 1fr); width: 100%; }
 html[data-layout="portrait"] .rpg-slab { container-type: inline-size; padding: 0; }
 html[data-layout="portrait"] .rpg-grid { --cell: calc(100cqw / var(--cols)); }
 html[data-layout="portrait"] .rpg-detail { padding: 8px 0; flex-wrap: wrap; overflow: visible; }

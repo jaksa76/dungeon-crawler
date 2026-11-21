@@ -9,6 +9,7 @@ import { createGameOver } from './game-over.js';
 import { interact, checkBehavior } from './interaction.js';
 import { withIcons, panelOverlay } from './panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
+import { createEquipment } from './equipment.js';
 import { createInventory, addToStacks, checkItems } from './inventory.js';
 import { resolveContents } from './loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
@@ -123,6 +124,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   checkItems(itemDefs);
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the atlas`);
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
+  const equipment = createEquipment(itemDefs);
   const containers = new Map();
   const piles = new Map();
   const pileKey = () => `${levelId}:${p.x},${p.z}`;
@@ -167,7 +169,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem,
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -186,7 +188,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame);
-  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory,
+  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment,
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 

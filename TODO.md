@@ -35,7 +35,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 **Engine**
 - [x] Item definitions as data (type, icon, name, description)
 - [x] Inventory screen: painted background (Codex), tall hero niche, 8×4 grid with drag to move/merge/swap, item description with Use / Drop / Drop all, **I** key
-- [ ] Hero view: a full-body picture in the niche with equipment slots on it (a placeholder portrait is there now)
+- [~] Hero view: a full-body picture in the niche with equipment slots (a drawn placeholder figure is there; a Codex-painted one is still to do)
 - [x] Inventory that changes: pick up, drop, stack
 - [x] Containers and loot tables (chests, hidden stashes)
 - [x] Take all button when container is open
@@ -43,6 +43,17 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 **Game**
 - [x] As a player, I want to open the chest by the dungeon door and find starting supplies.
 - [x] As a player, I want to find something hidden in the well, barrels and crates.
+
+## M2.1 - Equipping items
+
+**Engine**
+- [~] Inventory screen to display the full body of the character on the left side, not just the portrait. (placeholder figure drawn in code; generate the final image using codex)
+- [x] Inventory screen should have slots on the left side for equipment (weapon, shield, armour, head, rings, amulet, etc.)
+- [x] Player should be able to place items in compatible slots. No change in portrait.
+- [x] Equipped items do not appear in inventory.
+
+**Game**
+- [x] As a player I want to start with zero equipment an once I find a sword I want to be able to equip it.
 
 ## M3 — Character stats and combat
 
@@ -55,12 +66,10 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 - [ ] Monster stats (HP, damage, defence, speed)
 - [ ] Player melee attack with cooldown, hit and miss feedback
 - [ ] Monster attack replaces instant death on contact; hurt and death animations
-- [ ] Defeat rules: what death costs, where you wake up
 
 **Game**
 - [ ] As a player, I want to fight the snake instead of dying the moment it touches me.
 - [ ] As a player, I want to drink a health potion mid-fight to survive.
-- [ ] As a player, I want death to send me back to the village without losing everything.
 
 ## M4 — Loot, XP and progression
 
