@@ -154,7 +154,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   sprite.onload = () => art.forEach(renderArt);
   // Two even columns down the figure's sides, boots between them at the feet: percent of the niche's width and the figure's height.
   const SLOT_SPOTS = { head: [17, 12], amulet: [17, 34], weapon: [17, 56], ring1: [17, 78],
-    armour: [83, 12], gloves: [83, 34], shield: [83, 56], ring2: [83, 78], boots: [50, 91] };
+    armour: [83, 12], gloves: [83, 34], shield: [83, 56], ring2: [83, 78], boots: [50, 108] };
 
   // The satchel. On the left the hero's full figure with the equipment slots beneath it, on the right the pack
   // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
