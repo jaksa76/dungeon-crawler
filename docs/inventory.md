@@ -56,9 +56,13 @@ rules. Worn items are not in the pack. `equip(inventory, index, slot?)` wears on
 returns what was there to the pack (refused if the pack has no room); `unequip(inventory, slot, toIndex?)`
 takes it off. In the satchel the slots sit under the figure: select a pack item and press **Equip**,
 or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
-The figure itself never changes. It is `engine2d/assets/hero-fullbody.png` (1024x1536), painted by Codex from
-`game-1/assets/ui/portrait-hero.png` with `codex exec -s workspace-write --skip-git-repo-check -i portrait-hero.png -`
-and a prompt asking for the same adventurer full-length, front-facing, unarmed, in plain clothes. On portrait phones the figure is hidden but the slots remain.
+The figure itself never changes. It is true 48x96 pixel art, `engine2d/assets/hero-sprite.png`, shown at the
+largest whole multiple of the UI pixel that fits the panel's height, with the slots lying over it at the body
+parts where each item is worn (`SLOT_SPOTS` in `mobile-hud.js`). It was painted by Codex from the portrait
+(`game-1/assets/ui/portrait-hero.png`, attached with `-i`) with a prompt asking for the same adventurer,
+full-length, front-facing, unarmed, plain clothes, as 48x96 pixel art enlarged to hard 12x12 blocks on flat
+magenta. `node tools/hero-sprite.mjs painted.png` then samples the blocks back to a real 48x96 PNG with transparency.
+On portrait phones the figure is hidden but the slots remain, in a row.
 
 The hero starts with no equipment; the village chest holds a sword and the crate can hold a leather cap.
 `node --test tools/tests/equipment.test.mjs` covers it.

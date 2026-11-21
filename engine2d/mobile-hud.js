@@ -42,12 +42,12 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   function renderArt(entry) {
     const { canvas, size, draw } = entry;
     const n = Math.max(8, Math.round((typeof size === 'function' ? size() : size) / px));
-    canvas.width = canvas.height = n;
-    canvas.style.width = canvas.style.height = `${n * px}px`;
+    canvas.height = n; canvas.width = entry.tall ? n / 2 : n; // a tall one is twice as high as it is wide
+    canvas.style.width = `${canvas.width * px}px`; canvas.style.height = `${n * px}px`;
     const g = canvas.getContext('2d'); g.imageSmoothingQuality = 'high';
     draw(g, n);
   }
-  function addArt(canvas, size, draw) { const entry = { canvas, size, draw }; art.push(entry); renderArt(entry); }
+  function addArt(canvas, size, draw, tall = false) { const entry = { canvas, size, draw, tall }; art.push(entry); renderArt(entry); }
   const character = document.createElement('div'); character.className = 'rpg-character';
   const heroTitle = document.createElement('h2'); heroTitle.className = 'rpg-rail-title'; heroTitle.textContent = 'Adventurer'; left.append(heroTitle);
   const face = document.createElement('canvas'); face.className = 'rpg-portrait';
@@ -140,8 +140,13 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   function ghostIcon(iconId, size) {
     const c = itemIconCanvas(iconId, size); c.classList.add('ghost'); return c;
   }
-  // The hero's full figure (painted by Codex from the portrait, see docs/inventory.md). It never shows equipment.
-  const FIGURE = new URL('./assets/hero-fullbody.png', import.meta.url).href;
+  // The hero's full figure: true 48 x 96 pixel art (engine2d/assets/hero-sprite.png, painted by Codex from the
+  // portrait; see docs/inventory.md), shown at the largest whole multiple of the UI pixel that fits the panel.
+  // It never shows equipment: the slots lie over it, at the places on the body where each item is worn.
+  const sprite = new Image(); sprite.src = new URL('./assets/hero-sprite.png', import.meta.url).href;
+  sprite.onload = () => art.forEach(renderArt);
+  const SLOT_SPOTS = { head: [50, 10], amulet: [50, 25], armour: [50, 42], gloves: [50, 60], boots: [50, 91],
+    weapon: [14, 52], ring1: [14, 69], shield: [86, 52], ring2: [86, 69] }; // percent of the niche's width and the figure's height
 
   // The satchel. On the left the hero's full figure with the equipment slots beneath it, on the right the pack
   // as a grid you rearrange by dragging, underneath whatever is selected and what can be done with it.
@@ -164,17 +169,22 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       grid.append(cell);
     });
     slab.append(grid); bag.append(niche, slab, detail); body.append(bag); // in the page now, so the art below can measure its cells
-    const face = make('img', 'rpg-hero'); face.src = FIGURE; face.alt = 'Your adventurer'; face.draggable = false;
+    const figure = make('div', 'rpg-figure'), face = make('canvas', 'rpg-hero');
+    face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
     const gear = make('div', 'rpg-gear');
     for (const slot of equipment.slots) {
       const id = equipment.worn[slot.id];
       const cell = make(id ? 'button' : 'div', 'rpg-cell rpg-gearcell' + (slot.id === selectedGear ? ' selected' : ''));
       cell.dataset.equip = slot.id; cell.title = id ? `${slot.label}: ${itemDefs[id].name}` : slot.label;
       cell.setAttribute('aria-label', cell.title);
+      [cell.style.left, cell.style.top] = SLOT_SPOTS[slot.id]?.map(v => `${v}%`) ?? ['50%', '50%'];
       if (id) cell.type = 'button';
       gear.append(cell);
     }
-    niche.append(face, gear);
+    figure.append(face, gear); niche.append(figure);
+    addArt(face, () => 96 * px * Math.max(1, Math.floor(niche.clientHeight / (96 * px))), (g, n) => {
+      g.imageSmoothingEnabled = false; if (sprite.complete && sprite.naturalWidth) g.drawImage(sprite, 0, 0, n / 2, n);
+    }, true);
     for (const cell of gear.children) {
       const slot = equipment.slots.find(s => s.id === cell.dataset.equip), id = equipment.worn[slot.id];
       const icon = id ? itemIcon(id, () => cell.clientWidth * 0.95) : ghostIcon(slot.ghost, () => cell.clientWidth * 0.95);
