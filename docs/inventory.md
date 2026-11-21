@@ -146,3 +146,10 @@ items. `node tools/check-pixels.mjs` includes the satchel's icons and hero. In a
 open the chest and take everything, press I, drag a stack, select a potion and use it
 (set `__game2d.hero.hp` lower first to see it heal), drop one, use on the floor to pick it
 up, and check the chest now reads "Nothing left."
+
+## The portrait
+
+The portrait in the HUD is the head of the full-body sprite: `engine2d/assets/portrait-hero.png`, a 32x32 crop
+(columns 7-38, rows 0-31) of `hero-sprite.png`, so the two always show the same character. Phones draw it at a whole
+number of screen pixels per art pixel; the desktop panel gets a nearest-neighbour 8x copy so it stays crisp.
+(`game-1/assets/ui/portrait-hero.png`, the original high-resolution one, is still used by games one and three.)

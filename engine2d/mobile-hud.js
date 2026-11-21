@@ -58,8 +58,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const face = document.createElement('canvas'); face.className = 'rpg-portrait';
   face.setAttribute('role', 'img'); face.setAttribute('aria-label', 'Your adventurer');
   const shortScreen = () => matchMedia('(max-height: 380px) and (orientation: landscape), (max-height: 680px) and (orientation: portrait)').matches;
-  addArt(face, () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80)),
-    (g, n) => g.drawImage(portrait, 0, 0, n, n));
+  // The portrait is 32 x 32 pixel art, shown at a whole number of screen pixels per art pixel (the biggest that fits the target size).
+  const faceTarget = () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80));
+  addArt(face, () => 32 * px * Math.max(1, Math.round(faceTarget() / (32 * px))), (g, n) => { g.imageSmoothingEnabled = false; g.drawImage(portrait, 0, 0, n, n); });
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];

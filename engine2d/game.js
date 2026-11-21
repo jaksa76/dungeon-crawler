@@ -109,10 +109,14 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const PW = Math.max(cw, 320);
   const icons = await loadIcons(iconsPath, savedIconStyle());
   const panelImage = withIcons(await loadImage(`${uiAssetPath}/ui/panel.png`), icons);
-  const portraitImage = await loadImage(`${uiAssetPath}/ui/portrait-hero.png`);
+  // The portrait is the head of the full-body pixel sprite (32 x 32, see docs/inventory.md). The painted desktop panel
+  // draws it smoothed, so it gets an enlarged copy (whole-number, nearest neighbour) that stays crisp.
+  const portraitImage = await loadImage(new URL('./assets/portrait-hero.png', import.meta.url).href);
+  const portraitBig = document.createElement('canvas'); portraitBig.width = portraitBig.height = portraitImage.width * 8;
+  Object.assign(portraitBig.getContext('2d'), { imageSmoothingEnabled: false }).drawImage(portraitImage, 0, 0, portraitBig.width, portraitBig.height);
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: panelImage },
-    'ui/portrait-hero': { image: portraitImage },
+    'ui/portrait-hero': { image: portraitBig },
   }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
 
   const p = { ...level.start, steps: 0 };
