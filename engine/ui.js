@@ -106,9 +106,10 @@ export function createUI(canvas, assets, layout, { width = UI_W, font, overlay }
       const dx = b.entity.x - state.tileX, dz = b.entity.z - state.tileZ;
       g.fillStyle = b.entity.light ? '#ffcf5a' : '#e0b040';
       const m = Math.max(2, Math.round(3 * k * zoom));
-      g.fillRect(Math.round(cx + dx * cell - m / 2), Math.round(cy + dz * cell - m / 2), m, m);
+      // centred on the tile as drawn above (its cell-1 square starts at round(c - half))
+      g.fillRect(Math.round(cx + dx * cell - half) + Math.round((cell - 1 - m) / 2), Math.round(cy + dz * cell - half) + Math.round((cell - 1 - m) / 2), m, m);
     }
-    g.translate(cx, cy); g.rotate(-state.yaw); g.scale(k * zoom, k * zoom);
+    g.translate(cx, cy); g.rotate(-state.yaw); g.scale(k * zoom * 0.7, k * zoom * 0.7);
     g.fillStyle = '#140c10'; g.beginPath(); g.moveTo(0, -7); g.lineTo(6, 6); g.lineTo(-6, 6); g.fill();
     g.fillStyle = '#ff3a20'; g.beginPath(); g.moveTo(0, -5); g.lineTo(4, 4); g.lineTo(-4, 4); g.fill();
     g.restore();

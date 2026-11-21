@@ -316,10 +316,11 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const dot = Math.max(2, cell >> 1);
     for (const b of world.billboards) {
       g.fillStyle = '#e9b65e';
-      g.fillRect(Math.round(cx + (b.entity.x - state.tileX) * cell - dot / 2), Math.round(cy + (b.entity.z - state.tileZ) * cell - dot / 2), dot, dot);
+      const o = Math.round((tile - dot) / 2); // centred on the tile as drawn above
+      g.fillRect(Math.round(cx + (b.entity.x - state.tileX) * cell - tile / 2) + o, Math.round(cy + (b.entity.z - state.tileZ) * cell - tile / 2) + o, dot, dot);
     }
     // The player: an arrow built from integer rectangles so it is as crisp as the cells, turning with the player.
-    const u = Math.max(1, cell >> 2);
+    const u = Math.max(1, cell / 6 | 0);
     g.save(); g.translate(cx, cy); g.rotate(-state.yaw);
     g.fillStyle = '#ff6348'; g.fillRect(-u, -3 * u, 2 * u, 5 * u); g.fillRect(-2 * u, 0, 4 * u, 2 * u); g.restore();
     for (const [s, x, y] of [['N', n / 2 - 2, 1], ['S', n / 2 - 2, n - 9], ['W', 1, n / 2 - 4], ['E', n - 6, n / 2 - 4]]) {
