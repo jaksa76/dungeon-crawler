@@ -1,3 +1,5 @@
+import { arrangeActors } from './actor-layout.js';
+import { createSceneInput } from './scene-input.js';
 import { createView } from './view.js';
 import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
@@ -6,7 +8,7 @@ import { createMobileHUD } from './mobile-hud.js';
 import { createExploration } from './exploration.js';
 import { createMonsters, actorDirection } from './monsters.js';
 import { createGameOver } from './game-over.js';
-import { interact, checkBehavior } from './interaction.js';
+import { interact, interactTarget, checkBehavior } from './interaction.js';
 import { withIcons, panelOverlay } from './panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
 import { HEAD_X } from './head.js';
@@ -71,6 +73,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
         const wallArts = [...new Set(Object.values(def.tileTypes).filter(t => t.wall).map(t => t.art))];
         const images = await loadSlotImages(view, { assetPath: def.assetPath, wallArts,
           propArts: Object.values(def.props), backdrop: !def.level.atmosphere,
+          actorAnimationArts: [...new Set((def.level.monsters ?? []).filter(actor => actor.animations).map(actor => actor.art))],
           actorArts: [...new Set((def.level.monsters ?? []).map(actor => actor.art).filter(Boolean))] });
         // Required dungeon art must be complete before replacing the active scene.
         if (def.level.atmosphere && (!images.has('floor') || wallArts.some(art =>
@@ -128,6 +131,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
 
   const p = { ...level.start, steps: 0 };
+  let sceneInput = null;
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
   const messages = []; // every message said, kept for the journal's message log
@@ -209,6 +213,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame);
   window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment,
+    get targets() { return comp.targets(); },
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 
@@ -249,7 +254,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const x = p.x + fx * d + rx * l, z = p.z + fz * d + rz * l;
     return {
       props: (c.entities ?? []).map(e => ({ ...props[e.prop], type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })),
-      actors: monsters.at(x, z).map(actor => ({ ...actor, direction: actorDirection(actor.dir, p.dir) })),
+      actors: arrangeActors(monsters.at(x, z).map(actor => ({ ...actor, direction: actorDirection(actor.dir, p.dir),
+        animation: monsters.animation(actor, performance.now()) }))),
     };
   };
 
@@ -273,7 +279,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const tg = target.getContext('2d');
     tg.setTransform(target.width / W, 0, 0, target.height / H, 0, 0);
     tg.imageSmoothingQuality = 'high'; // shrinking the painted slot images to the internal resolution
-    comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines, atmosphere: level.atmosphere });
+    comp.draw(tg, view.compose(relCell), { facing: DIR_KEYS[p.dir], flipFloor: p.steps % 2 === 1, outlines: opts.outlines, atmosphere: level.atmosphere,
+      picking: target === next, targetId: sceneInput?.targetId });
   }
 
   // Messages stay for 7 s, then fade out over 1 s. Redrawn only when something changed.
@@ -379,6 +386,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   async function travel(exit, { respawn = false } = {}) {
+    sceneInput?.cancel();
     transitioning = true;
     anim = drag = release = null;
     frame.setAttribute('aria-busy', 'true');
@@ -421,7 +429,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   async function die() {
     if (dead || transitioning) return;
     dead = true; anim = drag = release = null;
-    touch.cancel();
+    sceneInput?.cancel(); touch.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
     hero.hp = 0; swing.reset(); peeks.clear(); peekKey = ''; show();
     let retry = false;
@@ -437,25 +445,33 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   // Fighting. The hero swings at the creature on the tile they face (or share), then waits out a cooldown. Hits and
-  // misses show as floating text; a creature flashes when hurt and fades when it dies (see monsters.js).
+  // misses show as floating text; creatures play data-driven combat clips (see monsters.js).
   const swing = createCooldown(hero.attackMs), floaters = [];
   let hurtFlash = 0;
   const float = (text, color, x = cw / 2, y = ch * .42) => floaters.push({ text, color, x, y, t0: performance.now() });
-  function attack() {
-    const now = performance.now();
-    if (!swing.ready(now)) return;
+  function attack(targetId = null) {
+    if (dead || transitioning || bars.isOpen() || document.hidden) return false;
+    const now = performance.now(), [dx, dz] = DIRS[p.dir];
+    const target = targetId ? monsters.actors.find(a => a.id === targetId && a.hp > 0 && !a.dyingUntil)
+      : monsters.adjacent(p).find(a => (a.x === p.x && a.z === p.z) || (a.x === p.x + dx && a.z === p.z + dz));
+    if (targetId && (!target || !comp.target(targetId))) return false;
+    if (targetId && Math.abs(target.x - p.x) + Math.abs(target.z - p.z) > 1) { say('Step closer to attack.'); return false; }
+    if (!swing.ready(now)) return true;
     swing.use(now);
-    const [dx, dz] = DIRS[p.dir];
-    const target = monsters.adjacent(p).find(a => (a.x === p.x && a.z === p.z) || (a.x === p.x + dx && a.z === p.z + dz));
-    if (!target) { say('You swing at the empty air.'); return; }
+    if (!target) { say('You swing at the empty air.'); return false; }
+    const rect = comp.target(target.id)?.rect;
+    const fx = rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2;
+    const fy = rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42;
     const result = strike(hero, target);
-    if (!result.hit) { say(`You miss the ${target.name}.`); float('Miss', '#d8d0c0'); }
+    if (!result.hit) { say(`You miss the ${target.name}.`); float('Miss', '#d8d0c0', fx, fy); }
     else {
-      say(`You hit the ${target.name} for ${result.damage}.`); float(`-${result.damage}`, '#ffe08a');
+      say(`You hit the ${target.name} for ${result.damage}.`); float(`-${result.damage}`, '#ffe08a', fx, fy);
       if (monsters.damage(target, result.damage, now)) say(`The ${target.name} dies.`);
     }
     peeks.clear(); peekKey = ''; render(next);
+    return target.hp > 0;
   }
+
   function struckBy(actor, now) {
     const result = strike(actor, hero);
     if (!result.hit) { say(`The ${actor.name} misses you.`); float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
@@ -477,6 +493,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     if (bars.isOpen() || transitioning || dead) return;
     if (cmd === 'attack') { attack(); return; }
     if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile }); return; }
+    sceneInput?.cancel();
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
@@ -499,6 +516,13 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
     sideBars: { left: bars.left, right: bars.right },
   });
+  sceneInput = createSceneInput(viewCanvas, {
+    hit: (x, y) => { const r = viewCanvas.getBoundingClientRect(); return comp.hitAt((x - r.left) * W / r.width, (y - r.top) * H / r.height); },
+    getTarget: id => comp.target(id),
+    blocked: () => dead || transitioning || bars.isOpen() || document.hidden || !!(anim || drag || release),
+    attack, interact: target => interactTarget(target, { say, openContainer }),
+    changed: () => render(next), cancelGesture: () => touch.cancel(),
+  });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) {
       heldKeys.add(ev.code);
@@ -517,7 +541,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
   window.addEventListener('keyup', ev => { heldKeys.delete(ev.code); blockedKeys.delete(ev.code); });
-  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); touch.cancel(); });
+  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); sceneInput.cancel(); touch.cancel(); });
 
   function updateStatus() {
     const missing = view.compose(relCell).filter(it => !(it.actor && !it.actor.art) && !comp.imageFor(it));
@@ -569,16 +593,18 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   function updateMonsters(now) {
     if (dead || transitioning || bars.isOpen() || document.hidden) {
-      monsterDue = now + monsters.stepMs; monsters.freeze(); return;
+      monsterDue = now + monsters.stepMs; monsters.freeze(now); return;
     }
+    monsters.resume(now);
     let changed = monsters.reap(now).length > 0;
     if (monsters.actors.length && now >= monsterDue) {
       monsterDue = now + monsters.stepMs;
       const version = monsters.version;
-      monsters.step(p);
+      monsters.step(p, now);
       changed ||= version !== monsters.version;
     }
     if (monsters.actors.length && now >= monsterDue - monsters.stepMs) for (const actor of monsters.engage(p, now)) struckBy(actor, now);
+    changed = monsters.updateAnimations(now) || changed;
     if (changed) {
       // Update moving creatures without interrupting a player's current motion.
       peeks.clear(); peekKey = ''; render(next);
@@ -587,12 +613,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     }
   }
 
-  let wasAnimating = false;
   function loop(now) {
     updateMonsters(now);
-    const animating = monsters.animating(now); // a creature flashing or fading: redraw the scene every frame
-    if (animating || wasAnimating) { render(next); if (drag) drag.peek = peekFor(drag.cmd); }
-    wasAnimating = animating;
+    sceneInput.update(now);
     if (mapFrom) drawHud(now);
     if (drag) {
       drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);

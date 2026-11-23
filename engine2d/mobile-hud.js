@@ -344,7 +344,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   }
   iconButton('Full screen', 'fullscreen', menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Use the Use button to examine what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.', 'settings');
+    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Tap a creature to attack; hold to keep attacking. Tap an object to use it, or use the Use button for what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.', 'settings');
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {

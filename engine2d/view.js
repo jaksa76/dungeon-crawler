@@ -214,8 +214,8 @@ export function createView(options = {}) {
   // Moving creatures stand at the centre of a cell, independently of wall-side
   // props. Their frame is selected by direction and depth; lateral movement
   // reuses that frame at a different projected position.
-  function actorSlot(l, d, w, h) {
-    const spot = { x: l, s: d + V.back }, region = boxRegion(boxes.prop(spot, w, h));
+  function actorSlot(l, d, w, h, offsetX = 0, offsetDepth = 0) {
+    const spot = { x: l + offsetX, s: d + V.back + offsetDepth }, region = boxRegion(boxes.prop(spot, w, h));
     if (!region) return null;
     const [cx, by] = project(spot.x, 0, spot.s), pw = f * w / spot.s, ph = f * h / spot.s;
     const full = { x: Math.round(cx - pw / 2), y: Math.round(by - ph), w: Math.max(1, Math.round(pw)), h: Math.max(1, Math.round(ph)) };
@@ -272,7 +272,7 @@ export function createView(options = {}) {
           if (slot) row.push({ slot, type: prop.type, prop, l, d, mirror: k.mirror });
         }
         for (const actor of cellAt(l, d)?.actors ?? []) {
-          const slot = actorSlot(l, d, actor.w, actor.h);
+          const slot = actorSlot(l, d, actor.w, actor.h, actor.offsetX, actor.offsetDepth);
           if (slot) row.push({ slot, type: actor.art ?? actor.id, actor, l, d, mirror: false });
         }
       }

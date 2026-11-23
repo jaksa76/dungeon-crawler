@@ -1,3 +1,5 @@
+import { FRAME_LAYOUT, FRAME_COLUMNS, FRAME_PADDING, DIRECTIONS } from './monster-animation.js';
+import { createSceneTargets } from './scene-targets.js';
 // Draws a view from slot images: backdrop, floor, then wall faces and props far
 // to near. Missing images are drawn as flat polygons so gaps in the art are obvious.
 
@@ -14,7 +16,7 @@ export function loadImage(url) {
 //   backdrop-<N|E|S|W>.png, floor.png
 //   walls/<art>/<slot id>.png, props/<art>/<slot id>.png
 //   monsters/<art>/<front|back|left|right>-d<depth>.png
-export async function loadSlotImages(view, { assetPath, wallArts, propArts, backdrop = true, actorArts = [] }) {
+export async function loadSlotImages(view, { assetPath, wallArts, propArts, backdrop = true, actorArts = [], actorAnimationArts = [] }) {
   const images = new Map();
   const jobs = [];
   const want = (key, path) => jobs.push(loadImage(`${assetPath}/${path}`).then((img) => img && images.set(key, img)));
@@ -27,6 +29,8 @@ export async function loadSlotImages(view, { assetPath, wallArts, propArts, back
   for (const art of actorArts) for (const direction of ['front', 'back', 'left', 'right']) {
     for (let d = 0; d <= view.V.maxDepth; d++) want(`monsters:${art}:${direction}:d${d}`, `monsters/${art}/${direction}-d${d}.png`);
   }
+  for (const art of actorAnimationArts) for (let d = 0; d <= view.V.maxDepth; d++)
+    want(`animation:${art}:d${d}`, `monsters/${art}/animation-d${d}.png`);
   await Promise.all(jobs);
   return images;
 }
@@ -35,6 +39,7 @@ const FALLBACK = { front: '#5a4a5e', side: '#463a4c', prop: '#a07a4a' };
 
 export function createCompositor(view, images) {
   const { W, H } = view.V;
+  const targets = createSceneTargets(W, H);
   const tinted = new WeakMap();
   const placeholders = new Map();
   function placeholder(direction) {
@@ -65,16 +70,11 @@ export function createCompositor(view, images) {
     return variants.get(key);
   }
 
-  let scratchCanvas = null;
-  function scratch(w, h) {
-    scratchCanvas ??= document.createElement('canvas');
-    scratchCanvas.width = Math.max(1, Math.round(w)); scratchCanvas.height = Math.max(1, Math.round(h));
-    return scratchCanvas;
-  }
-
-  function drawFlipped(g, img, x, y, w, h, flip) {
-    if (!flip) { g.drawImage(img, x, y, w, h); return; }
-    g.save(); g.translate(x + w, y); g.scale(-1, 1); g.drawImage(img, 0, 0, w, h); g.restore();
+  function drawFlipped(g, img, x, y, w, h, flip, source = null) {
+    g.save(); if (flip) { g.translate(x + w, y); g.scale(-1, 1); x = y = 0; }
+    if (source) g.drawImage(img, ...source, x, y, w, h);
+    else g.drawImage(img, x, y, w, h);
+    g.restore();
   }
 
   function shadow(g, r) {
@@ -90,6 +90,12 @@ export function createCompositor(view, images) {
   // its own image borrows the nearest one in the same row (see view.propChain).
   function lookup(it) {
     if (it.slot.kind === 'actor') {
+      const atlas = images.get(`animation:${it.actor.art}:d${it.d}`), sample = it.actor.animation;
+      if (atlas && sample) {
+        const layout = FRAME_LAYOUT[sample.state], w = atlas.width / FRAME_COLUMNS, h = atlas.height / DIRECTIONS.length;
+        return { img: atlas, flip: false, source: [(layout.column + Math.min(layout.frames - 1, sample.frame)) * w,
+          Math.max(0, DIRECTIONS.indexOf(it.actor.direction)) * h, w, h] };
+      }
       const img = images.get(`monsters:${it.actor.art}:${it.actor.direction}:d${it.d}`);
       return img ? { img, flip: false } : null;
     }
@@ -108,7 +114,8 @@ export function createCompositor(view, images) {
   // items: from view.compose(). facing: 'N'|'E'|'S'|'W'. flipFloor: alternate per step.
   // bare: only walls and props on a transparent canvas (for art guides).
   // A pixel view (view.V.pixel) is drawn without smoothing and without the soft shadow.
-  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = !view.V.pixel, atmosphere = null } = {}) {
+  function draw(g, items, { facing = 'N', flipFloor = false, outlines = false, bare = false, shadows = !view.V.pixel, atmosphere = null, picking = false, targetId = null } = {}) {
+    if (picking) targets.begin(g.canvas.width, g.canvas.height);
     g.imageSmoothingEnabled = !(view.V.pixel || atmosphere);
     g.clearRect(0, 0, W, H);
     if (!bare) {
@@ -136,29 +143,40 @@ export function createCompositor(view, images) {
       const found = lookup(it);
       if (kind === 'actor') {
         const image = found?.img ?? placeholder(it.actor.direction);
-        // These distance-specific frames already fade into darkness. Applying
-        // wall fog again would erase the distant snake's eye and fang pixels.
         const fog = found && it.actor.distanceShaded ? null : atmosphere;
-        const shaded = shade(image, it.d + .35, fog), now = performance.now();
-        if (it.actor.dyingUntil) { // fades and sinks
-          const k = Math.max(0, (it.actor.dyingUntil - now) / 700), sink = (1 - k) * r.full.h * .35;
-          g.save(); g.globalAlpha = k; g.drawImage(shaded, r.full.x, r.full.y + sink, r.full.w, r.full.h - sink); g.restore();
-        } else if (it.actor.hurtUntil > now) { // flashes red
-          const c = scratch(r.full.w, r.full.h), cg = c.getContext('2d');
-          cg.globalCompositeOperation = 'source-over'; cg.drawImage(shaded, 0, 0, c.width, c.height);
-          cg.globalCompositeOperation = 'source-atop'; cg.fillStyle = 'rgba(255,70,50,.65)'; cg.fillRect(0, 0, c.width, c.height);
-          g.drawImage(c, r.full.x, r.full.y, r.full.w, r.full.h);
-        } else drawFlipped(g, shaded, r.full.x, r.full.y, r.full.w, r.full.h, false);
+        const rect = { ...r.full }, source = found?.source;
+        if (source) {
+          const pw = rect.w * FRAME_PADDING / (source[2] - FRAME_PADDING * 2);
+          const ph = rect.h * FRAME_PADDING / (source[3] - FRAME_PADDING * 2);
+          rect.x -= pw; rect.y -= ph; rect.w += pw * 2; rect.h += ph * 2;
+        }
+        const opacity = it.actor.animation?.opacity ?? 1;
+        g.save(); g.globalAlpha = opacity;
+        drawFlipped(g, shade(image, it.d + .35, fog), rect.x, rect.y, rect.w, rect.h, false, source);
+        g.restore();
+        if (picking) targets.stamp(image, source, rect, it.actor.hp > 0 && !it.actor.dyingUntil
+          ? { kind: 'actor', id: it.actor.id, actor: it.actor } : null, false, opacity);
       } else if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);
-        if (found) drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
-        else polygon(g, r.poly, FALLBACK.prop);
+        if (found) {
+          drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.full.x, r.full.y, r.full.w, r.full.h, found.flip);
+          if (picking) targets.stamp(found.img, null, r.full, { kind: 'prop',
+            id: `prop:${it.prop.entity.x},${it.prop.entity.z}:${it.prop.entity.side}`,
+            entity: it.prop.entity, prop: it.prop,
+            tooFar: !(it.l === 0 && ((it.d === 0 && it.prop.anchor === 'far') || (it.d === 1 && it.prop.anchor === 'near'))),
+          }, found.flip);
+        } else { polygon(g, r.poly, FALLBACK.prop); if (picking) targets.block(r.poly); }
       } else if (found) {
         drawFlipped(g, shade(found.img, it.d + .35, atmosphere), r.x, r.y, r.w, r.h, found.flip);
+        if (picking) targets.stamp(found.img, null, r, null, found.flip);
       } else {
-        polygon(g, r.poly, FALLBACK[kind]);
+        polygon(g, r.poly, FALLBACK[kind]); if (picking) targets.block(r.poly);
       }
       if (outlines) polygon(g, r.poly, null, '#ff3af0');
+    }
+    if (picking) {
+      targets.finish();
+      const overlay = targets.feedback(targetId); if (overlay) g.drawImage(overlay, 0, 0, W, H);
     }
   }
 
@@ -170,5 +188,5 @@ export function createCompositor(view, images) {
     if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
   }
 
-  return { draw, imageFor };
+  return { draw, imageFor, hitAt: targets.at, target: targets.get, targets: targets.all };
 }

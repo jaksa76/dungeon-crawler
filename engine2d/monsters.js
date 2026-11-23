@@ -2,16 +2,28 @@
 // step() at the level's chosen interval; the monster only walks onto floor cells and never onto the player's tile:
 // it stops beside the player and fights (engage). Stats are on the definition: hp, damage, defence, accuracy,
 // evasion, attackMs (time between blows) and speed (steps per tick, 1 by default).
+import { createMonsterAnimator, clipFor, durationOf } from './monster-animation.js';
+
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
-export const HURT_MS = 260, DEATH_MS = 700;
+export const HURT_MS = 220, DEATH_MS = 1460;
 export const actorDirection = (facing, viewer) => ['back', 'right', 'front', 'left'][(facing - viewer + 4) % 4];
 
 export function createMonsters(level, cell, random = Math.random) {
   const definitions = level.monsters ?? [];
   const actors = [];
-  let version = 0;
+  let version = 0, lastNow = 0, animator = createMonsterAnimator();
+  let signatures = new WeakMap();
+  function resume(now) {
+    lastNow = now;
+    const delta = animator.resume(actors, now);
+    if (delta) for (const actor of actors) {
+      if (actor.hurtUntil) actor.hurtUntil += delta;
+      if (actor.dyingUntil) actor.dyingUntil += delta;
+    }
+  }
   const open = (x, z) => { const c = cell(x, z); return !!c && !c.wall; };
   function reset() {
+    animator = createMonsterAnimator(); signatures = new WeakMap();
     actors.splice(0, actors.length, ...definitions.map((def, i) => {
       if (!open(def.x, def.z)) throw new Error(`Monster ${def.id ?? i} must start on a floor tile.`);
       if (def.x === level.start.x && def.z === level.start.z) throw new Error('A monster cannot start on the player entrance.');
@@ -44,11 +56,14 @@ export function createMonsters(level, cell, random = Math.random) {
     }
     return null;
   }
-  const alive = actor => !actor.dyingUntil;
+  const alive = actor => actor.hp > 0 && !actor.dyingUntil;
   const apart = (actor, player) => Math.abs(actor.x - player.x) + Math.abs(actor.z - player.z);
-  function step(player) {
+  function step(player, now = lastNow) {
+    resume(now);
     for (const actor of actors) {
       if (!alive(actor)) continue;
+      const state = animator.sample(actor, now).state;
+      if (state === 'attack' || state === 'hurt') continue;
       actor.energy += actor.speed;
       if (actor.energy < 1) continue;
       actor.energy -= 1;
@@ -67,6 +82,7 @@ export function createMonsters(level, cell, random = Math.random) {
       }
       const [dx, dz] = DIRS[direction];
       actor.x += dx; actor.z += dz; actor.dir = direction; version++;
+      animator.play(actor, 'move', now, { restart: true });
     }
   }
   // Is a living creature on this tile? The player cannot walk into it.
@@ -76,32 +92,61 @@ export function createMonsters(level, cell, random = Math.random) {
   // Who strikes now. A creature that has just come into reach winds up for 60% of its attack time first;
   // after each blow it waits attackMs. Out of reach, it forgets its wind-up. Returns the actors that strike.
   function engage(player, now) {
+    resume(now);
     const strikes = [];
     for (const actor of actors) {
-      if (!alive(actor) || apart(actor, player) > 1) { actor.readyAt = null; continue; }
+      if (!alive(actor) || apart(actor, player) > 1) {
+        actor.readyAt = null;
+        if (animator.sample(actor, now).state === 'attack') animator.play(actor, 'idle', now, { force: true });
+        continue;
+      }
       if (actor.readyAt === null) actor.readyAt = now + Math.round(actor.attackMs * .6);
-      else if (now >= actor.readyAt) { strikes.push(actor); actor.readyAt = now + actor.attackMs; }
+      const attack = clipFor(actor, 'attack'), lead = (attack.impactFrame ?? 2) * attack.frameMs;
+      if (now >= actor.readyAt - lead) animator.play(actor, 'attack', actor.readyAt - lead);
+      if (now >= actor.readyAt) {
+        animator.play(actor, 'attack', now - lead, { force: true });
+        strikes.push(actor); actor.readyAt = now + actor.attackMs;
+      }
     }
     return strikes;
   }
   // The fight is paused (a menu, loading): every wind-up starts over afterwards.
-  const freeze = () => { for (const actor of actors) actor.readyAt = null; };
-  // Hurt a creature. Returns true when it dies: it fades for DEATH_MS, then reap() removes it.
+  const freeze = (now = lastNow) => {
+    lastNow = now; animator.pause(now);
+    for (const actor of actors) actor.readyAt = null;
+  };
+  // Hurt a creature. Returns true on death; its clip and corpse hold finish before reap() removes it.
   function damage(actor, amount, now) {
+    resume(now);
+    if (!alive(actor)) return false;
     actor.hp = Math.max(0, actor.hp - amount); version++;
-    if (actor.hp > 0) { actor.hurtUntil = now + HURT_MS; return false; }
-    actor.dyingUntil = now + DEATH_MS; actor.hurtUntil = 0; actor.readyAt = null; return true;
+    if (actor.hp > 0) {
+      actor.hurtUntil = now + durationOf(actor, 'hurt'); animator.play(actor, 'hurt', now, { force: true }); return false;
+    }
+    actor.dyingUntil = now + durationOf(actor, 'dead'); actor.hurtUntil = 0; actor.readyAt = null;
+    animator.play(actor, 'dead', now, { force: true }); return true;
   }
   function reap(now) {
+    resume(now);
     const gone = actors.filter(actor => actor.dyingUntil && now >= actor.dyingUntil);
     for (const actor of gone) actors.splice(actors.indexOf(actor), 1);
     if (gone.length) version++;
     return gone;
   }
-  // Something is still flashing or fading: the scene must be redrawn every frame.
-  const animating = now => actors.some(actor => actor.dyingUntil || actor.hurtUntil > now);
+  // Legacy activity query; updateAnimations() also tracks idle clips and quantizes redraws.
+  const animating = now => actors.some(actor => animator.sample(actor, now).state !== 'idle');
+  function updateAnimations(now) {
+    resume(now); let changed = false;
+    for (const actor of actors) {
+      const sample = animator.sample(actor, now), key = `${sample.state}:${sample.frame}:${Math.round(sample.opacity * 8)}`;
+      if (signatures.get(actor) !== key) { signatures.set(actor, key); changed = true; }
+    }
+    if (changed) version++;
+    return changed;
+  }
   reset();
-  return { actors, step, occupied, adjacent, engage, freeze, damage, reap, animating, reset, get version() { return version; },
+  return { actors, step, occupied, adjacent, engage, freeze, resume, damage, reap, animating, updateAnimations, reset,
+    animation: (actor, now = lastNow) => animator.sample(actor, now), get version() { return version; },
     at: (x, z) => actors.filter(actor => actor.x === x && actor.z === z),
     stepMs: level.monsterStepMs ?? 1100, graceMs: level.monsterGraceMs ?? 3500 };
 }

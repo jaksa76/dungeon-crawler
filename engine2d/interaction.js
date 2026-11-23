@@ -29,6 +29,16 @@ export function findTarget(relCell) {
   return seen ? { prop: seen, entity: seen.entity, tooFar: true } : null;
 }
 
+// Pointing names the exact rendered object. Reach is still governed by the same
+// tile-side rules as Use, so a visible chest cannot be opened through a corridor.
+export function interactTarget(target, ctx) {
+  const { entity, prop } = target;
+  if (target.tooFar) { ctx.say(entity.name ? `Step closer to use ${entity.name}.` : 'Step closer.'); return; }
+  const behavior = entity.behavior ?? prop.behavior;
+  if (behavior) behaviors[behavior.type](behavior, target, ctx);
+  else ctx.say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
+}
+
 // Use what is in front of the player. ctx: `say`; `exit`, the passage they face, if any; `openContainer`
 // for `open` behaviors; `pile()`, which opens whatever lies on the floor here and says whether anything did. A pile wins over
 // anything that has no behaviour of its own, and over a door ahead, but not over a container in reach.
