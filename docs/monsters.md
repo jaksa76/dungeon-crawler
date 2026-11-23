@@ -136,3 +136,8 @@ Sprites are painted by Codex, one sheet per creature (four views on magenta, in 
 `node tools/monster-art.mjs slice <id> <work dir>/sheet-<id>.png <height in tiles>`, which writes the sixteen PNGs
 (far frames are the near one shrunk; runtime fog darkens them) and prints the `w` to use. Roster and looks:
 `game-2/art/monsters/roster.json`. `node --test tools/tests/bestiary.test.mjs` checks the CR ordering and the frames.
+
+All twelve species now also have authored combat key poses and four runtime
+animation atlases each, covering walking, attack, hurt and death in every
+direction. See [animation and targeting](monster-animation.md) for the source
+layouts, export command and validation checks.

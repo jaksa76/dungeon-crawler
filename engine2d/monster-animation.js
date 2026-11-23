@@ -13,6 +13,8 @@ export const FRAME_LAYOUT = Object.fromEntries(Object.entries(CLIPS).map(([state
   const entry = { column, frames: clip.frames }; column += clip.frames; return [state, entry];
 }));
 export const FRAME_COLUMNS = column;
+// Extra horizontal room lets weapon swings keep the body at its idle scale.
+export const FRAME_WIDTH_SCALE = 2;
 export const FRAME_PADDING = 4;
 export const clipFor = (actor, state) => ({ ...CLIPS[state], ...actor.animations?.[state] });
 export const durationOf = (actor, state) => {

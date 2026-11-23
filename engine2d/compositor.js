@@ -1,4 +1,4 @@
-import { FRAME_LAYOUT, FRAME_COLUMNS, FRAME_PADDING, DIRECTIONS } from './monster-animation.js';
+import { FRAME_LAYOUT, FRAME_COLUMNS, FRAME_PADDING, FRAME_WIDTH_SCALE, DIRECTIONS } from './monster-animation.js';
 import { createSceneTargets } from './scene-targets.js';
 // Draws a view from slot images: backdrop, floor, then wall faces and props far
 // to near. Missing images are drawn as flat polygons so gaps in the art are obvious.
@@ -146,9 +146,11 @@ export function createCompositor(view, images) {
         const fog = found && it.actor.distanceShaded ? null : atmosphere;
         const rect = { ...r.full }, source = found?.source;
         if (source) {
-          const pw = rect.w * FRAME_PADDING / (source[2] - FRAME_PADDING * 2);
+          const bodyW = (source[2] - FRAME_PADDING * 2) / FRAME_WIDTH_SCALE;
+          const width = rect.w * source[2] / bodyW;
           const ph = rect.h * FRAME_PADDING / (source[3] - FRAME_PADDING * 2);
-          rect.x -= pw; rect.y -= ph; rect.w += pw * 2; rect.h += ph * 2;
+          rect.x -= (width - rect.w) / 2; rect.w = width;
+          rect.y -= ph; rect.h += ph * 2;
         }
         const opacity = it.actor.animation?.opacity ?? 1;
         g.save(); g.globalAlpha = opacity;

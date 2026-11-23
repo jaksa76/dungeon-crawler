@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { createHash } from 'node:crypto';
 import { bestiaryKinds, monster } from '../../game-2/monsters.js';
 import { createMonsterAnimator, durationOf, FRAME_LAYOUT, FRAME_COLUMNS } from '../../engine2d/monster-animation.js';
 import { arrangeActors } from '../../engine2d/actor-layout.js';
@@ -69,6 +70,30 @@ test('every bestiary kind has a complete four-depth animation set matching its d
       assert.equal(png.readUInt32BE(16) % FRAME_COLUMNS, 0);
       assert.equal(png.readUInt32BE(20) % 4, 0);
       assert.equal(png[25], 6, 'RGBA transparency is preserved');
+    }
+  }
+});
+
+test('every monster has authored directional poses, with source and atlas metadata in sync', () => {
+  const manifest = JSON.parse(fs.readFileSync(new URL('../../game-2/art/animations/keyposes.json', import.meta.url)));
+  assert.deepEqual(manifest.directions, ['front', 'back', 'left', 'right']);
+  assert.deepEqual(Object.keys(manifest.monsters).sort(), [...bestiaryKinds].sort());
+  for (const kind of bestiaryKinds) {
+    const meta = manifest.monsters[kind];
+    const source = fs.readFileSync(new URL(`../../${meta.source}`, import.meta.url));
+    assert.equal(createHash('sha256').update(source).digest('hex'), meta.sha256, `${kind}: regenerate atlases after changing source art`);
+    assert.ok(meta.rows.includes('windup') && meta.rows.includes('impact') && meta.rows.includes('hurt') && meta.rows.includes('corpse'));
+    if (kind !== 'snake') assert.ok(meta.rows.includes('walk-a') && meta.rows.includes('walk-b'));
+    for (const direction of manifest.directions) {
+      assert.equal(meta.bounds[direction].length, meta.rows.length);
+      for (const r of meta.bounds[direction]) {
+        assert.ok(r.w > 8 && r.h > 8);
+        assert.ok(r.x >= 0 && r.y >= 0 && r.x + r.w <= meta.sourceSize[0] && r.y + r.h <= meta.sourceSize[1]);
+      }
+    }
+    for (let d = 0; d < 4; d++) {
+      const png = fs.readFileSync(new URL(`../../game-2/dungeon/assets/monsters/${kind}/animation-d${d}.png`, import.meta.url));
+      assert.deepEqual([png.readUInt32BE(16) / FRAME_COLUMNS, png.readUInt32BE(20) / 4], meta.depths[d].cell);
     }
   }
 });

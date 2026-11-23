@@ -31,21 +31,39 @@ Each of the twelve creatures has four transparent runtime atlases:
 `game-2/dungeon/assets/monsters/<kind>/animation-d0.png` through `d3`.
 Rows: front, back, left, right (relative to the viewer).
 Columns: idle 0–1, move 2–5, attack 6–9, hurt 10–11, dead 12–15.
-Each cell includes four pixels of padding on every edge, compensated by the
-renderer so the base creature's physical proportions remain consistent.
+Each cell reserves twice the idle body width for weapon swings, plus four
+pixels of padding on every edge. The renderer compensates for this canvas
+space so idle bodies keep their physical size and attacks can extend sideways.
 Use at most the allocated frame count when customizing a state's data.
 Legacy direction/depth PNGs remain available as a fallback.
 
-The snake has generated combat key poses in
-`game-2/art/animations/snake-keyposes.png`: columns are front/back/left/right;
-rows are rear-up, strike, hurt and corpse. Its source is the supplied snake
-concept and the existing snake art. Other creatures use pixel transforms of
-their original sprites for breathing, steps, lunges, hurt and collapse.
-Distance frames lose detail and darken, preserving the snake's eyes and fangs.
+Every creature has authored extra poses in
+`game-2/art/animations/<kind>-keyposes.png`, matching its existing idle art.
+Columns are front/back/left/right. For rat, kobold, goblin, skeleton, zombie,
+orc, spider, ghoul, ogre, owlbear and troll, the six rows are walking stride A,
+walking stride B, attack wind-up, attack impact, hurt recoil and a fully
+collapsed corpse. Snake keeps its four rows: rear-up, strike, hurt and corpse,
+and its travelling body wave for movement. Idle frames retain the base art.
 
-Regenerate the 48 atlases with `node tools/monster-animation-art.mjs`
+Attacks reflect the creature: rats pounce and bite; kobolds thrust spears;
+goblins and skeletons slash swords; orcs swing axes; zombies grab; spiders
+lunge with fangs; ghouls and trolls swipe claws; ogres smash clubs; owlbears
+rake with their paws. These change limb, weapon and body silhouettes rather
+than just scaling or rotating the idle art. Recovery frames return to idle,
+and the first death frames bridge recoil to the authored corpse pose.
+
+Regenerate all 48 runtime atlases with `node tools/monster-animation-art.mjs`
 (Playwright and Chromium required; `CHROMIUM_PATH` overrides the executable).
-The original sprites and generated key-pose source are retained.
+Every species must have a source sheet; missing poses fail the build before
+any output is written. The exporter quantizes generated alpha mattes to crisp
+pixel coverage, detects separated rows, keeps foot baselines aligned and
+reduces detail with distance. Snake darkness is baked once; the other
+creatures receive the existing runtime dungeon fog.
+
+`game-2/art/animations/keyposes.json` records the source hashes, directional
+crop rectangles, pose names, alpha cutoffs and runtime cell dimensions. Tests
+verify coverage for the entire bestiary and flag source art changed without
+rebaking. Original idle art and all generated source sheets are retained.
 
 ## M4 integration
 
@@ -64,3 +82,6 @@ Start `python3 -m http.server 8000` at the repository root, then run
 `node tools/tests/m5.browser.mjs` for desktop and mobile targeting, held
 attacks, corpses, alpha holes, wall occlusion, exact-object behaviours and
 gesture regression checks. `TEST_URL` overrides the server URL.
+Run `node tools/tests/monster-art.browser.mjs` (no server needed) to check
+every runtime pose for empty frames, distinct strides/attacks and collapsed
+corpse silhouettes at all four directions and distances.
