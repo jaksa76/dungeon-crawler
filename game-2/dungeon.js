@@ -10,7 +10,7 @@ export const dungeonTileTypes = {
 export const dungeon = {
   name: 'Ravensmoor · The Undercrypt',
   shortName: 'The Undercrypt',
-  journal: 'The Undercrypt is full of creatures, from rats and kobolds near the door to an ogre, an owlbear and a troll deep inside: the stronger it looks, the stronger it is. They follow movement they spot down the corridors. Face it and attack (X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
+  journal: 'The Undercrypt is full of creatures, from rats and kobolds near the door to an ogre, an owlbear and a troll deep inside: the stronger it looks, the stronger it is. They follow movement they spot down the corridors. Tap a creature to attack, hold to keep swinging (or face it and press X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
   start: { x: 1, z: 1, dir: 2 },
   atmosphere: { color: '#08090e', near: 0.55, far: 3.2 },
   exploration: { radius: 3 },

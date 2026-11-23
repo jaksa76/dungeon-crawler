@@ -1,6 +1,6 @@
 # Roaming dungeon creature
 
-The Undercrypt has one green snake with lime markings, red eyes and large
+The Undercrypt includes a green snake with lime markings, red eyes and large
 ivory teeth, based on the supplied concept drawing. It has a transparent
 spritesheet with front, back, left and right views at four distances.
 It moves in real time independently of the player's steps and fights: it stops beside the player
@@ -37,14 +37,13 @@ Rules are in `engine2d/combat.js` (pure numbers), wiring in `engine2d/game.js`.
   attack from 8 to 12. The satchel shows attack and defence when nothing is selected.
 - **Hitting.** A blow lands with 75% chance, plus or minus 4 points per point of accuracy over the
   other side's evasion (20% to 95%). A hit does attack +-20% less defence, at least 1.
-- **Player attack.** **Attack** button, **X** or **Enter**. It hits the creature on the tile the player faces
+- **Player attack.** Click/tap a visible creature; hold to repeat at the weapon cooldown. **Attack**, **X** or **Enter** target the creature ahead. It hits the creature on the tile the player faces
   (or shares), then waits 700 ms (`heroAttackMs`). A miss or a swing at nothing costs the same wait. The result
   floats over the scene and goes in the message log.
 - **Creature attack.** A creature stops on the tile next to the player and does not enter their tile; the player
   cannot walk into a living creature either. On coming into reach it winds up for 60% of `attackMs`, then strikes
   every `attackMs`. Out of reach it starts over. It can attack from behind: turn to face it.
-- **Feedback.** A creature flashes red when hurt and sinks and fades when it dies (`HURT_MS`, `DEATH_MS` in
-  monsters.js); the screen flashes red when the hero is hit. There is no drop or XP yet (M4).
+- **Feedback.** Each creature plays idle, move, attack, hurt and dead clips. Corpses remain briefly after collapsing. Hovering or tapping outlines a target and shows its health; the screen flashes red when the hero is hit. See [animation and targeting](monster-animation.md).
 - **Pausing.** A menu, loading or a hidden tab pause the fight and restart every wind-up. Press **1** or **2**
   (or tap a potion in the quick slots) to drink a health or mana potion without opening the satchel.
 - A fight with the snake: unarmed it takes about five hits, with the sword three; its bite does about 10, so a

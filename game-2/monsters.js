@@ -5,6 +5,7 @@
 //   evasion  = AC - 9                    (the hero's evasion is his agility, 5)
 //   accuracy = 3 + 2 x sqrt(CR)
 // `h` and `w` are the sprite's world size in tiles (w comes from tools/monster-art.mjs slice), `speed` is steps per tick.
+import { monsterAnimations } from './monster-animation-data.js';
 const HP_SCALE = 2.7, DAMAGE_SCALE = 1.6;
 
 const bestiary = {
@@ -28,7 +29,7 @@ export function monster(kind, at) {
   if (!b) throw new Error(`Unknown monster "${kind}"`);
   const { cr, hp, ac, dmg, ...rest } = b;
   return {
-    art: kind, sight: 4, attackMs: 1500, speed: 1, ...rest, ...at, kind, cr,
+    art: kind, sight: 4, attackMs: 1500, speed: 1, animations: monsterAnimations(kind), ...rest, ...at, kind, cr,
     hp: Math.round(hp * HP_SCALE), damage: Math.round(dmg * DAMAGE_SCALE),
     evasion: Math.max(0, ac - 9), accuracy: Math.round(3 + 2 * Math.sqrt(cr)), defence: Math.floor(ac / 8) - 1 > 0 ? Math.floor(ac / 8) - 1 : 0,
   };

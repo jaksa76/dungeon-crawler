@@ -97,17 +97,17 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Needs M3 (combat). Replaces attacking with the Use button by pointing at what you want to hit.*
 
 **Engine**
-- [ ] More sprites per monster: idle, walk, attack and dead frames, plus take-damage if the budget allows (the current sprites stay as the base)
-- [ ] Animation state machine per monster (idle, move, attack, hurt, dead) driven from monster data, with a frame count and timing per state
-- [ ] Attack by clicking/tapping a monster; hold the button down to keep attacking at the weapon's cooldown
-- [ ] Several monsters on one tile are laid out side by side (and by depth) so each can be targeted separately
-- [ ] Click/tap on an interactive object interacts with it instead (examine, open, talk); the target under the pointer decides which action happens
-- [ ] Hover/target feedback (cursor change, highlight, health bar on the targeted monster)
-- [ ] Corpses stay briefly (dead animation plays out) before they disappear
+- [x] More sprites per monster: idle, walk, attack and dead frames, plus take-damage if the budget allows (the current sprites stay as the base)
+- [x] Animation state machine per monster (idle, move, attack, hurt, dead) driven from monster data, with a frame count and timing per state
+- [x] Attack by clicking/tapping a monster; hold the button down to keep attacking at the weapon's cooldown
+- [x] Several monsters on one tile are laid out side by side (and by depth) so each can be targeted separately
+- [x] Click/tap on an interactive object interacts with it instead (examine, open, talk); the target under the pointer decides which action happens
+- [x] Hover/target feedback (cursor change, highlight, health bar on the targeted monster)
+- [x] Corpses stay briefly (dead animation plays out) before they disappear
 
 **Game**
-- [ ] As a player, I want to see the snake rear up, strike and collapse, so fights feel real.
-- [ ] As a player, I want to click the monster I want to hit when several are in front of me.
+- [x] As a player, I want to see the snake rear up, strike and collapse, so fights feel real.
+- [x] As a player, I want to click the monster I want to hit when several are in front of me.
 
 ## M6 — Automated test player
 

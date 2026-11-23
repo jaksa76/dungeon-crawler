@@ -1,5 +1,7 @@
 # Using what you face
 
+Click or tap an object to use that exact object. Walls and transparent pixels do not select objects behind them. Reach follows the table below. Click/tap a creature to attack instead (hold to repeat).
+
 Press **Space**, or tap **Use** on a phone, to act on whatever you
 are facing. Nothing blocks a tile, so "facing" follows the rule used by the
 "You see…" messages:
@@ -25,8 +27,8 @@ barrel: { art: 'barrel', w: .231, h: .32,
 { prop: 'barrel', x: 3, z: 3, side: 'E', behavior: { type: 'examine', text: 'Empty.' } },
 ```
 
-`engine2d/interaction.js` maps each `type` to a handler. Only `examine` exists;
-`talk`, `open` and `shop` will register there. An unknown type throws when the
+`engine2d/interaction.js` maps each `type` to a handler. `examine` and `open` are registered;
+future `talk` and `shop` handlers use the same path for pointing and Use. An unknown type throws when the
 level loads. A named entity with no behaviour answers "You study …, but there is
 nothing to do yet."
 
