@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPersistence, createSaveStore, peek, FORMAT } from '../../engine2d/persistence.js';
-import { createInventory, stacksPersistence, addToStacks } from '../../engine2d/inventory.js';
+import { createInventory, stacksPersistence, addToStacks, checkItems } from '../../engine2d/inventory.js';
 import { createEquipment } from '../../engine2d/equipment.js';
 import { createCharacter } from '../../engine2d/combat.js';
 import { createExploration, createExplorationStore } from '../../engine2d/exploration.js';
@@ -109,7 +109,7 @@ test('the engine components round-trip through the registry', async () => {
   assert.deepEqual([...e3.known].sort(), [...e.known].sort());
 });
 
-test('components drop what no longer exists and report it; hero saves only hp and mp and is never a corpse', async () => {
+test('components drop what no longer exists and report it; hero saves its build, not its attributes, and is never a corpse', async () => {
   const equipment = createEquipment(itemDefs), inventory = createInventory(itemDefs, { size: 4 });
   const hero = createCharacter({ strength: 6, vitality: 6, intellect: 4, agility: 5 }, equipment), p = createPersistence();
   for (const part of [inventory, equipment, hero]) p.engine.register(part.persistence);
@@ -122,7 +122,7 @@ test('components drop what no longer exists and report it; hero saves only hp an
   assert.deepEqual(inventory.slots, [null, null, { id: 'torch', qty: 2 }, null]);
   assert.equal(equipment.worn.weapon, null); assert.equal(equipment.worn.head, 'leather-cap');
   assert.equal(hero.hp, hero.maxHp); assert.equal(hero.mp, hero.maxMp);
-  assert.equal(issues.length, 3); assert.deepEqual(Object.keys(hero.persistence.save()), ['hp', 'mp']);
+  assert.equal(issues.length, 3); assert.deepEqual(Object.keys(hero.persistence.save()), ['name', 'spent', 'hp', 'mp']);
 });
 
 test('the hero loads after the equipment, so its limits already count worn gear', async () => {
@@ -156,4 +156,30 @@ test('save slots: list newest first, independent, and quiet when storage is miss
 test('peek reads a section without loading it', () => {
   const p = createPersistence(); p.engine.register(box('player', { save: () => ({ levelId: 'crypt' }) }));
   assert.equal(peek(p.snapshot(), 'engine.player').levelId, 'crypt'); assert.equal(peek(null, 'engine.player'), undefined);
+});
+
+test('the hero saves the points the player spent, so retuning the base reaches old heroes', async () => {
+  const mk = base => { const equipment = createEquipment(itemDefs), hero = createCharacter(base, equipment, { name: 'Hero' }), p = createPersistence();
+    p.engine.register(equipment.persistence); p.engine.register(hero.persistence); return { hero, p }; };
+  const a = mk({ strength: 6, vitality: 6, intellect: 4, agility: 5 });
+  a.hero.name = 'Mira'; a.hero.build({ strength: 2, agility: 1, vitality: -3, intellect: 1.5 }); // bad numbers count as 0
+  assert.deepEqual(a.hero.spent, { strength: 2, vitality: 0, intellect: 0, agility: 1 });
+  assert.equal(a.hero.attack, 2 + 8);
+  const snap = JSON.parse(JSON.stringify(a.p.snapshot()));
+  assert.deepEqual(Object.keys(snap.sections.engine.hero.data).sort(), ['hp', 'mp', 'name', 'spent']);
+  const b = mk({ strength: 8, vitality: 6, intellect: 4, agility: 5 }); // the game was retuned: base strength 6 -> 8
+  await b.p.restore(snap);
+  assert.equal(b.hero.name, 'Mira'); assert.equal(b.hero.attrs.strength, 10); assert.equal(b.hero.attrs.agility, 6);
+  await b.p.restore({ format: FORMAT, sections: {} }); // a save without a hero section: back to the start
+  assert.equal(b.hero.name, 'Hero'); assert.equal(b.hero.attrs.strength, 8);
+});
+
+test('renamed items load through their aliases; bad aliases are refused', async () => {
+  const defs = { blade: { ...itemDefs.sword, aliases: ['sword'] }, 'health-potion': itemDefs['health-potion'] };
+  const inv = createInventory(defs, { size: 4 }), eq = createEquipment(defs), map = new Map(), p = createPersistence();
+  p.engine.register(inv.persistence); p.engine.register(eq.persistence); p.engine.register(stacksPersistence('piles', defs, map));
+  const { issues } = await p.restore({ format: FORMAT, sections: { engine: {
+    inventory: { v: 1, data: [{ id: 'sword', qty: 1 }] }, equipment: { v: 1, data: { weapon: 'sword' } }, piles: { v: 1, data: { 'v:1,1': [{ id: 'sword', qty: 1 }] } } } } });
+  assert.deepEqual(issues, []); assert.equal(inv.slots[0].id, 'blade'); assert.equal(eq.worn.weapon, 'blade'); assert.equal(map.get('v:1,1')[0].id, 'blade');
+  assert.throws(() => checkItems({ ...defs, other: { ...itemDefs.torch, aliases: ['blade'] } }), /bad aliases/);
 });

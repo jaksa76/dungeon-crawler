@@ -50,7 +50,7 @@ export const quarter = {
   entities: [
     { prop: 'stall', name: "the alchemist's stall", x: 2, z: 1, side: 'N' },
     { prop: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
-    { prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
+    { id: 'start-chest', prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
       text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
       contents: [{ item: 'sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
     { prop: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S' },

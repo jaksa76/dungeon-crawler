@@ -54,7 +54,7 @@ export function createEquipment(defs, slots = equipSlots) {
       save: () => ({ ...worn }),
       load(data, ctx) {
         for (const slot of Object.keys(worn)) {
-          const id = data?.[slot] ?? null;
+          const saved = data?.[slot] ?? null, id = saved && (defs[saved] ? saved : Object.keys(defs).find(k => defs[k].aliases?.includes(saved)) ?? saved);
           if (id && !fits(id, slot)) { ctx?.issue?.(`${slot}: dropped "${id}"`); worn[slot] = null; } else worn[slot] = id;
         }
       },

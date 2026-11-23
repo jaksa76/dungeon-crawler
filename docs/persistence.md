@@ -24,7 +24,7 @@ adds). Sections found in a save but not registered, or too new to read, are kept
 | `engine.player` | game.js | level, tile, facing |
 | `engine.inventory` | `createInventory` | the pack (reset: the starting items) |
 | `engine.equipment` | `createEquipment` | what is worn |
-| `engine.hero` | `createCharacter` | current hp and mp only, never attributes or derived stats |
+| `engine.hero` | `createCharacter` | the name, the points the player spent, current hp and mp; never attributes or derived stats |
 | `engine.exploration` | `createExplorationStore` | discovered cells per level |
 | `engine.containers`, `engine.piles` | `stacksPersistence` | opened containers, things dropped on the floor |
 | `game.flags` | `createFlags` | the game's own facts: `flags.get('quests.rat')` / `flags.set(...)` |
@@ -53,7 +53,25 @@ For small things skip the section and use `flags`. The call returns `{ persisten
 Saves live in slots (`slot-1`, ...). With saves present the start screen lists them: continue, delete (two presses),
 or start a new game in a free slot. A failed write says "Your progress could not be saved." in the message log, once.
 
+## Loading while playing
+
+`loadState(snapshot)` (returned by `startGame2d`, also `window.__game2d.loadState`) opens the saved level, restores every
+section and starts the creatures over. Autosave is off while it runs, so half-loaded state is never written. Dying uses
+it: the hero returns to the last save of the slot with full health (the village if there is none).
+
+## Renames and edits
+
+- Entities may carry an `id` (unique in a level). A container is saved under it, so moving the chest in the level
+  does not lose its contents; without an id it is saved by its position.
+- An item that is renamed keeps its old ids in `aliases: ['old-id']`; saves that name them still load.
+- Items and slots that no longer exist are dropped and reported as issues in the console.
+
+## Character creation
+
+A new game starts with a screen for the hero's name and `characterCreation.points` (default 4) to add to the base
+attributes (`false` turns it off). Only the points spent are saved, so changing the game's base attributes also reaches
+heroes that already exist.
+
 ## Not yet
 
-Loading a save while playing (needed for "death returns to the last save" and for test scenarios), per-level scope
-with stable entity ids, progression instead of fixed attributes, item aliases for renames.
+A per-level state scope (monster respawn in M8, doors in M13), and levels and XP as saved progression (M8).

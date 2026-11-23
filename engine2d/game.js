@@ -13,7 +13,8 @@ import { withIcons, panelOverlay } from './panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
 import { HEAD_X } from './head.js';
 import { createEquipment } from './equipment.js';
-import { createCharacter, strike, createCooldown } from './combat.js';
+import { createCharacter, deriveStats, strike, createCooldown } from './combat.js';
+import { chooseCharacter } from './character-creation.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence } from './inventory.js';
 import { resolveContents } from './loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
@@ -40,13 +41,14 @@ const anchorOf = (side, dir) => ANCHOR_BY_TURN[(DIR_KEYS.indexOf(side) - dir + 4
 // Map a level + tile types to a world cell lookup: { wall } | { entities } | {} | null.
 export function cellLookup(level, tileTypes, props) {
   const rows = level.tiles;
-  const entitiesAt = new Map();
+  const entitiesAt = new Map(), ids = new Set();
   for (const e of level.entities) {
     const where = `${e.x},${e.z}`, label = e.name ?? e.prop;
     if (!props[e.prop]) throw new Error(`${label}: unknown prop "${e.prop}"`);
     if (!DIR_KEYS.includes(e.side) || e.side.length !== 1) throw new Error(`${label} at (${where}) needs a side: N, E, S or W`);
     if (tileTypes[rows[e.z]?.[e.x]]?.floor !== true) throw new Error(`${label} at (${where}) is not on a floor tile`);
     checkBehavior(e.behavior ?? props[e.prop].behavior, label);
+    if (e.id !== undefined) { if (ids.has(e.id)) throw new Error(`${label}: the id "${e.id}" is used twice`); ids.add(e.id); }
     const list = entitiesAt.get(where) ?? [];
     if (list.some((o) => o.side === e.side)) throw new Error(`two things on the ${e.side} side of tile (${where})`);
     entitiesAt.set(where, [...list, e]);
@@ -67,7 +69,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
   // components ({ flags, hero, inventory, equipment, itemDefs }) and returns the list. See docs/persistence.md.
-  title = 'Dungeon', saveKey = 'dungeon-crawler', storage, maxSlots = 3, autosave = {}, persist = [] }) {
+  title = 'Dungeon', saveKey = 'dungeon-crawler', storage, maxSlots = 3, autosave = {}, persist = [],
+  // Character creation on a new game: the player names the hero and adds `points` to the attributes. `false` skips it.
+  characterCreation = { points: 4 } }) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
@@ -92,6 +96,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
   const savedLevel = peek(saved, 'engine.player')?.levelId;
   if (saved && !Object.hasOwn(definitions, savedLevel)) saved = null; // that level no longer exists: start over in this slot
+  // A new game starts with the character creation screen (not when debugging with ?level=).
+  const creation = persistent && !saved && characterCreation
+    ? await chooseCharacter(frame, { title, base: heroAttributes, points: characterCreation.points ?? 4, derive: attrs => deriveStats(attrs) }) : null;
   let levelId = saved ? savedLevel : Object.hasOwn(definitions, initialLevel) ? initialLevel : 'village';
   const explorations = createExplorationStore();
   const cache = new Map();
@@ -125,7 +132,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   let { view, images, cell, comp, exploration, monsters } = active;
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1;
-  let transitioning = false, dead = false;
+  let transitioning = false, dead = false, loading = false;
   let monsterDue = performance.now() + monsters.graceMs;
 
   // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
@@ -173,11 +180,13 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the atlas`);
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
-  const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs });
+  const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs, name: creation?.name });
+  if (creation) { hero.build(creation.spent); hero.restore(); }
   const containers = new Map(); // `level:x,z,side` -> stacks of opened containers
   const piles = new Map(); // `level:x,z` -> stacks the player dropped
   const flags = createFlags(); // the game's own facts (dialogue, quests): saved with the game
-  const containerKey = entity => `${levelId}:${entity.x},${entity.z},${entity.side}`;
+  // A container is named in saves by its `id` (stable when the level is edited), or else by where it stands.
+  const containerKey = entity => `${levelId}:${entity.id ?? `${entity.x},${entity.z},${entity.side}`}`;
   const pileKey = () => `${levelId}:${p.x},${p.z}`;
   function openContainer(entity, behavior) {
     const key = containerKey(entity);
@@ -220,7 +229,9 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   persistence.engine.register({
     id: 'player', // where the hero stands. The level itself was chosen above, from this same data.
     save: () => ({ levelId, x: p.x, z: p.z, dir: p.dir }),
-    load(at, ctx) {
+    async load(at, ctx) {
+      // Loading while playing may mean another level: go there first (the same way an exit does).
+      if (at && at.levelId !== levelId && Object.hasOwn(definitions, at.levelId) && !(await travel({ to: at.levelId, spawn: { x: at.x, z: at.z, dir: at.dir } }))) throw new Error('the saved level could not be opened');
       const floor = at && at.levelId === levelId && cell(at.x, at.z);
       if (floor && !floor.wall && Number.isInteger(at.dir)) Object.assign(p, { x: at.x, z: at.z, dir: ((at.dir % 4) + 4) % 4 });
       else ctx.issue('the saved position is not on this level');
@@ -235,11 +246,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const { issues } = await persistence.restore(saved);
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
   }
-  let lastSaved = persistence.digest(persistence.snapshot()), saveWarned = false;
+  let lastSaved = saved ? persistence.digest(persistence.snapshot()) : '', saveWarned = false; // a new game is written at once
   function save() {
-    if (!persistent || dead || transitioning) return true;
+    if (!persistent || dead || transitioning || loading) return true;
     try {
-      const snapshot = persistence.snapshot({ label: level.shortName ?? level.name });
+      const snapshot = persistence.snapshot({ label: `${hero.name} · ${level.shortName ?? level.name}` });
       if (persistence.digest(snapshot) === lastSaved) return true;
       if (saves.save(slot, snapshot)) { lastSaved = persistence.digest(snapshot); return true; }
     } catch (error) { console.error('save failed', error); }
@@ -274,7 +285,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame);
-  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment, flags, persistence, save,
+  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame,
     get targets() { return comp.targets(); },
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
@@ -485,18 +496,42 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     }
   }
 
+  // Load a snapshot while playing: the saved level opens, every component is restored, creatures start over.
+  // `respawn` also heals the hero (coming back from death). Returns false, and plays on, when it cannot.
+  async function loadGame(snapshot, { respawn = false } = {}) {
+    const target = peek(snapshot, 'engine.player')?.levelId;
+    if (!Object.hasOwn(definitions, target)) { say('That save is from a level that no longer exists.'); return false; }
+    loading = true;
+    try {
+      const { issues } = await persistence.restore(snapshot);
+      for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
+      if (issues.some(issue => issue.section === 'engine.player' && issue.problem === 'failed')) return false;
+      await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
+      if (respawn) hero.restore();
+      monsterDue = performance.now() + monsters.graceMs; swing.reset();
+      peeks.clear(); peekKey = ''; log.length = 0; logKey = '';
+      bars.setLevel(level); show(); look();
+      return true;
+    } catch (error) { say(error.message); return false; }
+    finally { loading = false; }
+  }
+
   async function die() {
     if (dead || transitioning) return;
     dead = true; anim = drag = release = null;
     sceneInput?.cancel(); touch.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
     hero.hp = 0; swing.reset(); peeks.clear(); peekKey = ''; show();
+    // Death returns to the last save of this slot; with none (or if it cannot be loaded) to the village.
+    const checkpoint = persistent ? saves.load(slot) : null;
     let retry = false;
     while (dead) {
-      await gameOver.wait(retry);
-      const returned = await travel({ to: 'village', spawn: definitions.village.level.start }, { respawn: true });
+      const toSave = !!checkpoint && !retry;
+      await gameOver.wait(retry, toSave);
+      const returned = toSave ? await loadGame(checkpoint, { respawn: true })
+        : await travel({ to: 'village', spawn: definitions.village.level.start }, { respawn: true });
       if (returned) {
-        dead = false; gameOver.close(); say('You awaken safely in the village.'); save();
+        dead = false; gameOver.close(); say(toSave ? 'You awaken at your last save.' : 'You awaken safely in the village.'); save();
         return;
       }
       retry = true;
@@ -589,6 +624,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     }
     if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
     if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void bars.menu.fullscreen(); return; }
+    if (ev.code === 'KeyJ' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.journal(); return; } // the journal, like I for the satchel
     if (ev.code === 'KeyI' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
     if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
@@ -646,7 +682,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
 
   document.title = `${level.shortName ?? level.name} · ${title}`;
   monsterDue = performance.now() + monsters.graceMs;
-  say(saved ? `Welcome back to ${level.name}.` : `Welcome to ${level.name}.`);
+  say(saved ? `Welcome back, ${hero.name}.` : `Welcome to ${level.name}, ${hero.name}.`);
+  if (!saved) save();
   show();
   look();
 
@@ -694,5 +731,5 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
-  return { persistence, flags, save, getState: label => persistence.snapshot({ label }) };
+  return { persistence, flags, save, getState: label => persistence.snapshot({ label }), loadState: loadGame };
 }

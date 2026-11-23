@@ -7,9 +7,13 @@ export function checkItems(defs) {
   for (const [id, def] of Object.entries(defs)) {
     for (const key of ['name', 'type', 'description']) if (typeof def[key] !== 'string' || !def[key]) throw new Error(`item "${id}" needs a ${key}`);
     if (typeof def.icon !== 'string' || !def.icon) throw new Error(`item "${id}" needs an icon id`);
+    if (def.aliases !== undefined && !(Array.isArray(def.aliases) && def.aliases.every(a => typeof a === 'string' && a && !defs[a]))) throw new Error(`item "${id}" has bad aliases (a list of old ids that no item uses now)`);
     if (def.stack !== undefined && !(Number.isInteger(def.stack) && def.stack >= 1)) throw new Error(`item "${id}" has a bad stack size`);
   }
 }
+
+// An item that was renamed keeps its old ids in `aliases: ['old-id']`, so saves that name it still load.
+export const canonicalId = (defs, id) => (defs[id] ? id : Object.keys(defs).find(key => defs[key].aliases?.includes(id)) ?? id);
 
 const stackMax = (defs, id) => {
   if (!defs[id]) throw new Error(`unknown item "${id}"`);
@@ -38,7 +42,8 @@ export function stacksPersistence(id, defs, map) {
     load(data, ctx) {
       map.clear();
       for (const [key, list] of Object.entries(data ?? {})) {
-        map.set(key, (Array.isArray(list) ? list : []).filter(s => validStack(defs, s) || (ctx?.issue?.(`${id} "${key}": dropped ${JSON.stringify(s)}`), false)).map(s => ({ id: s.id, qty: s.qty })));
+        const stacks = (Array.isArray(list) ? list : []).map(s => s && { ...s, id: canonicalId(defs, s.id) });
+        map.set(key, stacks.filter(s => validStack(defs, s) || (ctx?.issue?.(`${id} "${key}": dropped ${JSON.stringify(s)}`), false)).map(s => ({ id: s.id, qty: s.qty })));
       }
     },
     reset: () => map.clear(),
@@ -91,8 +96,9 @@ export function createInventory(defs, { size = 12, start = [] } = {}) {
       save: () => slots.map(s => s && { id: s.id, qty: s.qty }),
       load(data, ctx) {
         slots.fill(null);
-        (Array.isArray(data) ? data : []).slice(0, size).forEach((s, i) => {
-          if (!s) return;
+        (Array.isArray(data) ? data : []).slice(0, size).forEach((saved, i) => {
+          if (!saved) return;
+          const s = { ...saved, id: canonicalId(defs, saved.id) };
           if (validStack(defs, s)) slots[i] = { id: s.id, qty: s.qty };
           else ctx?.issue?.(`pack slot ${i}: dropped ${JSON.stringify(s)}`);
         });
