@@ -76,16 +76,22 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Moved up so the shape of the game state is designed early, while it is still small. Everything added later (stats, flags, quests, loot, map knowledge) plugs into this one serialisable state.*
 
 **Engine**
-- [ ] One serialisable game state (position, level, map discovery, inventory, equipment, stats, flags, known locations) separate from rendering and input
-- [ ] Versioned save format with migrations, so old saves survive changes
-- [ ] Save/load to localStorage; autosave on level change; continue/new game on start
-- [ ] Character creation screen
-- [ ] Desktop HUD equivalents for inventory, journal and dialogue (parity with mobile)
+- [x] One serialisable game state, separate from rendering and input (`engine2d/persistence.js`, see `docs/persistence.md`). Known locations join it with the world map (M9).
+- [x] Versioned save format with per-section migrations, so old saves survive changes
+- [x] Persistence registry: engine components register their own sections, a game adds its own (`persist`) or uses flags; engine and game ids are namespaced
+- [x] Save slots, autosave policy set by the game, on-screen message when saving fails
+- [x] Save/load to localStorage; autosave on level change, when the page is hidden and every 5 s; continue/new game on start
+- [x] Load a save while playing (`loadState`), across levels
+- [x] Stable entity ids (a container is saved by its `id`, not its position) and item `aliases` so renames do not lose items
+- [x] Save what the player chose (name, points spent), never derived stats, so retuning the game reaches old saves
+- [x] Character creation screen
+- [x] Desktop parity: the painted panel's journal and satchel icons and the I, J, L and Esc keys open the same menus as the phone buttons. Dialogue has no screen yet; its desktop and mobile UI is in M10.
+- Moved on: levels and XP (what is saved as progression) arrive with M8; a per-level state scope arrives with the first per-level state that needs it (monster respawn in M8, doors in M13).
 
 **Game**
-- [ ] As a player, I want my progress saved so reloading the page doesn't reset the game.
-- [ ] As a player, I want death to return me to my last save or the village (revises the M3 rule).
-- [ ] As a player, I want to name my hero and pick a few starting attributes.
+- [x] As a player, I want my progress saved so reloading the page doesn't reset the game.
+- [x] As a player, I want death to return me to my last save or the village (revises the M3 rule).
+- [x] As a player, I want to name my hero and pick a few starting attributes.
 
 ## M5 — Combat interaction and monster animation
 

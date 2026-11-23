@@ -10,9 +10,11 @@ export function createGameOver(frame) {
   const button = document.createElement('button'); button.type = 'button';
   panel.append(title, description, button); frame.append(panel);
   return {
-    wait(retry = false) {
-      description.textContent = retry ? 'The village could not be loaded. Try returning again.' : 'The creature overcame you in the dark. You will awaken in the village.';
-      button.disabled = false; button.textContent = 'Return to village';
+    // `toSave`: you will awaken at the last save rather than in the village.
+    wait(retry = false, toSave = false) {
+      const where = toSave ? 'at your last save' : 'in the village';
+      description.textContent = retry ? 'The village could not be loaded. Try returning again.' : `The creature overcame you in the dark. You will awaken ${where}.`;
+      button.disabled = false; button.textContent = toSave ? 'Return to last save' : 'Return to village';
       panel.hidden = false; button.focus({ preventScroll: true });
       return new Promise(resolve => {
         let timer;
