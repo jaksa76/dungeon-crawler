@@ -1,5 +1,5 @@
-// Visual playback is deliberately transient: M4 saves actor health/position,
-// while this WeakMap can be rebuilt after loading without migrating a save.
+// Visual playback is transient: save loading recreates actors from their
+// definitions, so this WeakMap needs no saved fields or format migration.
 export const CLIPS = {
   idle: { frames: 2, frameMs: 360, loop: true },
   move: { frames: 4, frameMs: 110 },

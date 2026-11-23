@@ -11,7 +11,7 @@ Click an object to use that particular entity's behaviour. The same reach
 rules as Use apply. `scene-targets.js` maintains an opaque ID buffer in scene
 draw order, using each sprite's alpha mask. Walls overwrite IDs; transparent
 sprite pixels pass through. Highlighting uses only final visible pixels.
-Menus, level transitions, defeat and hidden tabs stop held attacks.
+Menus, level transitions, save loading, defeat and hidden tabs stop held attacks.
 
 `actor-layout.js` gives creatures sharing a tile a stable ID ordering, two
 columns and additional depth ranks. Their physical display widths shrink to
@@ -69,10 +69,10 @@ rebaking. Original idle art and all generated source sheets are retained.
 
 Playback is held in a WeakMap keyed by the live actor. It introduces no fields
 that must be saved. `relCell` supplies animation samples and formation offsets
-only on render snapshots; these are not actor simulation state. A restored
-living actor starts idle. Dead actors should normally be omitted from saves;
-if restoring a corpse, initialize a new death clip/deadline rather than saving
-an absolute `performance.now()` timestamp. `freeze(now)`/`resume(now)` handle
+only on render snapshots; these are not actor simulation state. M4 recreates
+monsters from level definitions when loading a save, so playback restarts idle
+and corpses do not carry across saves. Loading cancels held scene attacks,
+even if a recreated creature has the same ID. `freeze(now)`/`resume(now)` handle
 menus; `updateAnimations(now)` updates the scene version only at frame changes.
 
 ## Verification

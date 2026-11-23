@@ -287,7 +287,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   const gameOver = createGameOver(frame);
   window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame,
     get targets() { return comp.targets(); },
-    get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
+    get phase() { return dead ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 
   // Log: messages over the bottom-left of the view, fading out.
@@ -407,7 +407,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function onSwipe(phase, cmd, amount) {
-    if (phase !== 'move' || bars.isOpen() || transitioning || dead) { settleDrag(); return; }
+    if (phase !== 'move' || bars.isOpen() || transitioning || loading || dead) { settleDrag(); return; }
     anim = null; release = null; // the picture in `next` is the settled one; start from it
     if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
     else drag.amount = amount;
@@ -502,6 +502,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const target = peek(snapshot, 'engine.player')?.levelId;
     if (!Object.hasOwn(definitions, target)) { say('That save is from a level that no longer exists.'); return false; }
     loading = true;
+    sceneInput?.cancel(); touch.cancel();
+    anim = drag = release = null;
     try {
       const { issues } = await persistence.restore(snapshot);
       for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
@@ -544,7 +546,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   let hurtFlash = 0;
   const float = (text, color, x = cw / 2, y = ch * .42) => floaters.push({ text, color, x, y, t0: performance.now() });
   function attack(targetId = null) {
-    if (dead || transitioning || bars.isOpen() || document.hidden) return false;
+    if (dead || transitioning || loading || bars.isOpen() || document.hidden) return false;
     const now = performance.now(), [dx, dz] = DIRS[p.dir];
     const target = targetId ? monsters.actors.find(a => a.id === targetId && a.hp > 0 && !a.dyingUntil)
       : monsters.adjacent(p).find(a => (a.x === p.x && a.z === p.z) || (a.x === p.x + dx && a.z === p.z + dz));
@@ -584,7 +586,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   }
 
   function act(cmd) {
-    if (bars.isOpen() || transitioning || dead) return;
+    if (bars.isOpen() || transitioning || loading || dead) return;
     if (cmd === 'attack') { attack(); return; }
     if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile, flags }); return; }
     sceneInput?.cancel();
@@ -613,8 +615,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   sceneInput = createSceneInput(viewCanvas, {
     hit: (x, y) => { const r = viewCanvas.getBoundingClientRect(); return comp.hitAt((x - r.left) * W / r.width, (y - r.top) * H / r.height); },
     getTarget: id => comp.target(id),
-    blocked: () => dead || transitioning || bars.isOpen() || document.hidden || !!(anim || drag || release),
-    attack, interact: target => interactTarget(target, { say, openContainer }),
+    blocked: () => dead || transitioning || loading || bars.isOpen() || document.hidden || !!(anim || drag || release),
+    attack, interact: target => interactTarget(target, { say, openContainer, flags }),
     changed: () => render(next), cancelGesture: () => touch.cancel(),
   });
   window.addEventListener('keydown', (ev) => {
@@ -626,7 +628,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void bars.menu.fullscreen(); return; }
     if (ev.code === 'KeyJ' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.journal(); return; } // the journal, like I for the satchel
     if (ev.code === 'KeyI' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
-    if (dead || transitioning || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (dead || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }
     if (ev.code === 'Digit1') { ev.preventDefault(); if (!ev.repeat) quickUse('hp'); return; }
@@ -688,7 +690,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   look();
 
   function updateMonsters(now) {
-    if (dead || transitioning || bars.isOpen() || document.hidden) {
+    if (dead || transitioning || loading || bars.isOpen() || document.hidden) {
       monsterDue = now + monsters.stepMs; monsters.freeze(now); return;
     }
     monsters.resume(now);

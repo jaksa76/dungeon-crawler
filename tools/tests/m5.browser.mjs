@@ -66,7 +66,7 @@ try {
 
   const village = await browser.newPage({ viewport: { width: 1100, height: 850 } });
   village.on('pageerror', error => errors.push(error.message));
-  await village.goto(`${base}/game-2/`);
+  await village.goto(`${base}/game-2/?level=village`);
   await village.waitForFunction(() => window.__game2d?.targets);
   await village.evaluate(() => Object.assign(__game2d.p, { x: 3, z: 2, dir: 0 }));
   await village.keyboard.press('ArrowRight'); await village.waitForTimeout(350);
@@ -96,6 +96,21 @@ try {
   await mobile.waitForTimeout(1600);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.ok((await health(mobile))[0] < hp[0] - 8, 'touch hold repeats');
+  // A save load ends a held attack even if a new actor reuses the same ID.
+  await mobile.waitForTimeout(800);
+  const beforeLoad = await point(mobile);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: beforeLoad.x, y: beforeLoad.y }] });
+  await mobile.waitForTimeout(220);
+  await mobile.evaluate(async () => {
+    const g = __game2d, snapshot = g.persistence.snapshot();
+    await g.loadState(snapshot);
+    g.monsters.actors.splice(2);
+    for (const a of g.monsters.actors) Object.assign(a, { x: 1, z: 2, dir: 0, w: .4, h: .9, hp: 200, maxHp: 200,
+      defence: 0, evasion: 0, damage: 0, accuracy: 0, speed: 0, attackMs: 100000 });
+  });
+  await mobile.waitForTimeout(1000);
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  assert.deepEqual(await health(mobile), [200, 200], 'loading a save cancels held attacks on reused actor IDs');
   assert.deepEqual(errors, []);
   console.log('M5 browser checks passed: individual targets, hold, corpses, occlusion, props, mobile taps and swipes.');
 } finally { await browser.close(); }
