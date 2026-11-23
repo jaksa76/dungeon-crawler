@@ -27,6 +27,24 @@ export function addToStacks(defs, stacks, id, qty = 1) {
   return stacks;
 }
 
+const validStack = (defs, s) => !!s && !!defs[s.id] && Number.isInteger(s.qty) && s.qty >= 1 && s.qty <= (defs[s.id].stack ?? 1);
+
+// Persistence for a Map of `key -> stacks` (opened containers, piles on the floor). Register the result as a
+// section; stacks of items that no longer exist are dropped and reported.
+export function stacksPersistence(id, defs, map) {
+  return {
+    id,
+    save: () => Object.fromEntries([...map].map(([key, list]) => [key, list.map(s => ({ id: s.id, qty: s.qty }))])),
+    load(data, ctx) {
+      map.clear();
+      for (const [key, list] of Object.entries(data ?? {})) {
+        map.set(key, (Array.isArray(list) ? list : []).filter(s => validStack(defs, s) || (ctx?.issue?.(`${id} "${key}": dropped ${JSON.stringify(s)}`), false)).map(s => ({ id: s.id, qty: s.qty })));
+      }
+    },
+    reset: () => map.clear(),
+  };
+}
+
 // A pack with a fixed number of slots. add() returns how many did not fit.
 export function createInventory(defs, { size = 12, start = [] } = {}) {
   const slots = Array(size).fill(null);
@@ -67,6 +85,20 @@ export function createInventory(defs, { size = 12, start = [] } = {}) {
     },
     count: id => slots.reduce((sum, s) => sum + (s?.id === id ? s.qty : 0), 0),
     get used() { return slots.filter(Boolean).length; },
+    // As a persistence section. Back to the starting items when a save has none.
+    persistence: {
+      id: 'inventory',
+      save: () => slots.map(s => s && { id: s.id, qty: s.qty }),
+      load(data, ctx) {
+        slots.fill(null);
+        (Array.isArray(data) ? data : []).slice(0, size).forEach((s, i) => {
+          if (!s) return;
+          if (validStack(defs, s)) slots[i] = { id: s.id, qty: s.qty };
+          else ctx?.issue?.(`pack slot ${i}: dropped ${JSON.stringify(s)}`);
+        });
+      },
+      reset() { slots.fill(null); for (const { item, qty = 1 } of start) inventory.add(item, qty); },
+    },
   };
   for (const { item, qty = 1 } of start) if (inventory.add(item, qty) > 0) throw new Error(`the starting items do not fit in ${size} slots`);
   return inventory;

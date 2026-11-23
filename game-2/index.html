@@ -40,6 +40,7 @@
     import { itemDefs, startingItems, inventorySize, inventoryColumns } from './items.js';
     import { uiLayout } from '../game-1/town.js';
     startGame2d({
+      title: 'Ravensmoor', saveKey: 'ravensmoor',
       level: quarter, tileTypes, props, uiLayout, levels, itemDefs, startingItems, inventorySize, inventoryColumns,
       initialLevel: new URLSearchParams(location.search).get('level') ?? 'village',
       assetPath: './assets', uiAssetPath: '../game-1/assets', iconsPath: './art/icons',

@@ -76,9 +76,14 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Moved up so the shape of the game state is designed early, while it is still small. Everything added later (stats, flags, quests, loot, map knowledge) plugs into this one serialisable state.*
 
 **Engine**
-- [~] One serialisable game state (position, level, map discovery, inventory, equipment, stats, flags, known locations) separate from rendering and input: done except known locations (`engine2d/state.js`; flags are saved but unused until M10)
-- [x] Versioned save format with migrations, so old saves survive changes
-- [x] Save/load to localStorage; autosave on level change, when the page is hidden and every 5 s; continue/new game on start (`?new` resets)
+- [~] One serialisable game state (position, level, map discovery, inventory, equipment, stats, flags, known locations) separate from rendering and input: done except known locations (`engine2d/persistence.js`, see `docs/persistence.md`)
+- [x] Versioned save format with per-section migrations, so old saves survive changes
+- [x] Persistence registry: engine components register their own sections, a game adds its own (`persist`) or uses flags; engine and game ids are namespaced
+- [x] Save slots, autosave policy set by the game, on-screen message when saving fails
+- [ ] Load a save while playing (needed by the death rule and by test scenarios)
+- [ ] Per-level state scope and stable entity ids (containers, doors, respawn)
+- [ ] Save progression (level, XP, spent points) instead of attributes, and item aliases for renames
+- [x] Save/load to localStorage; autosave on level change, when the page is hidden and every 5 s; continue/new game on start
 - [ ] Character creation screen
 - [ ] Desktop HUD equivalents for inventory, journal and dialogue (parity with mobile)
 

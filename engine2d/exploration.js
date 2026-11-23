@@ -24,3 +24,27 @@ export function createExploration(level, cell) {
   }
   return { reveal, known, isKnown: (x, z) => !radius || known.has(`${x},${z}`) };
 }
+
+// What has been discovered, per level, as one persistence section. Levels are loaded lazily, so cells for a level
+// that is not loaded yet wait here and are applied by attach() when it is.
+export function createExplorationStore() {
+  const saved = new Map(), live = new Map(); // level id -> cells (array) / its exploration
+  const apply = (id, exploration) => { exploration.known.clear(); for (const c of saved.get(id) ?? []) exploration.known.add(c); };
+  return {
+    attach(id, exploration) { live.set(id, exploration); apply(id, exploration); },
+    persistence: {
+      id: 'exploration',
+      save() {
+        const out = Object.fromEntries(saved);
+        for (const [id, e] of live) out[id] = [...e.known];
+        return out;
+      },
+      load(data) {
+        saved.clear();
+        for (const [id, cells] of Object.entries(data ?? {})) saved.set(id, (Array.isArray(cells) ? cells : []).filter(c => typeof c === 'string'));
+        for (const [id, e] of live) apply(id, e);
+      },
+      reset() { saved.clear(); for (const [id, e] of live) apply(id, e); },
+    },
+  };
+}

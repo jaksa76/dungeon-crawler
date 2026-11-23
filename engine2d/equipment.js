@@ -48,6 +48,18 @@ export function createEquipment(defs, slots = equipSlots) {
       worn[slotId] = null;
       return { ok: true, message: `You take off ${defs[id].name.toLowerCase()}.` };
     },
+    // As a persistence section: what is worn in each slot.
+    persistence: {
+      id: 'equipment',
+      save: () => ({ ...worn }),
+      load(data, ctx) {
+        for (const slot of Object.keys(worn)) {
+          const id = data?.[slot] ?? null;
+          if (id && !fits(id, slot)) { ctx?.issue?.(`${slot}: dropped "${id}"`); worn[slot] = null; } else worn[slot] = id;
+        }
+      },
+      reset() { for (const slot of Object.keys(worn)) worn[slot] = null; },
+    },
     // Total of every worn item's `bonus`.
     bonuses() {
       const total = {};

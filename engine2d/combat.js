@@ -27,6 +27,19 @@ export function createCharacter(attrs, equipment = null, { attackMs = 700 } = {}
     hp: 0, mp: 0,
     get alive() { return hero.hp > 0; },
     restore() { hero.hp = hero.maxHp; hero.mp = hero.maxMp; },
+    // As a persistence section. Only what changes in play is saved (current hp and mp), never the attributes or
+    // anything derived from them, so retuning the game's numbers also reaches existing saves. Loads after the
+    // equipment, because the limits depend on it.
+    persistence: {
+      id: 'hero', after: ['equipment'],
+      save: () => ({ hp: hero.hp, mp: hero.mp }),
+      load(data) {
+        const clamp = (v, max) => Math.min(max, Math.max(0, Number.isFinite(v) ? Math.round(v) : max));
+        hero.hp = clamp(data?.hp, hero.maxHp); hero.mp = clamp(data?.mp, hero.maxMp);
+        if (hero.hp === 0) hero.hp = hero.maxHp; // a save is never a corpse
+      },
+      reset: () => hero.restore(),
+    },
   };
   hero.restore();
   return hero;

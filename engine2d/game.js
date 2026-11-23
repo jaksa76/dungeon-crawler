@@ -3,7 +3,7 @@ import { loadImage, loadSlotImages, createCompositor } from './compositor.js';
 import { createUI } from '../engine/ui.js';
 import { createTouch, viewportSize } from '../engine/touch.js';
 import { createMobileHUD } from './mobile-hud.js';
-import { createExploration } from './exploration.js';
+import { createExploration, createExplorationStore } from './exploration.js';
 import { createMonsters, actorDirection } from './monsters.js';
 import { createGameOver } from './game-over.js';
 import { interact, checkBehavior } from './interaction.js';
@@ -12,10 +12,12 @@ import { loadIcons, savedIconStyle, saveIconStyle } from './icons.js';
 import { HEAD_X } from './head.js';
 import { createEquipment } from './equipment.js';
 import { createCharacter, strike, createCooldown } from './combat.js';
-import { createInventory, addToStacks, checkItems } from './inventory.js';
+import { createInventory, addToStacks, checkItems, stacksPersistence } from './inventory.js';
 import { resolveContents } from './loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
-import { captureState, restoreState, createSaveStore } from './state.js';
+import { createPersistence, createSaveStore, peek } from './persistence.js';
+import { createFlags } from './flags.js';
+import { startAutosave, defaultAutosave } from './autosave.js';
 import { chooseStart } from './start-menu.js';
 import { drawText } from '../engine/bitmapfont.js';
 import { font5x8 as FONT } from '../engine/font-5x8.js';
@@ -58,23 +60,38 @@ export function cellLookup(level, tileTypes, props) {
 }
 
 export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath, uiAssetPath, viewCanvas, uiCanvas, frame, status, levels = null, initialLevel = 'village', itemDefs = {}, startingItems = [], inventorySize = 32, inventoryColumns = 8, iconsPath,
-  heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, heroAttackMs = 700, saveKey = 'dungeon-crawler:save' }) {
+  heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, heroAttackMs = 700,
+  // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
+  // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
+  // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
+  // components ({ flags, hero, inventory, equipment, itemDefs }) and returns the list. See docs/persistence.md.
+  title = 'Dungeon', saveKey = 'dungeon-crawler', storage, maxSlots = 3, autosave = {}, persist = [] }) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
   const definitions = levels ?? { village: { level, tileTypes, props, assetPath } };
-  // Saved game: found in localStorage unless the URL asks for a fresh start (?new) or a particular level (?level=).
-  let storage = null;
-  try { storage = window.localStorage; } catch { /* blocked: play without saving */ }
-  const saves = createSaveStore(storage, saveKey);
+  // Saves. The URL can ask for a fresh start in a slot (?new, ?slot=name) or a particular level (?level=, which plays
+  // without saving so a debugging jump never overwrites a real save).
   const params = new URLSearchParams(location.search);
-  if (params.has('new')) saves.clear();
-  let saved = params.has('new') || params.has('level') ? null : saves.load();
-  if (saved && !Object.hasOwn(definitions, saved.levelId)) saved = null;
-  if (saved && await chooseStart(frame, saved, s => `Saved ${new Date(s.savedAt).toLocaleString()} · ${definitions[s.levelId].level.name}`) === 'new') { saves.clear(); saved = null; }
-  let levelId = saved ? saved.levelId : Object.hasOwn(definitions, initialLevel) ? initialLevel : 'village';
-  const explored = new Map(Object.entries(saved?.explored ?? {})); // level id -> cells found; kept for levels not loaded this visit
-  const loaded = new Map(); // level id -> context, for the levels loaded so far
+  const policy = { ...defaultAutosave, ...autosave };
+  let store = storage;
+  if (store === undefined) { try { store = window.localStorage; } catch { store = null; } }
+  const saves = createSaveStore(store, saveKey);
+  const persistent = !params.has('level');
+  let slot = params.get('slot') ?? 'slot-1', saved = null;
+  if (persistent && params.has('new')) saves.clear(slot);
+  else if (persistent) {
+    const slots = saves.list();
+    if (slots.length) {
+      const choice = await chooseStart(frame, { title, slots, max: maxSlots, remove: id => saves.clear(id) });
+      slot = choice.slot;
+      if (choice.mode === 'continue') saved = saves.load(slot);
+    }
+  }
+  const savedLevel = peek(saved, 'engine.player')?.levelId;
+  if (saved && !Object.hasOwn(definitions, savedLevel)) saved = null; // that level no longer exists: start over in this slot
+  let levelId = saved ? savedLevel : Object.hasOwn(definitions, initialLevel) ? initialLevel : 'village';
+  const explorations = createExplorationStore();
   const cache = new Map();
   async function prepare(id) {
     if (!Object.hasOwn(definitions, id)) throw new Error(`Unknown level: ${id}`);
@@ -92,10 +109,8 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
         }
         const cell = cellLookup(def.level, def.tileTypes, def.props);
         const exploration = createExploration(def.level, cell);
-        for (const cellKey of explored.get(id) ?? []) exploration.known.add(cellKey);
-        const context = { ...def, view, images, cell, comp: createCompositor(view, images), exploration, monsters: createMonsters(def.level, cell) };
-        loaded.set(id, context);
-        return context;
+        explorations.attach(id, exploration);
+        return { ...def, view, images, cell, comp: createCompositor(view, images), exploration, monsters: createMonsters(def.level, cell) };
       })();
       cache.set(id, job);
       job.catch(() => cache.delete(id));
@@ -152,12 +167,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   // piles of things the player dropped, keyed by level and tile.
   checkItems(itemDefs);
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the atlas`);
-  const inventory = createInventory(itemDefs, { size: inventorySize, start: saved ? [] : startingItems });
+  const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
   const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs });
-  const containers = new Map(); // `level:x,z,side` -> stacks, so a save can name them
-  const piles = new Map();
-  const flags = {}; // world flags (dialogue, quests): saved with the game
+  const containers = new Map(); // `level:x,z,side` -> stacks of opened containers
+  const piles = new Map(); // `level:x,z` -> stacks the player dropped
+  const flags = createFlags(); // the game's own facts (dialogue, quests): saved with the game
   const containerKey = entity => `${levelId}:${entity.x},${entity.z},${entity.side}`;
   const pileKey = () => `${levelId}:${p.x},${p.z}`;
   function openContainer(entity, behavior) {
@@ -195,29 +210,39 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     piles.set(pileKey(), pile);
     addToStacks(itemDefs, pile, gone.id, gone.qty);
   }
-  // Saving. The whole state is captured as plain data (state.js) and written when the level changes, when the
-  // page is hidden, and every few seconds if anything changed. Never while dead or between levels.
-  function currentState() {
-    const cells = Object.fromEntries(explored);
-    for (const [id, context] of loaded) cells[id] = [...context.exploration.known];
-    return captureState({ levelId, p, hero, inventory, equipment, explored: cells, containers, piles, flags });
-  }
-  let lastSaved = '';
-  function save() {
-    if (dead || transitioning) return;
-    const state = currentState(), { savedAt, ...rest } = state, digest = JSON.stringify(rest);
-    if (digest === lastSaved) return;
-    if (saves.save(state)) lastSaved = digest;
-  }
+  // Saving. Every component that has state to keep registers a section with the persistence registry (persistence.js);
+  // the game adds its own. The engine decides when to write (the `autosave` policy), never while dead or between levels.
+  const persistence = createPersistence();
+  persistence.engine.register({
+    id: 'player', // where the hero stands. The level itself was chosen above, from this same data.
+    save: () => ({ levelId, x: p.x, z: p.z, dir: p.dir }),
+    load(at, ctx) {
+      const floor = at && at.levelId === levelId && cell(at.x, at.z);
+      if (floor && !floor.wall && Number.isInteger(at.dir)) Object.assign(p, { x: at.x, z: at.z, dir: ((at.dir % 4) + 4) % 4 });
+      else ctx.issue('the saved position is not on this level');
+    },
+  });
+  for (const part of [inventory, equipment, hero, explorations]) persistence.engine.register(part.persistence);
+  persistence.engine.register(stacksPersistence('containers', itemDefs, containers));
+  persistence.engine.register(stacksPersistence('piles', itemDefs, piles));
+  persistence.game.register(flags.persistence);
+  for (const section of typeof persist === 'function' ? persist({ flags, hero, inventory, equipment, itemDefs, say: text => say(text) }) : persist) persistence.game.register(section);
   if (saved) {
-    const restored = restoreState(saved, { defs: itemDefs, hero, inventory, equipment, containers, piles });
-    Object.assign(flags, restored.flags);
-    const at = restored.position, landing = at && cell(at.x, at.z);
-    if (landing && !landing.wall && Number.isInteger(at.dir)) Object.assign(p, { x: at.x, z: at.z, dir: ((at.dir % 4) + 4) % 4 });
+    const { issues } = await persistence.restore(saved);
+    for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
   }
-  setInterval(save, 5000);
-  document.addEventListener('visibilitychange', () => { if (document.hidden) save(); });
-  window.addEventListener('pagehide', save);
+  let lastSaved = persistence.digest(persistence.snapshot()), saveWarned = false;
+  function save() {
+    if (!persistent || dead || transitioning) return true;
+    try {
+      const snapshot = persistence.snapshot({ label: level.shortName ?? level.name });
+      if (persistence.digest(snapshot) === lastSaved) return true;
+      if (saves.save(slot, snapshot)) { lastSaved = persistence.digest(snapshot); return true; }
+    } catch (error) { console.error('save failed', error); }
+    if (!saveWarned) { saveWarned = true; say('Your progress could not be saved.'); }
+    return false;
+  }
+  if (persistent) startAutosave(save, policy);
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -245,7 +270,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame);
-  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment,
+  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment, flags, persistence, save,
     get phase() { return dead ? 'game-over' : transitioning ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
 
@@ -438,10 +463,10 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       Object.assign(window.__game2d, { levelId, level, view, images, monsters });
       peeks.clear(); peekKey = '';
       bars.setLevel(level);
-      document.title = `${level.shortName ?? level.name} · Ravensmoor`;
+      document.title = `${level.shortName ?? level.name} · ${title}`;
       log.length = 0; logKey = '';
       show(); say(`You enter ${level.shortName ?? level.name}.`); look();
-      transitioning = false; save();
+      transitioning = false; if (policy.onLevelChange) save();
       return true;
     } catch (error) {
       say(error.message);
@@ -510,7 +535,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   function act(cmd) {
     if (bars.isOpen() || transitioning || dead) return;
     if (cmd === 'attack') { attack(); return; }
-    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile }); return; }
+    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile, flags }); return; }
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
@@ -595,7 +620,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   matchMedia('(display-mode: fullscreen)').addEventListener('change', resize);
   resize();
 
-  document.title = `${level.shortName ?? level.name} · Ravensmoor`;
+  document.title = `${level.shortName ?? level.name} · ${title}`;
   monsterDue = performance.now() + monsters.graceMs;
   say(saved ? `Welcome back to ${level.name}.` : `Welcome to ${level.name}.`);
   show();
@@ -646,4 +671,5 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
+  return { persistence, flags, save, getState: label => persistence.snapshot({ label }) };
 }
