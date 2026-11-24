@@ -85,5 +85,5 @@ deal with it, strength included ("Blunt 10–14, a blow every 0.85 s."), and for
 
 ## Not yet
 
-Rarity, magic outlines, on-hit effects (with status effects, M8), ranged weapons and ammunition, attribute or level
+Rarity, magic outlines and on-hit effects (M8.1), ranged weapons and ammunition, attribute or level
 requirements, and worn equipment drawn on the hero figure.

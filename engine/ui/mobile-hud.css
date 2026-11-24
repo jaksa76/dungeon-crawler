@@ -34,6 +34,8 @@
 .rpg-cell canvas, .rpg-row canvas, .rpg-hero, .rpg-dialog-body > canvas { image-rendering: pixelated; }
 .rpg-dialog-body > canvas { display: block; margin: 0 auto 8px; }
 .rpg-note { color: #f1dfbe; }
+.rpg-spend { display: flex; flex-wrap: wrap; gap: calc(var(--rpg-px, 2) * 2px); margin: 0 0 4px; }
+.rpg-spend button { min-height: 32px; padding: 0 8px; }
 
 /* The satchel: a panel laid out on the frames of engine/assets/ui/inventory-bg.png, a 16:9 painting. The
    columns and rows are the measured positions of its frames, as percentages of the panel: a tall niche for the
@@ -141,6 +143,10 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-locatio
 .rpg-vital meter::-webkit-meter-optimum-value { background: #b63b34; }
 .rpg-vital.mp meter::-webkit-meter-optimum-value { background: #3c68b4; }
 .rpg-vital.hp meter::-moz-meter-bar { background: #b83730; }
+.rpg-vital.xp { height: 15px; }
+.rpg-vital.xp meter { height: 11px; }
+.rpg-vital.xp meter::-webkit-meter-optimum-value { background: #b8892a; }
+.rpg-vital.xp meter::-moz-meter-bar { background: #b8892a; }
 .rpg-vital.mp meter::-moz-meter-bar { background: #365cb4; }
 .rpg-vital b { position: absolute; left: 24px; right: 0; text-align: center; font: 16px/1 'RPG Pixel', monospace; color: #fff3db; text-shadow: 1px 1px #000; }
 .rpg-slots, .rpg-menus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }

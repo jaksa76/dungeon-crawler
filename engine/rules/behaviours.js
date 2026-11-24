@@ -18,9 +18,9 @@
 // Say something.
 export const examine = text => function interact(game) { game.say(text); };
 
-// A container: fixed `contents` plus a `loot` table, rolled the first time it is opened (see loot.js).
-export const container = ({ title, text, contents, loot } = {}) => function interact(game) {
-  game.openContainer(this, { title, text, contents, loot });
+// A container: fixed `contents` plus a `loot` table and/or generated `generate: { budget }`, worked out the first time it is opened (see loot.js).
+export const container = ({ title, text, contents, loot, generate } = {}) => function interact(game) {
+  game.openContainer(this, { title, text, contents, loot, generate });
 };
 
 // Restore health and mana. One is used up unless it would all be wasted. `restores` tells the quick slots what it is.

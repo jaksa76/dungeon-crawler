@@ -4,6 +4,8 @@
 //   evasion  = AC - 9                    (the hero's evasion is his agility, 5)
 //   accuracy = 3 + 2 x sqrt(CR)
 //   defence  = floor(AC / 8) - 1, at least 0
+import { xpForCr } from './progression.js';
+
 export const HP_SCALE = 2.7, DAMAGE_SCALE = 1.6;
 
 export function monsterStats({ cr, hp, ac, dmg }) {
@@ -26,10 +28,12 @@ export function animationTimings(tempo) {
   };
 }
 
+// What a creature is worth in experience: its `xp` if the book says so, else by challenge rating (rules/progression.js).
+
 // A creature of `kind` from the book, placed with `at` ({ id?, x, z, dir, sight? }).
 export function createMonster(book, kind, at = {}) {
   const block = book[kind];
   if (!block) throw new Error(`Unknown monster "${kind}"`);
   const { cr, hp, ac, dmg, tempo, id: _id, ...rest } = block;
-  return { sight: 4, attackMs: 1500, speed: 1, animations: animationTimings(tempo), ...rest, ...at, kind, ...monsterStats(block) };
+  return { sight: 4, attackMs: 1500, speed: 1, animations: animationTimings(tempo), ...rest, ...at, kind, ...monsterStats(block), xp: block.xp ?? xpForCr(cr) };
 }

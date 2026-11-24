@@ -12,7 +12,7 @@ const seq = (...values) => { let i = 0; return () => values[i++ % values.length]
 
 test('attributes and what is worn derive HP, MP, damage and defence', () => {
   assert.deepEqual(deriveStats(attrs), { maxHp: 58, maxMp: 24, attack: 6, damage: [5, 7], damageType: null, attackMs: FISTS.speed,
-    defence: 2, resist: {}, accuracy: 5, evasion: 5 });
+    defence: 2, resist: {}, accuracy: 5, evasion: 5, luck: 0 });
   const mace = { damage: [6, 10], speed: 850, damageType: 'blunt' };
   const armed = deriveStats(attrs, { weapon: mace, defence: 3, resist: { blade: 0.8 }, bonus: { attack: 1, defence: 1 } });
   assert.deepEqual(armed.damage, [11, 15]); // strength 6 adds 4, the ring 1

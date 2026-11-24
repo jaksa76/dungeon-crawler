@@ -34,6 +34,8 @@ export const campaign = {
   respawn: { level: 'village', place: 'the village', message: 'You awaken safely in the village.' },
   startingItems: [{ item: 'health-potion' }, { item: 'mana-potion' }],
   unarmed: { name: 'fists', damage: [1, 3], speed: 600, damageType: 'blunt' }, // bare hands (optional)
+  progression: { pointsPerLevel: 2, maxLevel: 10 },  // levels and skill points (optional: progression.md)
+  loot: { dropChance: 0.6 },                         // the loot budget rules (optional: progression.md)
 };
 ```
 

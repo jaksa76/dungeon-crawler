@@ -1,5 +1,7 @@
 // The rules of a fight, as plain numbers. No DOM, no clock: callers pass the random source.
 
+import { resolveProgression, levelFor, progress } from './progression.js';
+
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 // What the hero fights with when no weapon is worn. A campaign may give the hero other fists (`unarmed`).
@@ -22,17 +24,24 @@ export function deriveStats(attrs, { weapon = FISTS, defence = 0, resist = {}, b
     resist: { ...resist },
     accuracy: agility,
     evasion: agility,
+    luck: bonus.luck ?? 0,
   };
 }
 
-const HERO_STATS = ['maxHp', 'maxMp', 'attack', 'damage', 'damageType', 'attackMs', 'defence', 'resist', 'accuracy', 'evasion'];
+const HERO_STATS = ['maxHp', 'maxMp', 'attack', 'damage', 'damageType', 'attackMs', 'defence', 'resist', 'accuracy', 'evasion', 'luck'];
 
 // The hero: attributes, current hp/mp, and stats that follow what is worn. `equipment` is optional.
 // The returned object is what the HUD reads (hp, maxHp, mp, maxMp).
 // `base` are the attributes the game starts a hero with; the player may spend points on top (build()), and
 // only those points are saved, so retuning the base also reaches existing heroes.
-export function createCharacter(base, equipment = null, { unarmed = FISTS, name = 'Hero' } = {}) {
-  const attrs = { ...base }, spent = Object.fromEntries(Object.keys(base).map(k => [k, 0]));
+export function createCharacter(base, equipment = null, { unarmed = FISTS, name = 'Hero', progression: rules } = {}) {
+  const progression = resolveProgression(rules), attrs = { ...base }, spent = Object.fromEntries(Object.keys(base).map(k => [k, 0]));
+  // Experience, and the points the hero put into attributes as they levelled (`grown`, apart from the `spent` at creation).
+  let xp = 0;
+  const grown = Object.fromEntries(Object.keys(base).map(k => [k, 0]));
+  const grownTotal = () => Object.values(grown).reduce((a, b) => a + b, 0);
+  const earned = () => (levelFor(xp, progression) - 1) * progression.pointsPerLevel;
+  const raise = () => { for (const k of Object.keys(base)) attrs[k] = base[k] + spent[k] + grown[k]; };
   // The hero's stats with `gear` (equipment.gear(), possibly of a preview()); what is worn now by default.
   const statsWith = (gear = {}) => deriveStats(attrs, { ...gear, weapon: gear.weapon ?? unarmed });
   const stats = () => statsWith(equipment?.gear());
@@ -40,7 +49,28 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
     attrs, name, base, spent, unarmed,
     // Set the points spent per attribute ({ strength: 2 }); anything that is not a whole number >= 0 counts as 0.
     build(points = {}) {
-      for (const k of Object.keys(base)) { const n = points[k]; spent[k] = Number.isInteger(n) && n > 0 ? n : 0; attrs[k] = base[k] + spent[k]; }
+      for (const k of Object.keys(base)) { const n = points[k]; spent[k] = Number.isInteger(n) && n > 0 ? n : 0; }
+      raise();
+    },
+    progression,
+    get xp() { return xp; },
+    get level() { return levelFor(xp, progression); },
+    // Skill points not yet put into an attribute.
+    get unspent() { return earned() - grownTotal(); },
+    // Where the hero stands on the way to the next level: { level, xp, from, to, fraction }.
+    get progress() { return progress(xp, progression); },
+    // Experience gained. Returns the levels gained ({ levels, level, points }); each level that comes fills health and mana.
+    gain(amount) {
+      const before = levelFor(xp, progression);
+      xp += Math.max(0, Math.round(amount) || 0);
+      const level = levelFor(xp, progression), levels = level - before;
+      if (levels > 0) hero.restore();
+      return { levels, level, points: levels * progression.pointsPerLevel };
+    },
+    // Put one skill point into an attribute. Returns whether it was spent.
+    spend(key) {
+      if (!(key in grown) || hero.unspent <= 0) return false;
+      grown[key]++; raise(); return true;
     },
     stats, statsWith,
     hp: 0, mp: 0,
@@ -51,15 +81,20 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
     // because the limits depend on it.
     persistence: {
       id: 'hero', after: ['equipment'],
-      save: () => ({ name: hero.name, spent: { ...spent }, hp: hero.hp, mp: hero.mp }),
+      save: () => ({ name: hero.name, spent: { ...spent }, xp, grown: { ...grown }, hp: hero.hp, mp: hero.mp }),
       load(data) {
         hero.name = typeof data?.name === 'string' && data.name.trim() ? data.name.trim().slice(0, 24) : name;
         hero.build(data?.spent ?? {});
+        xp = Number.isFinite(data?.xp) && data.xp > 0 ? Math.round(data.xp) : 0;
+        // Points put into attributes while levelling, never more than the level has earned (the curve may have changed).
+        let room = earned();
+        for (const k of Object.keys(grown)) { const n = Number.isInteger(data?.grown?.[k]) && data.grown[k] > 0 ? Math.min(data.grown[k], room) : 0; grown[k] = n; room -= n; }
+        raise();
         const clamp = (v, max) => Math.min(max, Math.max(0, Number.isFinite(v) ? Math.round(v) : max));
         hero.hp = clamp(data?.hp, hero.maxHp); hero.mp = clamp(data?.mp, hero.maxMp);
         if (hero.hp === 0) hero.hp = hero.maxHp; // a save is never a corpse
       },
-      reset() { hero.name = name; hero.build(); hero.restore(); },
+      reset() { hero.name = name; xp = 0; for (const k of Object.keys(grown)) grown[k] = 0; hero.build(); hero.restore(); },
     },
   };
   for (const key of HERO_STATS) Object.defineProperty(hero, key, { get: () => stats()[key], enumerable: true });

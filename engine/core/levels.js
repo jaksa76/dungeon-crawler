@@ -13,6 +13,7 @@
 //   exits                        [{ x, z, dir, to, spawn?, message? }]: stepping forward there leads to level `to`
 //   atmosphere, exploration      override the environment's
 //   monsterStepMs, monsterGraceMs, view
+//   lootScale                    multiplies what its creatures may leave behind (default 1; docs/engine/progression.md)
 //   onEnter(game), onExit(game)  called when the player arrives on the level or leaves it
 //
 // Each placement becomes an instance of its definition when the level is first needed (engine/core/world.js), with

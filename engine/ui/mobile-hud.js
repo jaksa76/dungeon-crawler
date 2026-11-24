@@ -20,7 +20,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing
   // a pack item would change (session.wouldChange), and `damageTypes` names the damage types.
   onEquip = (index, slot) => equipment.equip(inventory, index, slot), onUnequip = (slot, toIndex) => equipment.unequip(inventory, slot, toIndex),
-  wouldChange = () => null, damageTypes = {} }) {
+  wouldChange = () => null, damageTypes = {},
+  // Put a skill point (from levelling up) into an attribute: session.spend, which returns { ok }.
+  onSpend = attribute => ({ ok: hero.spend?.(attribute) ?? false }) }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -70,11 +72,11 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   character.append(face);
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];
-  for (const [label, value, max] of [['HP', hero.hp, hero.maxHp], ['MP', hero.mp, hero.maxMp]]) {
+  for (const [label, value, max] of [['HP', hero.hp, hero.maxHp], ['MP', hero.mp, hero.maxMp], ...(hero.progress ? [['XP', hero.progress.xp - hero.progress.from, 1]] : [])]) {
     const row = document.createElement('div'); row.className = `rpg-vital ${label.toLowerCase()}`;
     const caption = document.createElement('span'); caption.textContent = label;
     const meter = document.createElement('meter'); meter.min = 0; meter.max = max; meter.value = value;
-    meter.setAttribute('aria-label', label === 'HP' ? 'Health' : 'Mana');
+    meter.setAttribute('aria-label', label === 'HP' ? 'Health' : label === 'MP' ? 'Mana' : 'Experience');
     const number = document.createElement('b'); number.textContent = `${value}/${max}`;
     vitalNodes.push({ key: label.toLowerCase(), meter, number });
     row.append(caption, meter, number); vitals.append(row);
@@ -181,6 +183,20 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // `selected` is a pack slot, or `selectedGear` a worn slot's id; never both.
   let selected = null, selectedGear = null;
   const make = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text) e.textContent = text; return e; };
+  // The hero's level, experience and attributes; with skill points to spend, a button to raise each attribute.
+  function characterSheet() {
+    const { level, xp, to } = hero.progress, nodes = [];
+    nodes.push(make('p', 'rpg-stats', `Level ${level} · ${to === null ? `${xp} xp (highest level)` : `${xp} / ${to} xp`}`));
+    if (!hero.unspent) { nodes.push(make('p', '', Object.entries(hero.attrs).map(([k, v]) => `${k[0].toUpperCase()}${k.slice(1)} ${v}`).join(' · '))); return nodes; }
+    nodes.push(make('p', 'rpg-note', `${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend:`));
+    const row = make('div', 'rpg-spend');
+    for (const [key, value] of Object.entries(hero.attrs)) {
+      const label = `${key[0].toUpperCase()}${key.slice(1)}`, b = textButton(`${label} ${value} +`, () => { const r = onSpend(key); openInventory(r.ok ? `${label} is now ${hero.attrs[key]}.` : 'No skill points left.'); });
+      b.setAttribute('aria-label', `Raise ${label}, now ${value}`); row.append(b);
+    }
+    nodes.push(row);
+    return nodes;
+  }
   function openInventory(note = '') {
     open('Your satchel', null, 'inventory');
     if (selected !== null && !inventory.slots[selected]) selected = null;
@@ -230,6 +246,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     if (!def) {
       text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'),
         make('p', '', `Damage ${hero.damage[0]}–${hero.damage[1]}${hero.damageType ? ` ${typeName(hero.damageType)}` : ''}, defence ${hero.defence}.`));
+      if (hero.progress) text.append(...characterSheet());
     } else {
       // The numbers first: the flavour text may need scrolling, they should not.
       text.append(make('h3', '', `${def.name}${stack?.qty > 1 ? ` x${stack.qty}` : ''}`));
@@ -421,6 +438,12 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
 
   function draw(state) {
     for (const { key, meter, number } of vitalNodes) {
+      if (key === 'xp') { // level and the way to the next
+        const { level, xp, from, to } = hero.progress;
+        meter.max = to === null ? 1 : to - from; meter.value = to === null ? 1 : xp - from;
+        number.textContent = `Lv ${level}${hero.unspent > 0 ? ` +${hero.unspent}` : ''}`;
+        continue;
+      }
       meter.value = hero[key]; number.textContent = `${hero[key]}/${meter.max}`;
     }
     lastState = state;

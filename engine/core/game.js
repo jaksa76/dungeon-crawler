@@ -49,6 +49,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 },
   // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
   unarmed = FISTS,
+  // Experience and levels (rules/progression.js) and the loot budget rules (rules/generate-loot.js): both optional, the engine has defaults.
+  progression, loot,
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
@@ -111,7 +113,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const random = params.has('seed') ? createRng(params.get('seed')) : () => Math.random();
   // The rules. Its hooks are where the screen takes part: a level's art loads before the player arrives there.
   const session = createSession({ levels: definitions, start, books, startingItems, respawn, inventorySize, heroAttributes,
-    unarmed, creation, persist, level: firstLevel, random, clock: () => performance.now(),
+    unarmed, creation, persist, progression, loot, level: firstLevel, random, clock: () => performance.now(),
     hooks: {
       travel: (exit, options) => travel(exit, options),
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
@@ -246,7 +248,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
   const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
-    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, damageTypes: books.damageTypes,
+    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;

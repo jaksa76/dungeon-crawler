@@ -2,6 +2,8 @@
 //
 //   behavior.contents: [{ item, qty? }]                      always there
 //   behavior.loot:     { rolls?, entries: [{ item, qty?, weight? }], none? }
+//   behavior.generate: { budget? }  worked out from a value budget (generate-loot.js); the session passes
+//                                   `generate(spec) -> [{ item, qty }]`
 //
 // `qty` is a number or a [min, max] range. Each of `rolls` (default 1) picks one entry by weight;
 // `none` (default 0) is the weight of rolling nothing at all. `random` returns a number in [0, 1).
@@ -22,10 +24,11 @@ export function rollLoot(table, random = Math.random) {
 }
 
 // The stacks for a freshly opened container.
-export function resolveContents(behavior, addToStacks, random = Math.random) {
+export function resolveContents(behavior, addToStacks, random = Math.random, generate = null) {
   const stacks = [];
   const give = ({ item, qty = 1 }) => addToStacks(stacks, item, amount(qty, random));
   for (const entry of behavior.contents ?? []) give(entry);
   if (behavior.loot) for (const entry of rollLoot(behavior.loot, random)) give(entry);
+  if (behavior.generate && generate) for (const entry of generate(behavior.generate)) give(entry);
   return stacks;
 }

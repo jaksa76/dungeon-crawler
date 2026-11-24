@@ -26,6 +26,7 @@ import { createEquipment } from '../rules/equipment.js';
 import { createCharacter, strike, createCooldown, compareStats, statDelta, FISTS } from '../rules/combat.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll } from '../rules/inventory.js';
 import { resolveContents } from '../rules/loot.js';
+import { resolveLootRules, lootBudget, lootPool, generateLoot } from '../rules/generate-loot.js';
 import { createPersistence } from './persistence.js';
 import { createFlags } from './flags.js';
 
@@ -41,7 +42,11 @@ export const EVENTS = {
   blocked: '{ cmd, reason }: a step did not happen (wall, creature, door)',
   attack: '{ target, hit, damage }: the hero swung at a creature (target: { id, kind, name })',
   'damage-dealt': '{ target, amount, hp }: the hero hurt a creature',
-  kill: '{ target }: the hero killed a creature',
+  kill: '{ target, xp }: the hero killed a creature (xp: what it was worth)',
+  xp: '{ amount, xp, level }: the hero gained experience',
+  'level-up': '{ level, points }: the hero reached a new level (health and mana are restored)',
+  spend: '{ attribute, value, unspent }: a skill point went into an attribute',
+  loot: '{ source, items, value, budget, at }: a creature left things behind (items: [{ item, qty }], on the floor where it fell)',
   'damage-taken': '{ source, amount, hp }: a creature hurt the hero (source: { id, kind, name })',
   evade: '{ source }: a creature missed the hero',
   death: '{ source }: the hero died',
@@ -80,7 +85,7 @@ export function cellLookup(world, id, { level, tileTypes }) {
 
 export function createSession({ levels: definitions, start, books, startingItems = [], respawn = { level: start },
   inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, unarmed = FISTS,
-  creation = null, persist = [], level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
+  creation = null, persist = [], progression, loot: lootOptions, level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
   hooks = {} }) {
   const itemDefs = books.items;
   if (!Object.hasOwn(definitions, start)) throw new Error(`The start level "${start}" is not one of the levels`);
@@ -122,7 +127,8 @@ export function createSession({ levels: definitions, start, books, startingItems
 
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
-  const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name });
+  const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name, progression });
+  const lootRules = resolveLootRules(lootOptions);
   if (creation) { hero.build(creation.spent); hero.restore(); }
   const containers = new Map(); // `level:x,z,side` -> stacks of opened containers (rolled the first time they are opened)
   const piles = new Map(); // `level:x,z` -> stacks the player dropped
@@ -138,8 +144,58 @@ export function createSession({ levels: definitions, start, books, startingItems
   function showBox(box) { openBox = box; emit('container', { title: box.title, stacks: box.stacks.map(s => ({ ...s })) }); hooks.openContainer?.(box); }
   function openContainer(entity, behavior = {}) {
     const key = containerKey(entity);
-    if (!containers.has(key)) containers.set(key, resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty), random));
+    if (!containers.has(key)) containers.set(key, resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty), random, spec => generated(spec, spec)));
     showBox({ title: behavior.title ?? entity.name ?? 'Container', text: behavior.text, stacks: containers.get(key), from: entity.id ?? entity.name ?? 'container' });
+  }
+  // Loot worked out from a value budget (rules/generate-loot.js): for the hero as they are now, on the level they are on.
+  // `source` is a creature's stat block or a container's `generate`; `spec.chance` and `spec.filter` (item types) narrow it.
+  function generated(source, spec = {}) {
+    const budget = lootBudget(source, { rules: lootRules, lootScale: active.level.lootScale ?? 1, heroLevel: hero.level, luck: hero.luck, random });
+    const types = spec.types, pool = lootPool(itemDefs, hero.level, types ? (id, def) => types.includes(def.type) : null);
+    return Object.assign(generateLoot(budget, pool, { rules: lootRules, random, chance: spec.chance ?? (source === spec ? 1 : lootRules.dropChance) }), { budget });
+  }
+  // What a creature leaves where it fell: its own `loot` (specific: { contents, loot, generate }, or false for nothing), else
+  // generated from its challenge rating. Goes on the floor of its tile as a pile.
+  function leaveLoot(actor) {
+    const spec = actor.loot;
+    if (spec === false) return;
+    const stacks = [];
+    let budget = 0, generatedValue = 0;
+    const worth = list => list.reduce((sum, { item, qty }) => sum + (itemDefs[item].value ?? 0) * qty, 0);
+    if (spec && (spec.contents || spec.loot || spec.generate)) {
+      const made = resolveContents(spec, (list, id, qty) => addToStacks(itemDefs, list, id, qty), random, g => { const found = generated(g, g); budget = found.budget; generatedValue = worth(found); return found; });
+      stacks.push(...made);
+    } else {
+      const found = generated(actor, {});
+      budget = found.budget;
+      for (const { item, qty } of found) addToStacks(itemDefs, stacks, item, qty);
+    }
+    if (!stacks.length) return;
+    const key = `${session.levelId}:${actor.x},${actor.z}`, pile = piles.get(key) ?? [];
+    piles.set(key, pile);
+    for (const { id, qty } of stacks) addToStacks(itemDefs, pile, id, qty);
+    const items = stacks.map(({ id, qty }) => ({ item: id, qty })), value = worth(items);
+    budget += value - generatedValue; // what the creature was given outright counts against nothing
+    say(`The ${actor.name} leaves something behind.`);
+    emit('loot', { source: describe(actor), items, value, budget: Math.round(budget), at: { x: actor.x, z: actor.z } });
+  }
+  // Experience for a kill: say it, and say it when it makes a level.
+  function reward(actor) {
+    const amount = actor.xp ?? 0;
+    if (!amount) return;
+    const gained = hero.gain(amount);
+    say(`You gain ${amount} experience.`);
+    emit('xp', { amount, xp: hero.xp, level: hero.level });
+    if (gained.levels > 0) {
+      say(`You reach level ${gained.level}! Your health and mana are restored${gained.points ? `, and you have ${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend` : ''}.`);
+      emit('level-up', { level: gained.level, points: hero.unspent });
+    }
+  }
+  // Put a skill point into an attribute. Returns { ok, ... }.
+  function spend(attribute) {
+    if (!hero.spend(attribute)) return { ok: false, reason: hero.unspent <= 0 ? 'no-points' : 'unknown' };
+    emit('spend', { attribute, value: hero.attrs[attribute], unspent: hero.unspent });
+    return { ok: true, attribute, value: hero.attrs[attribute], unspent: hero.unspent };
   }
   function openPile() {
     const stacks = piles.get(pileKey());
@@ -302,7 +358,10 @@ export function createSession({ levels: definitions, start, books, startingItems
       say(`You hit the ${target.name} for ${result.damage}.${resistance(target, result.resisted)}`);
       killed = active.monsters.damage(target, result.damage, now);
       emit('damage-dealt', { target: describe(target), amount: result.damage, hp: target.hp });
-      if (killed) { say(`The ${target.name} dies.`); emit('kill', { target: describe(target) }); target.onDeath?.(api); }
+      if (killed) {
+        say(`The ${target.name} dies.`); emit('kill', { target: describe(target), xp: target.xp ?? 0 });
+        reward(target); leaveLoot(target); target.onDeath?.(api);
+      }
     }
     return { ok: true, target, hit: result.hit, damage: result.damage, killed };
   }
@@ -471,7 +530,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     closeBox() { openBox = null; },
     contextOf: context,
     on(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); return () => listeners.get(type).delete(fn); },
-    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange,
+    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend,
     attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
   };
   return session;

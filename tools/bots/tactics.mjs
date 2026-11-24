@@ -42,6 +42,23 @@ export function loot(sim, memory) {
   return true;
 }
 
+// Pick up what lies on the floor of the hero's own tile (what a creature left behind, or an earlier drop), once.
+export function scavenge(sim, memory) {
+  const { pile, position } = sim.state(), key = `${sim.level}:${position.x},${position.z}`, seen = (memory.piles ??= new Set());
+  if (!pile || seen.has(key)) return false;
+  seen.add(key);
+  if (sim.interact().container) sim.takeAll();
+  wearBetter(sim);
+  return true;
+}
+
+// Put a skill point into an attribute whenever the hero has one (memory.options.grow, default strength).
+export function grow(sim, memory) {
+  const { hero } = sim.state();
+  if (!hero.unspent) return false;
+  return sim.spend(memory.options.grow ?? 'strength').ok;
+}
+
 // Put on whatever in the pack fits a slot that is empty.
 export function wearBetter(sim) {
   const { inventory, equipment } = sim.state();

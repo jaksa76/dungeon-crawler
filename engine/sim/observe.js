@@ -101,7 +101,7 @@ export function observe(session, { omniscient = false, depth = VIEW_DEPTH } = {}
     t: session.clock(), level: session.levelId, levelName: session.level.shortName ?? session.level.name,
     position: { x: p.x, z: p.z, dir: p.dir, facing: DIR_KEYS[p.dir] },
     dead: session.dead,
-    hero: { name: hero.name, hp: hero.hp, maxHp: hero.maxHp, mp: hero.mp, maxMp: hero.maxMp, attack: hero.attack, defence: hero.defence,
+    hero: { name: hero.name, level: hero.level, xp: hero.xp, unspent: hero.unspent, luck: hero.luck, hp: hero.hp, maxHp: hero.maxHp, mp: hero.mp, maxMp: hero.maxMp, attack: hero.attack, defence: hero.defence,
       accuracy: hero.accuracy, evasion: hero.evasion, attrs: { ...hero.attrs }, attackReady: session.swing.ready(session.clock()) },
     inventory: inventory.slots.map((s, slot) => s && { slot, id: s.id, qty: s.qty, name: itemDefs[s.id].name, type: itemDefs[s.id].type,
       ...(itemDefs[s.id].use?.restores ? { restores: { ...itemDefs[s.id].use.restores } } : {}), ...(itemDefs[s.id].slot ? { wear: itemDefs[s.id].slot } : {}) }).filter(Boolean),
@@ -110,6 +110,8 @@ export function observe(session, { omniscient = false, depth = VIEW_DEPTH } = {}
     ahead: viewAhead(session, depth),
     // Things standing against the sides of the player's own tile (turn to a side to face one, then interact).
     here: session.context.cell(p.x, p.z)?.entities?.map(e => ({ id: e.id ?? e.ref, kind: e.prop, name: e.name ?? null, side: e.side, dir: DIR_KEYS.indexOf(e.side) })) ?? [],
+    // Something lies on the floor of the hero's own tile (a creature left it, or the hero dropped it): interact() opens it.
+    pile: !!session.piles.get(`${session.levelId}:${p.x},${p.z}`)?.length,
     container: session.openBox ? { title: session.openBox.title, stacks: session.openBox.stacks.map(s => ({ ...s })) } : null,
     explored: session.context.exploration.known.size,
   };

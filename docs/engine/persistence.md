@@ -24,7 +24,7 @@ adds). Sections found in a save but not registered, or too new to read, are kept
 | `engine.player` | session.js | level, tile, facing |
 | `engine.inventory` | `createInventory` | the pack (reset: the starting items) |
 | `engine.equipment` | `createEquipment` | what is worn |
-| `engine.hero` | `createCharacter` | the name, the points the player spent, current hp and mp; never attributes or derived stats |
+| `engine.hero` | `createCharacter` | the name, the points spent at creation, experience, the points put in while levelling (`grown`), current hp and mp; never the level, attributes or derived stats |
 | `engine.exploration` | `createExplorationStore` | discovered cells per level |
 | `engine.containers`, `engine.piles` | `stacksPersistence` | opened containers, things dropped on the floor |
 | `game.flags` | `createFlags` | the game's own facts: `flags.get('quests.rat')` / `flags.set(...)` |

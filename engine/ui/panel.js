@@ -75,7 +75,7 @@ export function createUI(canvas, assets, layout, { width = UI_W, font, overlay }
     g.fillStyle = color; g.fillText(str, x, y);
   }
 
-  function bar(region, value, max, fill, light) {
+  function bar(region, value, max, fill, light, label = `${value} / ${max}`) {
     const [x, y, w, h] = font ? R(region).map(Math.round) : R(region); // pixel-aligned on a small canvas
     const b = Math.max(1, Math.round(k)); // border thickness
     roundRect(g, x - b, y - b, w + 2 * b, h + 2 * b, h / 2 + b, '#140c10');
@@ -83,7 +83,7 @@ export function createUI(canvas, assets, layout, { width = UI_W, font, overlay }
     const fw = Math.max(h, w * (value / max));
     roundRect(g, x, y, fw, h, h / 2, fill);
     roundRect(g, x + h / 3, y + b, fw - h * 2 / 3, h / 3, h / 6, light);
-    text(`${value} / ${max}`, x + w / 2, y + h / 2 + (font ? 0 : 1), Math.round(h * 1.3), '#ffffff', 'center');
+    text(label, x + w / 2, y + h / 2 + (font ? 0 : 1), Math.round(h * 1.3), '#ffffff', 'center');
   }
 
   function minimap(state) {
@@ -127,6 +127,11 @@ export function createUI(canvas, assets, layout, { width = UI_W, font, overlay }
 
     bar(layout.hp, state.hero.hp, state.hero.maxHp, '#c42424', '#ff7a60');
     bar(layout.mp, state.hero.mp, state.hero.maxMp, '#2454d0', '#7ab0ff');
+    if (layout.xp && state.hero.progress) { // level and experience, when the hero has them
+      const { level, xp, from, to } = state.hero.progress, points = state.hero.unspent;
+      bar(layout.xp, to === null ? 1 : xp - from, to === null ? 1 : to - from, '#b8892a', '#f0d070', points > 0 ? `${points} POINT${points === 1 ? '' : 'S'} TO SPEND` : to === null ? 'MAX' : `${xp} / ${to}`);
+      text(`LV ${level}`, ...R([...layout.xpLabel]).slice(0, 2), Math.round(14 * k), '#f0d070', 'center');
+    }
     minimap(state);
     g.drawImage(letters, 0, 0, width, H);
     overlay?.(g, s);

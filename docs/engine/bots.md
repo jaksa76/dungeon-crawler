@@ -73,7 +73,8 @@ an action the rules forbid returns `{ ok: false, reason }` and never throws.
 | `equip(itemOrSlot, slot?)`, `unequip(slot)` | 600 ms | |
 | `drop(itemOrSlot, qty?)` | 200 ms | onto the floor here |
 | `wait(ms)` | `ms` | |
-| `cast()` | | `{ ok: false, reason: 'no-spells' }` until spells exist (M8) |
+| `spend(attribute)` | 100 ms | put a skill point from levelling up into `'strength'`, `'vitality'`, `'intellect'` or `'agility'`: `{ ok, value, unspent }` or `{ ok: false, reason: 'no-points' | 'unknown' }` |
+| `cast()` | | `{ ok: false, reason: 'no-spells' }` until spells exist (M8.1) |
 | `travel(level, spawn?)` | 0 | a scenario shortcut, as content's `game.travel` does; a player travels by stepping into a passage |
 | `stop(outcome?)` | | end the run (`'won'` or `'stopped'`) |
 
@@ -137,7 +138,8 @@ has `start`, `undercrypt` (the crypt as a player first enters it, with the villa
 
 A run: `seed`, `outcome`, `survived`, `time`, `level`, `kills`, `killsByKind`, `attacks`, `hits`, `misses`,
 `damageDealt`, `damageTaken`, `blowsTaken`, `evaded`, `potionsUsed`, `itemsUsed`, `loot` (item → count), `lootItems`,
-`lootValue`, `hpEnd`, `hpMin`, `timeToKill` (ms from the first swing at a creature to its death, per kill),
+`lootValue`, `xp`, `xpByKind`, `heroLevel`, `dropValue`, `dropValueByKind`, `dropBudgetByKind` (what creatures left on the
+floor against what they could have: see [progression.md](progression.md)), `hpEnd`, `hpMin`, `timeToKill` (ms from the first swing at a creature to its death, per kill),
 `meanTimeToKill`, `explored`, `deaths`, `deathBy`, `levels` (per level: time, kills, damage dealt and taken, loot,
 explored tiles) and `curve` (every `--sample` seconds: hp, kills, damage taken, loot, explored, alive). With
 `--trace`, every event too.
@@ -146,7 +148,7 @@ The summary: outcomes, `survivalRate`, `winRate`, the mean, median, min and max 
 run by kind, what killed the hero, per-level means, and the progress curve averaged over the runs (a run that ended
 counts as it ended).
 
-`lootValue` adds up the items' `value`. No item has one yet; it will matter once gold does (M12).
+`lootValue` adds up the items' `value` of what was picked up; `dropValue` what creatures left behind.
 
 ## Balancing
 
@@ -165,6 +167,10 @@ the game with `?seed=<n>`: the dice are the same, although a human's timing will
 The first measurement (November 2026): an armed hero with the village chest's potions does not survive the
 Undercrypt. Over 200 runs each, the fighter and the explorer bots die every time, after about 9 kills, mostly to the
 owlbear and the ogre. A lone snake is no danger to an armed hero (200 wins out of 200, 10 damage taken on average).
+
+After M8 (200 runs, same seeds): levelling barely moves survival, because the bot dies to the owlbear and ogre at hero
+level 2 or 3 (0% survival in `undercrypt`, 1% in `undercrypt-geared`). The experience curve is not the lever for
+that; the Undercrypt's deep creatures are. Creatures leave 47 value of loot per run on average (`undercrypt`).
 
 After weapons and armour (M7), the fighter over 200 runs each: with the rusty sword the village chest now gives,
 7.5 kills per run (it was 9.5 with the old, stronger sword); bare-handed 5.8; with the gear Ravensmoor hides

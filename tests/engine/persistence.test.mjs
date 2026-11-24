@@ -124,7 +124,7 @@ test('components drop what no longer exists and report it; hero saves its build,
   assert.deepEqual(inventory.slots, [null, null, { id: 'torch', qty: 2 }, null]);
   assert.equal(equipment.worn.weapon, null); assert.equal(equipment.worn.head, 'leather-cap');
   assert.equal(hero.hp, hero.maxHp); assert.equal(hero.mp, hero.maxMp);
-  assert.equal(issues.length, 3); assert.deepEqual(Object.keys(hero.persistence.save()), ['name', 'spent', 'hp', 'mp']);
+  assert.equal(issues.length, 3); assert.deepEqual(Object.keys(hero.persistence.save()), ['name', 'spent', 'xp', 'grown', 'hp', 'mp']);
 });
 
 test('the hero loads after the equipment, so its limits already count worn gear', async () => {
@@ -168,7 +168,7 @@ test('the hero saves the points the player spent, so retuning the base reaches o
   assert.deepEqual(a.hero.spent, { strength: 2, vitality: 0, intellect: 0, agility: 1 });
   assert.equal(a.hero.attack, 8 - 2 + 2); // bare hands: 1-3, plus strength 8 - 2
   const snap = JSON.parse(JSON.stringify(a.p.snapshot()));
-  assert.deepEqual(Object.keys(snap.sections.engine.hero.data).sort(), ['hp', 'mp', 'name', 'spent']);
+  assert.deepEqual(Object.keys(snap.sections.engine.hero.data).sort(), ['grown', 'hp', 'mp', 'name', 'spent', 'xp']);
   const b = mk({ strength: 8, vitality: 6, intellect: 4, agility: 5 }); // the game was retuned: base strength 6 -> 8
   await b.p.restore(snap);
   assert.equal(b.hero.name, 'Mira'); assert.equal(b.hero.attrs.strength, 10); assert.equal(b.hero.attrs.agility, 6);

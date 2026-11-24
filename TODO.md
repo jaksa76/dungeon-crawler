@@ -151,27 +151,77 @@ See docs/engine/equipment.md.
 - [x] As a player, I want a mace or a spear to be the better choice against some monsters.
 - [x] As a player, I want armour to make the next fight noticeably safer.
 
-Deferred: rarity (out of scope); outline for magic items (Later); on-hit effects (M8, with status effects);
+Deferred: rarity (out of scope); outline for magic items and on-hit effects (M8.1, with magic and status effects);
 ranged weapons and ammunition (own milestone); equipment drawn on the hero figure (Later). No attribute or level requirements.
 
 ## M8 — Loot, XP and progression
 
 *Needs M2 (loot tables), M3 (kills, stats), M7 (what to drop) and M6 (to balance it).*
 
+See docs/engine/progression.md.
+
 **Engine**
-- [ ] Dynamic loot: drops computed from the monster, dungeon level and player level (and optionally luck), not fixed lists
-- [ ] Game can define specific loot
-- [ ] Loot budgets as the balancing lever: value per monster and per level is declared in data, and the generator spends it
-- [ ] Loot tables can be tuned from the bot reports (M6) without code changes
-- [ ] XP, levelling and stat increases
-- [ ] Spells that cost MP (at least one attack and one heal)
-- [ ] Status effects (poison, regeneration, blessing) with durations
-- [ ] Monster respawn rules
+- [x] Dynamic loot: drops computed from the monster, dungeon level and player level (and optionally luck), not fixed lists
+- [x] Game can define specific loot or request generated loot
+- [x] Loot budgets as the balancing lever: value per monster and per level is declared in data, and the generator spends it
+- [x] Loot tables can be tuned from the bot reports (M6)
+- [x] XP, levelling and stat increases (level on the HUD, points spent in the satchel)
+- [x] levelling provides skill points and replenishes health and mana
 
 **Game**
-- [ ] As a player, I want to gain experience from fights and grow stronger.
-- [ ] As a player, I want the monsters to drop something worth having.
-- [ ] As a designer, I want the difficulty curve verified by bots before it ships.
+- [x] As a player, I want to gain experience from fights and grow stronger.
+- [x] As a player, I want the monsters to drop something worth having. (Beasts, the rat, snake and spider, drop nothing on purpose.)
+- [x] As a designer, I want the difficulty curve verified by bots before it ships. (tests/ravensmoor/balance.test.mjs)
+
+Not done: monster respawn (needs a per-level state scope), loot on the hero's tile rather than where the creature fell, and
+retuning the Undercrypt itself: a fighter bot still dies there (see the Balancing section of docs/engine/bots.md).
+
+## M8.1 — Magic and status effects
+
+*Needs M3 (mana, combat), M7 (damage types, resistances, materials) and M8 (levels and skill points, to learn spells). The engine provides the mechanism; the game declares every magic type, spell, effect and number.*
+
+**Engine**
+- [ ] Magic types as damage types (fire, frost, shock, poison), using the M7 resistance mechanism
+- [ ] Spell definitions as data: name, icon, magic type, mana cost, cooldown, target (self, faced monster, area in front), effect (damage, heal, status effect)
+- [ ] Casting action (same control API as M6), with mana cost, cooldown, cast feedback and messages in the log
+- [ ] Status effects as data: type, duration, strength tier, tick effects (damage or heal over time, slow, stun, buffs and debuffs to stats); stacking and refresh rules; apply to the hero and to monsters
+- [ ] Status effects shown on the hero (icons with remaining time) and on the targeted monster; saved with the game (M4)
+- [ ] Monsters can have resistances (and weaknesses) to magic types, and immunity to status effects; magic damage uses the same formula as M7
+- [ ] Spells are learned: spell books or scrolls as items, and/or learned with skill points (M8); known spells saved as what the player chose (M4)
+- [ ] Spell list screen (the hero's known spells, with description, cost and the resistance-adjusted effect on the targeted monster)
+- [ ] Enchanted items: an item carries an enchantment (magic type and strength tier) as a plain definition, so inventory and saves stay `{id, qty}`; effects are an on-hit status or damage bonus on weapons and a resistance or buff on armour (builds on the M7 materials generator)
+- [ ] Enchantment shown as a coloured outline on the item's icon: the colour is the magic type, the intensity is the strength tier (none, faint, clear, strong, blazing); same rule in the satchel, equipment slots and containers, and for both icon styles
+- [ ] Item text lists the enchantment and its tier; the M7 "what changed" log includes it
+- [ ] Bot API (M6): cast, learn, read the status effects of hero and target
+
+**Game**
+- [ ] As a player, I want to learn a first spell (a fire bolt) and cast it at a monster.
+- [ ] As a player, I want a spell that heals or protects me, and a status effect that wears off with time.
+- [ ] As a player, I want some monsters to resist or fear a type of magic, so I pick my spell to suit the monster.
+- [ ] As a player, I want to see at a glance that an item is enchanted, what type it is and how strong it is.
+- [ ] As a player, I want to find an enchanted weapon or ring in the dungeon.
+- [ ] As a designer, I want the bots to measure how much magic changes survival and kill times.
+
+## M8.2 — Quick bar
+
+*Needs M2 (items, consumables) and M8.1 (spells). A row of slots for what the player uses most, usable by key, click and tap.*
+
+**Engine**
+- [ ] Quick bar with a fixed number of slots (game-set, e.g. 6), always visible in the painted panel
+- [ ] Slot contents are a reference to an item (a potion stack, or any usable item) or to a known spell (M8.1); slots hold no items themselves, so inventory and saves stay `{id, qty}`
+- [ ] Placing: drag an item from the satchel or a spell from the spell list onto a slot; drag between slots to move or swap; drag off or a Clear button to remove; "Use" on an item or spell can offer "Add to quick bar"
+- [ ] Activating a slot: number keys 1–6, click or tap. An item is used; a spell is cast (on the faced target); a weapon or shield is equipped
+- [ ] Slot shows the icon, the stack count for items, the mana cost and a cooldown sweep for spells, and is greyed when unusable (empty stack, not enough mana, cooling down)
+- [ ] When a stack runs out the slot stays and refills if the same item is picked up again; if the item is gone for good the slot is emptied
+- [ ] Quick bar saved with the game (M4) as what the player chose, with a migration for old saves
+- [ ] Bot API (M6): read and set the quick bar, activate a slot
+- [ ] Mobile: the quick bar is part of the touch layout, with slots big enough to tap (at least 44 px), not covering the view or the movement controls, in portrait and landscape; a press-and-hold on a slot shows its name and description
+- [ ] Desktop and mobile show the same bar and the same behaviour (extends the parity rule of M4)
+
+**Game**
+- [ ] As a player, I want to drink a health potion mid-fight with one key or one tap.
+- [ ] As a player, I want to put my fire bolt on the bar and cast it without opening a menu.
+- [ ] As a player on a phone, I want the quick bar within thumb reach and never in the way of the view.
 
 ## M9 — World map and travel
 
@@ -267,8 +317,6 @@ ranged weapons and ammunition (own milestone); equipment drawn on the hero figur
 
 *Not required by any game story. Pick up when the game needs more art or other people start making levels.*
 
-- [ ] Outline or glow on magic items' icons
-- [ ] Worn equipment drawn on the hero figure in the inventory (layered art per item)
 - [ ] Experiment 3: full AI-generated screens per cell/direction, mixable per area
 - [ ] Level data validation (unreachable cells, bad exits, missing art) as one command
 - [ ] Visual level editor (tile map, entities, exits)

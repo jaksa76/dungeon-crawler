@@ -20,7 +20,8 @@
 //
 // `materials` are what weapons and armour are made of: { steel: { name: 'Steel', colours: [dark ... light], damage: 1.3,
 // speed: 1, defence: 2 } }. `colours` repaint the grey metal of an icon (ui/icons.js); `damage` and `speed` multiply a
-// weapon's damage range and time between blows, `defence` is added to armour's. An item with `materials` is a family:
+// weapon's damage range and time between blows, `defence` is added to armour's, `value` multiplies the item's `value`
+// and `drop` (see below) is the item's, when a material needs its own. An item with `materials` is a family:
 // it becomes one item per material, `<material>-<id>` (see forgeFamilies below), and is not an item itself.
 //
 // An entry's `art` defaults to its id. An entry that overrides one from an earlier book keeps that book's art unless it
@@ -94,6 +95,8 @@ export function forgeFamilies(items, materials) {
       if (Array.isArray(family.damage)) item.damage = family.damage.map(v => Math.max(1, Math.round(v * (material.damage ?? 1))));
       if (family.speed !== undefined) item.speed = Math.round(family.speed * (material.speed ?? 1));
       if (family.defence !== undefined) item.defence = family.defence + (material.defence ?? 0);
+      if (family.value !== undefined) item.value = Math.max(1, Math.round(family.value * (material.value ?? 1)));
+      if (material.drop !== undefined) item.drop = material.drop;
       if (typeof family.description === 'string') item.description = family.description.replaceAll('{material}', material.name.toLowerCase());
       if (aliases?.[m]) item.aliases = aliases[m];
       Object.assign(item, overrides);

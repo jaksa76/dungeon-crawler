@@ -35,7 +35,7 @@ export function prepareCampaign(campaign) {
 // scenario: {
 //   save        a snapshot (persistence) to start from: everything else is applied on top of it
 //   level, at   the level to start on, and { x, z, dir } on it (default: the campaign's start)
-//   hero        { name, spent: { strength: 2, ... }, hp, mp }: points spent at character creation, current hp/mp
+//   hero        { name, spent: { strength: 2, ... }, xp, hp, mp }: points spent at character creation, experience, current hp/mp
 //   items       [{ item, qty }] added to the pack;  equip: ['sword', ...] worn (taken from the pack, or given)
 //   spawn       [{ kind, x, z, dir?, id?, level? }] creatures (or props) put into the world
 //   clear       true: remove the level's own creatures first (an arena for the spawned ones)
@@ -63,6 +63,7 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
   }
   session.begin({ welcome: false });
   if (scenario.hero) {
+    if (Number.isFinite(scenario.hero.xp)) hero.gain(scenario.hero.xp);
     if (Number.isFinite(scenario.hero.hp)) hero.hp = Math.min(hero.maxHp, scenario.hero.hp);
     if (Number.isFinite(scenario.hero.mp)) hero.mp = Math.min(hero.maxMp, scenario.hero.mp);
   }
@@ -165,6 +166,8 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
       }
     },
     interact: () => act(speed.interact, () => { session.interact(); return { ok: true, container: session.openBox ? boxView() : null }; }),
+    // Put a skill point (from levelling up) into an attribute: 'strength', 'vitality', 'intellect' or 'agility'.
+    spend: attribute => act(100, () => session.spend(attribute)),
     // Talking is Use on an NPC (talk behaviours arrive with dialogue); casting needs spells, which the engine has not yet.
     talk: () => sim.interact(),
     cast: () => ({ ok: false, reason: 'no-spells' }),
