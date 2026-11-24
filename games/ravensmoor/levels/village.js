@@ -24,7 +24,7 @@ export const village = {
     { npc: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
     { id: 'start-chest', prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
       text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
-      contents: [{ item: 'sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
+      contents: [{ item: 'rusty-sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
     // A placement can have its own methods and saved state: the stranger hands over the Raven horn once.
     { npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S', state: { gaveHorn: false },
       interact(game) {
@@ -35,7 +35,8 @@ export const village = {
       } },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { npc: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
-    { prop: 'crate', x: 1, z: 3, side: 'S' },
+    { prop: 'crate', x: 1, z: 3, side: 'S', behavior: { type: 'open', title: 'Crate',
+      text: 'The nails are loose. Under the straw, wrapped in oiled cloth, is an old shirt of mail.', contents: [{ item: 'rusty-mail' }] } },
     { prop: 'well', name: 'the well', x: 2, z: 2, side: 'N', behavior: { type: 'open', title: 'The well',
       text: 'Moss clings to the old stones. Something glints on a ledge just below the rim, within reach.',
       contents: [{ item: 'crystal' }, { item: 'raven-amulet' }] } },

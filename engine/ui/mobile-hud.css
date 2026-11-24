@@ -77,6 +77,7 @@ html[data-bag-art] .rpg-bag-panel { background: var(--rpg-bag-bg) center / 100% 
 .rpg-detail-text h3 { display: block; margin: 0 0 calc(var(--rpg-px, 2) * 2px); font-size: inherit; color: #e8c688; }
 .rpg-detail-text p { display: block; margin: 0; }
 .rpg-detail-text p + p { margin-top: calc(var(--rpg-px, 2) * 2px); }
+.rpg-detail-text .rpg-stats { color: #c9dc9a; } /* numbers: what an item does in a fight */
 /* Every satchel button is the same size: 50 UI pixels wide and 10 tall, whatever its label. */
 .rpg-bag-panel { --btn-w: calc(var(--rpg-px, 2) * 50px); --btn-h: calc(var(--rpg-px, 2) * 10px); }
 .rpg-bag-panel :is(.rpg-detail .rpg-actions button, footer button) { box-sizing: border-box; flex: none; width: var(--btn-w); height: var(--btn-h); min-width: 0; min-height: 0; padding: 0; display: grid; place-items: center; white-space: nowrap; line-height: 1; overflow: hidden; }

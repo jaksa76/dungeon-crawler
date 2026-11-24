@@ -7,5 +7,6 @@ import { props } from './props.js';
 import { buildings } from './buildings.js';
 import { environments } from './environments.js';
 import { doors } from './doors.js';
+import { materials } from './materials.js';
 
-export const engineContent = defineContent(new URL('../assets/', import.meta.url), { items, monsters, npcs, props, buildings, environments, doors });
+export const engineContent = defineContent(new URL('../assets/', import.meta.url), { items, monsters, npcs, props, buildings, environments, doors, materials });

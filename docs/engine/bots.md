@@ -118,7 +118,7 @@ Where and how a run starts. All fields are optional:
   level: 'dungeon', at: { x: 1, z: 1, dir: 2 },
   hero: { name, spent: { strength: 2 }, hp, mp },  // points spent at character creation; current hp and mp
   items: [{ item: 'health-potion', qty: 2 }],      // added to the pack
-  equip: ['sword'],             // worn (taken from the pack, or given)
+  equip: ['iron-sword'],        // worn (taken from the pack, or given)
   clear: true,                  // remove the level's own creatures first
   spawn: [{ kind: 'snake', id: 'duel', x: 1, z: 3, dir: 0 }],
   flags: { 'quests.horn': 'given' },
@@ -128,8 +128,8 @@ Where and how a run starts. All fields are optional:
 ```
 
 A campaign keeps its named ones in `games/<campaign>/scenarios.js` (`export const scenarios = { ... }`). Ravensmoor
-has `start`, `undercrypt` (the crypt as a player first enters it, with the village chest's sword and potions),
-`undercrypt-unarmed` and `snake-duel`. `--scenario` also takes a `.json` or `.mjs` file.
+has `start`, `undercrypt` (the crypt as a player first enters it, with the village chest's rusty sword and potions),
+`undercrypt-geared` (the same with the mace, shield, mail and helmet Ravensmoor hides), `undercrypt-unarmed` and `snake-duel`. `--scenario` also takes a `.json` or `.mjs` file.
 
 ## Reports
 
@@ -165,3 +165,8 @@ the game with `?seed=<n>`: the dice are the same, although a human's timing will
 The first measurement (November 2026): an armed hero with the village chest's potions does not survive the
 Undercrypt. Over 200 runs each, the fighter and the explorer bots die every time, after about 9 kills, mostly to the
 owlbear and the ogre. A lone snake is no danger to an armed hero (200 wins out of 200, 10 damage taken on average).
+
+After weapons and armour (M7), the fighter over 200 runs each: with the rusty sword the village chest now gives,
+7.5 kills per run (it was 9.5 with the old, stronger sword); bare-handed 5.8; with the gear Ravensmoor hides
+(`undercrypt-geared`: iron mace and shield, rusty mail, iron helmet) 9.7, and only the ogre, owlbear, troll, spider
+and ghoul still kill it. The snake duel with the rusty sword: 200 wins, 13 damage taken on average.

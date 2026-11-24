@@ -131,17 +131,28 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 
 *Needs M2.1 (slots), M3 (stats) and M6 (to check the numbers).*
 
+*The engine provides the mechanism; the game decides every number (weapon kinds, materials, damage types, resistances).*
+
+See docs/engine/equipment.md.
+
 **Engine**
-- [ ] Weapon definitions: damage range, speed, reach, weapon types (blade, blunt, ranged) with different behaviour
-- [ ] Armour definitions: defence, resistances, weight/penalties, per slot (head, body, shield, rings, amulet)
-- [ ] Item tiers and rarity, with requirements (level, attributes)
-- [ ] Equipment modifiers (bonuses to stats, damage types, on-hit effects)
-- [ ] Item comparison in the satchel (what changes if I equip this?)
-- [ ] Equipment shown on the hero figure in the inventory
+- [x] Damage types as an open set the game declares (Ravensmoor: blade, blunt, pierce; magic types later)
+- [x] Weapon definitions: damage range, speed (attack cooldown) and damage type; bare fists when nothing is wielded
+- [x] Combat uses them: weapon roll + strength bonus, × the target's resistance to the damage type, − defence
+- [x] Resistances per damage type on monsters and on armour
+- [x] Armour definitions: defence and optional resistances, per slot
+- [x] Materials: weapon/armour kinds × materials (rusty, iron, steel, …) generate the items as plain definitions, so inventory and saves stay `{id, qty}`
+- [x] Material colour swap: one icon per kind, its grey metal recoloured per material when first drawn (both icon styles)
+- [x] What changed: equipping logs the difference (`damage 4–7 → 6–9, slower`); the satchel's item text shows stats and the difference to what is worn
 
 **Game**
-- [ ] As a player, I want a rusty weapon at the start and a clear upgrade path to better gear.
-- [ ] As a player, I want armour to make the next fight noticeably safer.
+- [~] As a player, I want a rusty weapon at the start and a clear upgrade path to better gear. (Rusty sword → iron mace in the game; steel and mithril exist but are placed by loot, M8, and shops, M12.)
+- [x] As a player, I want a better weapon in a chest in the dungeon.
+- [x] As a player, I want a mace or a spear to be the better choice against some monsters.
+- [x] As a player, I want armour to make the next fight noticeably safer.
+
+Deferred: rarity (out of scope); outline for magic items (Later); on-hit effects (M8, with status effects);
+ranged weapons and ammunition (own milestone); equipment drawn on the hero figure (Later). No attribute or level requirements.
 
 ## M8 — Loot, XP and progression
 
@@ -149,6 +160,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 
 **Engine**
 - [ ] Dynamic loot: drops computed from the monster, dungeon level and player level (and optionally luck), not fixed lists
+- [ ] Game can define specific loot
 - [ ] Loot budgets as the balancing lever: value per monster and per level is declared in data, and the generator spends it
 - [ ] Loot tables can be tuned from the bot reports (M6) without code changes
 - [ ] XP, levelling and stat increases
@@ -158,7 +170,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 
 **Game**
 - [ ] As a player, I want to gain experience from fights and grow stronger.
-- [ ] As a player, I want the snake to drop something worth having.
+- [ ] As a player, I want the monsters to drop something worth having.
 - [ ] As a designer, I want the difficulty curve verified by bots before it ships.
 
 ## M9 — World map and travel
@@ -255,7 +267,8 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 
 *Not required by any game story. Pick up when the game needs more art or other people start making levels.*
 
-- [ ] Prop art pipeline for eye-level, per-side props (merge the stall/well work from `2d-demo-comfyui-experiments`)
+- [ ] Outline or glow on magic items' icons
+- [ ] Worn equipment drawn on the hero figure in the inventory (layered art per item)
 - [ ] Experiment 3: full AI-generated screens per cell/direction, mixable per area
 - [ ] Level data validation (unreachable cells, bad exits, missing art) as one command
 - [ ] Visual level editor (tile map, entities, exits)

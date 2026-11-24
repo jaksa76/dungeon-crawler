@@ -61,7 +61,7 @@ test('actions take game time, and the creatures act meanwhile', async () => {
 test('a scenario places the hero, gives and equips items and spawns creatures', async () => {
   const sim = await createSimulation({ campaign, scenario: {
     level: 'dungeon', at: { x: 1, z: 3, dir: 2 }, clear: true, hero: { name: 'Tester', spent: { strength: 3 }, hp: 20 },
-    items: [{ item: 'health-potion', qty: 3 }], equip: ['sword'], flags: { 'test.flag': 1 },
+    items: [{ item: 'health-potion', qty: 3 }], equip: ['iron-sword'], flags: { 'test.flag': 1 },
     spawn: [{ kind: 'rat', id: 'arena-rat', x: 1, z: 5, dir: 0 }],
   } });
   const state = sim.state({ omniscient: true });
@@ -69,7 +69,7 @@ test('a scenario places the hero, gives and equips items and spawns creatures', 
   assert.equal(state.hero.name, 'Tester');
   assert.equal(state.hero.hp, 20);
   assert.equal(state.hero.attrs.strength, 9);
-  assert.equal(state.equipment.weapon, 'sword');
+  assert.equal(state.equipment.weapon, 'iron-sword');
   assert.equal(state.inventory.find(s => s.id === 'health-potion').qty, 4); // one from the starting kit
   assert.deepEqual(state.monsters.map(m => m.id), ['arena-rat']);
   assert.equal(sim.flags.get('test.flag'), 1);
@@ -84,7 +84,7 @@ test('a scenario starts from a save, which survives the round trip', async () =>
   const second = await createSimulation({ campaign, scenario: { save } });
   assert.equal(second.level, 'dungeon');
   assert.deepEqual(second.position, first.position);
-  assert.equal(second.equipment.worn.weapon, 'sword');
+  assert.equal(second.equipment.worn.weapon, 'rusty-sword');
 });
 
 test('the bot sees what is in front of it, not the whole level', async () => {
@@ -119,10 +119,13 @@ test('containers open, and taking from them is a pickup', async () => {
   const { container } = sim.interact();
   assert.equal(container.title, 'Chest');
   const { taken } = sim.takeAll();
-  assert.ok(taken.some(s => s.id === 'sword'));
-  assert.ok(sim.drain().some(e => e.type === 'pickup' && e.item === 'sword'));
-  assert.equal(sim.equip('sword').ok, true);
-  assert.equal(sim.equipment.worn.weapon, 'sword');
+  assert.ok(taken.some(s => s.id === 'rusty-sword'));
+  assert.ok(sim.drain().some(e => e.type === 'pickup' && e.item === 'rusty-sword'));
+  const equipped = sim.equip('rusty-sword');
+  assert.equal(equipped.ok, true);
+  assert.equal(sim.equipment.worn.weapon, 'rusty-sword');
+  assert.match(equipped.message, /^You equip the rusty sword: damage 5–7 blunt → 8–10 blade, slower\.$/);
+  assert.ok(sim.drain().some(e => e.type === 'equip' && e.changes.length === 2));
 });
 
 test('the example bots play to the end and the fighter wins a duel', async () => {

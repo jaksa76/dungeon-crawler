@@ -81,6 +81,11 @@ The keying removes pixels very close to pure magenta everywhere and softens the 
 purple things (the violet crystal, the elixir) keep their colour. The painted sheets themselves are not kept
 in the repository; regenerate one if you want a different take.
 
+## Materials
+
+One icon serves a whole family of weapons or armour: `short-sword@steel` is the short sword with its metal repainted
+in steel's colours. See [equipment.md](equipment.md#one-icon-per-family).
+
 ## Using an icon
 
 An item: set `icon: '<id>'` in its definition. Anywhere else: `icons.draw(g, id, x, y, w, h)` from

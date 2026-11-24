@@ -13,4 +13,6 @@ export const campaign = {
   respawn: { level: 'village', place: 'the village', message: 'You awaken safely in the village.' },
   // What the player carries at the start: no equipment, only a few potions.
   startingItems: [{ item: 'health-potion' }, { item: 'mana-potion' }],
+  // Bare hands: weak, quick, and they bruise (the damage types are in content/arms.js).
+  unarmed: { name: 'fists', damage: [1, 3], speed: 600, damageType: 'blunt' },
 };

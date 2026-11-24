@@ -52,8 +52,9 @@ Press **I** (or tap the bag icon) to open it; press **I** again, or **Escape**, 
 
 `engine/rules/equipment.js` (no DOM). The hero has nine slots: head, amulet, weapon, shield, armour,
 gloves, two rings and boots. An item is wearable when its definition has `slot` (`'ring'` fits
-either ring slot); `bonus: { attack, defence }` is summed by `equipment.bonuses()` for the combat
-rules. Worn items are not in the pack. `equip(inventory, index, slot?)` wears one item and
+either ring slot); what a worn item does in a fight (a weapon's damage and speed, armour's defence and
+resistances, a ring's `bonus`) is added up by `equipment.gear()` for the combat rules, see
+[equipment.md](equipment.md). Worn items are not in the pack. `equip(inventory, index, slot?)` wears one item and
 returns what was there to the pack (refused if the pack has no room); `unequip(inventory, slot, toIndex?)`
 takes it off. In the satchel the slots sit under the figure: select a pack item and press **Equip**,
 or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
@@ -65,7 +66,7 @@ full-length, front-facing, unarmed, plain clothes, as 48x96 pixel art enlarged t
 magenta. `node tools/hero-sprite.mjs painted.png` then samples the blocks back to a real 48x96 PNG with transparency.
 On portrait phones the figure is hidden but the slots remain, in a row.
 
-The hero starts with no equipment; the village chest holds a sword and the crate can hold a leather cap.
+The hero starts with no equipment; the village chest holds a rusty sword and the crate by the villager a rusty mail shirt.
 `node --test tests/equipment.test.mjs` covers it.
 
 ## Containers and loot
@@ -87,8 +88,9 @@ close it and come back. Two barrels from the same prop roll separately.
 The panel lists each stack with a **Take** row, plus **Take all**. If the pack is full,
 whatever does not fit stays in the container.
 
-In the village: the chest holds the sword and starting supplies; the well hides a crystal; one barrel
-and the crate roll a potion, torch or scroll; the second barrel is empty.
+In the village: the chest holds the rusty sword and starting supplies; the well hides a crystal and the Raven amulet;
+one barrel rolls a potion; the crate holds a rusty mail shirt; the second barrel is empty. In the Undercrypt the old
+chest holds an iron mace, an iron shield and two potions.
 
 ## Dropping and the floor
 

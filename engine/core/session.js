@@ -23,7 +23,7 @@ import { interact as interactWith } from '../rules/interaction.js';
 import { createWorld, flat } from './world.js';
 import { itemUse } from '../rules/behaviours.js';
 import { createEquipment } from '../rules/equipment.js';
-import { createCharacter, strike, createCooldown } from '../rules/combat.js';
+import { createCharacter, strike, createCooldown, compareStats, statDelta, FISTS } from '../rules/combat.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll } from '../rules/inventory.js';
 import { resolveContents } from '../rules/loot.js';
 import { createPersistence } from './persistence.js';
@@ -50,7 +50,7 @@ export const EVENTS = {
   pickup: '{ item, qty, from }: items went into the pack (from a container or pile)',
   drop: '{ item, qty }: items left the pack for the floor',
   use: '{ item, consumed, message }: an item was used from the pack',
-  equip: '{ item, slot }', unequip: '{ item, slot }',
+  equip: '{ item, slot, changes }: changes are words (rules/combat.js compareStats)', unequip: '{ item, slot, changes }',
   level: '{ from, to }: the player is on another level',
 };
 
@@ -79,7 +79,7 @@ export function cellLookup(world, id, { level, tileTypes }) {
 }
 
 export function createSession({ levels: definitions, start, books, startingItems = [], respawn = { level: start },
-  inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, heroAttackMs = 700,
+  inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, unarmed = FISTS,
   creation = null, persist = [], level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
   hooks = {} }) {
   const itemDefs = books.items;
@@ -122,7 +122,7 @@ export function createSession({ levels: definitions, start, books, startingItems
 
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
-  const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs, name: creation?.name });
+  const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name });
   if (creation) { hero.build(creation.spent); hero.restore(); }
   const containers = new Map(); // `level:x,z,side` -> stacks of opened containers (rolled the first time they are opened)
   const piles = new Map(); // `level:x,z` -> stacks the player dropped
@@ -257,15 +257,27 @@ export function createSession({ levels: definitions, start, books, startingItems
     for (const { id, qty } of taken) emit('pickup', { item: id, qty, from: openBox.from });
     return taken;
   }
+  // Wearing and taking off. The message says what that changes in a fight: "You equip the iron mace: damage 7–11
+  // blade → 9–13 blunt, slower." `changes` is the same as a list.
+  function withChanges(before, result) {
+    if (!result.ok) return result;
+    const changes = compareStats(before, hero.stats(), books.damageTypes);
+    return changes.length ? { ...result, changes, message: `${result.message.replace(/\.$/, '')}: ${changes.join(', ')}.` } : { ...result, changes };
+  }
   function equip(index, slot = null) {
-    const id = inventory.slots[index]?.id, result = equipment.equip(inventory, index, slot);
-    if (result.ok) emit('equip', { item: id, slot: result.slot });
+    const id = inventory.slots[index]?.id, before = hero.stats(), result = withChanges(before, equipment.equip(inventory, index, slot));
+    if (result.ok) emit('equip', { item: id, slot: result.slot, changes: result.changes });
     return result;
   }
   function unequip(slot, toIndex = null) {
-    const id = equipment.worn[slot], result = equipment.unequip(inventory, slot, toIndex);
-    if (result.ok) emit('unequip', { item: id, slot });
+    const id = equipment.worn[slot], before = hero.stats(), result = withChanges(before, equipment.unequip(inventory, slot, toIndex));
+    if (result.ok) emit('unequip', { item: id, slot, changes: result.changes });
     return result;
+  }
+  // What wearing a pack item would change, in short words (statDelta, for the satchel), or null for an item not worn.
+  function wouldChange(itemId) {
+    if (!itemDefs[itemId]?.slot || !equipment.targetFor(itemId)) return null;
+    return statDelta(hero.stats(), hero.statsWith(equipment.gear(equipment.preview(itemId))), books.damageTypes);
   }
 
   // Fighting. The hero swings at a creature (`targetId`, or the one on the tile they face or share), then waits out a
@@ -279,7 +291,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     if (targetId && (!target || !(hooks.canTarget ?? defaultCanTarget)(target))) return { ok: false, reason: 'gone' };
     if (targetId && Math.abs(target.x - p.x) + Math.abs(target.z - p.z) > 1) { say('Step closer to attack.'); return { ok: false, reason: 'far' }; }
     if (!swing.ready(now)) return { ok: true, waiting: true, target };
-    swing.use(now);
+    swing.use(now, hero.attackMs); // the weapon sets the pace
     if (!target) { say('You swing at the empty air.'); return { ok: false, reason: 'empty' }; }
     active.monsters.face(target, p);
     const result = strike(hero, target, random);
@@ -287,13 +299,18 @@ export function createSession({ levels: definitions, start, books, startingItems
     let killed = false;
     if (!result.hit) say(`You miss the ${target.name}.`);
     else {
-      say(`You hit the ${target.name} for ${result.damage}.`);
+      say(`You hit the ${target.name} for ${result.damage}.${resistance(target, result.resisted)}`);
       killed = active.monsters.damage(target, result.damage, now);
       emit('damage-dealt', { target: describe(target), amount: result.damage, hp: target.hp });
       if (killed) { say(`The ${target.name} dies.`); emit('kill', { target: describe(target) }); target.onDeath?.(api); }
     }
     return { ok: true, target, hit: result.hit, damage: result.damage, killed };
   }
+  // A few words when a creature shrugs off or is weak to the hero's damage type.
+  const resistance = (target, resisted) => {
+    const type = books.damageTypes[hero.damageType]?.name ?? hero.damageType;
+    return resisted < 1 ? ` It resists ${type}.` : resisted > 1 ? ` It is weak to ${type}.` : '';
+  };
   const defaultCanTarget = target => (target.x === p.x && target.z === p.z) || (target.x === ahead().x && target.z === ahead().z);
 
   // A creature's blow. Returns { hit, damage }.
@@ -454,7 +471,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     closeBox() { openBox = null; },
     contextOf: context,
     on(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); return () => listeners.get(type).delete(fn); },
-    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip,
+    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange,
     attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
   };
   return session;

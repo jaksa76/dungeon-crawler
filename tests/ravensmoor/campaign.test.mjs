@@ -6,7 +6,7 @@ import { createEquipment } from '../../engine/rules/equipment.js';
 import { createInventory, addToStacks, checkItems } from '../../engine/rules/inventory.js';
 import { resolveContents } from '../../engine/rules/loot.js';
 import { checkBehavior } from '../../engine/rules/interaction.js';
-import { campaign, books, levels, artFile, own, campaignWorld } from '../support.mjs';
+import { campaign, books, engineBooks, levels, artFile, own, campaignWorld } from '../support.mjs';
 
 
 const itemDefs = books.items, village = levels.village;
@@ -24,7 +24,7 @@ test('the items are well formed and the starting kit fits, with nothing to wear'
   assert.doesNotThrow(() => checkItems(itemDefs));
   const pack = createInventory(itemDefs, { size: 48, start: campaign.startingItems });
   assert.ok(pack.slots.every(s => !s || !itemDefs[s.id].slot));
-  assert.deepEqual(createEquipment(itemDefs).bonuses(), {});
+  assert.deepEqual(createEquipment(itemDefs).gear(), { weapon: null, defence: 0, resist: {}, bonus: {} });
 });
 
 test('Ravensmoor retunes the engine torch but keeps its art and stats', () => {
@@ -36,7 +36,7 @@ test('the village’s start chest has an id, so its contents are saved by name',
   assert.ok(village.level.entities.some(e => e.id === 'start-chest'));
 });
 
-test('every container in the village names real items; the chest holds the sword, the well, barrels and crate hide something', () => {
+test('every container in the village names real items; the chest holds the rusty sword, the well, barrels and crate hide something', () => {
   const opened = village.level.entities.filter(e => behaviorOf(e)?.type === 'open');
   assert.ok(opened.length >= 5);
   for (const entity of opened) {
@@ -44,7 +44,7 @@ test('every container in the village names real items; the chest holds the sword
     for (const id of [...(b.contents ?? []).map(c => c.item), ...(b.loot?.entries ?? []).map(e => e.item)]) assert.ok(itemDefs[id], `unknown item ${id}`);
   }
   const chest = village.level.entities.find(e => e.id === 'start-chest');
-  assert.ok(chest.behavior.contents.some(c => c.item === 'sword'));
+  assert.ok(chest.behavior.contents.some(c => c.item === 'rusty-sword'));
   assert.ok(resolveContents(chest.behavior, add(itemDefs)).length >= 2);
   for (const name of ['well', 'barrel', 'crate']) {
     const entity = village.level.entities.find(e => e.prop === name);
@@ -61,16 +61,29 @@ test('the village things that carry a behaviour use known types and say somethin
   }
 });
 
-test('the snake is Ravensmoor’s own creature, with its art in the campaign', () => {
-  assert.deepEqual(own(campaign.content, 'monsters'), ['snake']);
+test('the snake is Ravensmoor’s own creature, with its art in the campaign; the others are the engine’s, retuned', () => {
+  assert.deepEqual(own(campaign.content, 'monsters').filter(id => !engineBooks.monsters[id]), ['snake']);
+  assert.equal(books.monsters.skeleton.assets, engineBooks.monsters.skeleton.assets); // a house rule keeps the art
   assert.match(books.monsters.snake.assets, /games\/ravensmoor\/assets\/monsters\/snake\/$/);
   assert.equal(campaignWorld().find('dungeon', 'prowler').kind, 'snake');
 });
 
-test('the snake can be fought: several hits unarmed, fewer with the sword; it hurts the hero but not in one bite', () => {
-  const snake = campaignWorld().all('dungeon', 'monster').find(m => m.kind === 'snake'), hero = createCharacter(attrs, createEquipment(itemDefs));
-  const hits = attack => Math.ceil(snake.hp / strike({ attack, accuracy: 5 }, snake, seq(.1, .5)).damage);
-  assert.ok(hits(8) >= 4); assert.ok(hits(12) <= 3);
+// A hero wearing `items`, and how many middling blows it needs to kill a creature of `kind` in the Undercrypt.
+function armed(...items) {
+  const pack = createInventory(itemDefs, { size: 8 }), gear = createEquipment(itemDefs);
+  for (const id of items) { pack.add(id); gear.equip(pack, pack.slots.findIndex(s => s?.id === id)); }
+  return createCharacter(attrs, gear, { unarmed: campaign.unarmed });
+}
+const blowsToKill = (hero, kind) => {
+  const foe = campaignWorld().all('dungeon', 'monster').find(m => m.kind === kind);
+  return Math.ceil(foe.hp / strike(hero, foe, seq(.1, .5)).damage);
+};
+
+test('the snake can be fought: several hits unarmed, fewer with the rusty sword, fewer still with iron; it hurts the hero but not in one bite', () => {
+  const snake = campaignWorld().all('dungeon', 'monster').find(m => m.kind === 'snake'), hero = armed();
+  assert.ok(blowsToKill(armed(), 'snake') >= 5);
+  assert.ok(blowsToKill(armed('rusty-sword'), 'snake') <= 4);
+  assert.ok(blowsToKill(armed('iron-sword'), 'snake') < blowsToKill(armed('rusty-sword'), 'snake'));
   const bite = strike({ attack: snake.damage, accuracy: snake.accuracy }, hero, seq(.1, .5)).damage;
   assert.ok(bite > 0 && bite * 3 < hero.maxHp);
   assert.ok(bite * 6 >= hero.maxHp); // it does win in the end if you never heal: potions matter
@@ -103,7 +116,11 @@ test('every creature in the Undercrypt stands on floor and has its sixteen frame
 test('every item has an icon, from the engine’s atlas or Ravensmoor’s own sheet, and the sheet holds all its icons', () => {
   const atlas = JSON.parse(fs.readFileSync(new URL('../../engine/assets/icons/atlas.json', import.meta.url), 'utf8'));
   const sheetIcons = new Set(Object.values(books.icons).flatMap(sheet => sheet.icons));
-  for (const [id, def] of Object.entries(itemDefs)) assert.ok(atlas.icons[def.icon] !== undefined || sheetIcons.has(def.icon), `${id}: no icon "${def.icon}"`);
+  for (const [id, def] of Object.entries(itemDefs)) {
+    const [icon, material] = def.icon.split('@');
+    assert.ok(atlas.icons[icon] !== undefined || sheetIcons.has(icon), `${id}: no icon "${icon}"`);
+    if (material) assert.ok(books.materials[material]?.colours?.length >= 2, `${id}: material "${material}" has no colours`);
+  }
   for (const sheet of Object.values(books.icons)) for (const version of [sheet, sheet.detailed].filter(Boolean)) {
     const png = fs.readFileSync(new URL(version.url));
     assert.equal(png.toString('ascii', 1, 4), 'PNG');
@@ -148,4 +165,28 @@ test('the Raven horn opens the locked crypt gate in the Undercrypt from the vill
   assert.match(said.at(-1), /Far below/);
   horn.use.call(horn, game);
   assert.match(said.at(-1), /already stands open/);
+});
+
+test('weapons and armour come in materials: a rusty sword to start, an iron mace and shield in the Undercrypt, mail in a village crate', () => {
+  assert.deepEqual(Object.keys(books.damageTypes).sort(), ['blade', 'blunt', 'pierce']);
+  for (const id of ['rusty-sword', 'iron-sword', 'steel-sword', 'iron-mace', 'iron-spear', 'rusty-mail', 'iron-shield']) assert.ok(itemDefs[id], id);
+  assert.equal(itemDefs.sword, undefined); // a family, not an item
+  assert.deepEqual(itemDefs['iron-sword'].aliases, ['sword']); // old saves keep their sword
+  const damage = id => itemDefs[id].damage[0] + itemDefs[id].damage[1];
+  assert.ok(damage('rusty-sword') < damage('iron-sword') && damage('iron-sword') < damage('steel-sword') && damage('steel-sword') < damage('mithril-sword'));
+  assert.ok(itemDefs['steel-mail'].defence > itemDefs['rusty-mail'].defence);
+  const hoard = levels.dungeon.level.entities.find(e => e.id === 'crypt-hoard');
+  assert.ok(hoard.behavior.contents.some(c => c.item === 'iron-mace'));
+  assert.ok(levels.village.level.entities.some(e => e.prop === 'crate' && e.behavior?.contents?.some(c => c.item === 'rusty-mail')));
+});
+
+test('a mace breaks skeletons that shrug off a sword, and a sword cuts zombies better than a spear', () => {
+  assert.ok(blowsToKill(armed('iron-mace'), 'skeleton') * 2 <= blowsToKill(armed('iron-sword'), 'skeleton'));
+  assert.ok(blowsToKill(armed('iron-sword'), 'zombie') < blowsToKill(armed('iron-spear'), 'zombie'));
+});
+
+test('armour makes a fight safer: mail takes off defence and blunts blades', () => {
+  const goblin = campaignWorld().all('dungeon', 'monster').find(m => m.kind === 'goblin');
+  const cut = hero => strike({ ...goblin, attack: goblin.damage }, hero, seq(.1, .5)).damage;
+  assert.ok(cut(armed('iron-mail', 'iron-helmet')) <= cut(armed()) / 2);
 });

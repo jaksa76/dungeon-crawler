@@ -32,13 +32,14 @@ and bites, and the player swings back (see Combat below).
 Rules are in `engine/rules/combat.js` (pure numbers), wiring in `engine/core/game.js`.
 
 - **Hero.** Attributes (`heroAttributes`: strength, vitality, intellect, agility; default 6/6/4/5) give
-  HP `28 + 5 x vitality`, MP `4 + 5 x intellect`, attack `2 + strength`, defence `agility / 2` and accuracy and
-  evasion `agility`. Worn items add their `bonus` (`{ attack, defence }`, see inventory.md), so the sword takes
-  attack from 8 to 12. The satchel shows attack and defence when nothing is selected.
+  HP `28 + 5 x vitality`, MP `4 + 5 x intellect`, defence `agility / 2` and accuracy and evasion `agility`. Damage is
+  the weapon's range plus `strength − 2`: fists 1–3, so 5–7; the rusty sword 4–6, so 8–10. Armour adds defence and
+  resistances. See [equipment.md](../engine/equipment.md). The satchel shows damage and defence when nothing is selected.
 - **Hitting.** A blow lands with 75% chance, plus or minus 4 points per point of accuracy over the
-  other side's evasion (20% to 95%). A hit does attack +-20% less defence, at least 1.
+  other side's evasion (20% to 95%). The hero's hit rolls in its damage range, a creature's does attack +-20%; the
+  defender's resistance to the damage type multiplies it, then defence comes off, at least 1.
 - **Player attack.** Click/tap a visible creature; hold to repeat at the weapon cooldown. **Attack**, **X** or **Enter** target the creature ahead. It hits the creature on the tile the player faces
-  (or shares), then waits 700 ms (`heroAttackMs`). A miss or a swing at nothing costs the same wait. The result
+  (or shares), then waits the weapon's `speed` (the rusty sword 700 ms, fists 600 ms). A miss or a swing at nothing costs the same wait. The result
   floats over the scene and goes in the message log.
 - **Creature attack.** A creature stops on the tile next to the player and does not enter their tile; the player
   cannot walk into a living creature either. On coming into reach it winds up for 60% of `attackMs`, then strikes
@@ -46,7 +47,8 @@ Rules are in `engine/rules/combat.js` (pure numbers), wiring in `engine/core/gam
 - **Feedback.** Each creature plays idle, move, attack, hurt and dead clips. Corpses remain briefly after collapsing. Hovering or tapping outlines a target and shows its health; the screen flashes red when the hero is hit. See [animation and targeting](../engine/monster-animation.md).
 - **Pausing.** A menu, loading or a hidden tab pause the fight and restart every wind-up. Press **1** or **2**
   (or tap a potion in the quick slots) to drink a health or mana potion without opening the satchel.
-- A fight with the snake: unarmed it takes about five hits, with the sword three; its bite does about 10, so a
+- A fight with the snake: unarmed it takes about six hits (its coils soften blunt blows), with the rusty sword four,
+  with an iron one three; its bite does about 10, so a
   hero who never heals is beaten in about six bites and a potion is worth drinking.
 
 The snake is Ravensmoor's own creature, not one of the engine's: its stat block is in

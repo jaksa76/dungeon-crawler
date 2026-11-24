@@ -16,7 +16,7 @@ import { flat } from './world.js';
 import { withIcons, panelOverlay } from '../ui/panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { HEAD_X } from '../ui/head.js';
-import { deriveStats } from '../rules/combat.js';
+import { deriveStats, FISTS } from '../rules/combat.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { createSaveStore, peek } from './persistence.js';
 import { createSession, DIR_KEYS } from './session.js';
@@ -46,7 +46,9 @@ export async function startGame(options) {
 
 async function runGame({ levels, start, content = [], startingItems = [], respawn = { level: start },
   viewCanvas, uiCanvas, frame, status, inventorySize = 48, inventoryColumns = 8,
-  heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, heroAttackMs = 700,
+  heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 },
+  // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
+  unarmed = FISTS,
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
@@ -74,7 +76,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const persistent = !params.has('level');
   let slot = params.get('slot') ?? 'slot-1', saved = null, creation = null;
   const newHero = () => (characterCreation
-    ? screen.character({ base: heroAttributes, points: characterCreation.points ?? 4, derive: attrs => deriveStats(attrs) })
+    ? screen.character({ base: heroAttributes, points: characterCreation.points ?? 4, derive: attrs => deriveStats(attrs, { weapon: unarmed }) })
     : Promise.resolve({}));
   if (persistent && params.has('new')) {
     saves.clear(slot);
@@ -109,7 +111,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const random = params.has('seed') ? createRng(params.get('seed')) : () => Math.random();
   // The rules. Its hooks are where the screen takes part: a level's art loads before the player arrives there.
   const session = createSession({ levels: definitions, start, books, startingItems, respawn, inventorySize, heroAttributes,
-    heroAttackMs, creation, persist, level: firstLevel, random, clock: () => performance.now(),
+    unarmed, creation, persist, level: firstLevel, random, clock: () => performance.now(),
     hooks: {
       travel: (exit, options) => travel(exit, options),
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
@@ -182,7 +184,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
   // use a bitmap font: a scalable one is too blurry at this size.
   const PW = Math.max(cw, 320);
-  const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle(), Object.values(books.icons));
+  const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle(), Object.values(books.icons), books.materials);
   const panelImage = withIcons(await loadImage(new URL('../assets/ui/panel.png', import.meta.url).href), icons);
   // The portrait is the head of the full-body pixel sprite, cropped to its frame and never scaled: one art pixel is one
   // UI pixel. (The painted desktop panel draws its portrait cover-fitted, so it is given a picture that is exactly the
@@ -244,6 +246,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
   const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
+    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;

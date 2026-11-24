@@ -16,7 +16,11 @@ const BAG_BACKGROUND = '../assets/ui/inventory-bg.png';
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
 // and returns { message } (or null). saves: the settings panel's save and load (null hides them):
 // { max, current(), list() -> [{ slot, savedAt, label }], save(slot) -> bool, load(slot) -> Promise<bool> }.
-export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {}, saves = null }) {
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {}, saves = null,
+  // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing
+  // a pack item would change (session.wouldChange), and `damageTypes` names the damage types.
+  onEquip = (index, slot) => equipment.equip(inventory, index, slot), onUnequip = (slot, toIndex) => equipment.unequip(inventory, slot, toIndex),
+  wouldChange = () => null, damageTypes = {} }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -144,6 +148,21 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const textButton = (label, handler) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', handler); return b; };
   if (BAG_BACKGROUND) { document.documentElement.style.setProperty('--rpg-bag-bg', `url(${new URL(BAG_BACKGROUND, import.meta.url).href})`); document.documentElement.dataset.bagArt = ''; }
 
+  // What an item does in a fight, in one line: "Blunt 10–14, a blow every 0.85 s." / "Defence 2, blade damage ×0.8."
+  // A weapon's damage is what the hero would deal with it, strength included.
+  const typeName = t => damageTypes[t]?.name ?? t;
+  function itemStats(def) {
+    const parts = [];
+    if (Array.isArray(def.damage)) {
+      const [lo, hi] = hero.statsWith ? hero.statsWith({ ...equipment.gear(), weapon: def }).damage : def.damage, type = def.damageType ? typeName(def.damageType) : 'damage';
+      parts.push(`${type[0].toUpperCase()}${type.slice(1)} ${lo}–${hi}`, `a blow every ${+(def.speed / 1000).toFixed(2)} s`);
+    }
+    if (def.defence) parts.push(`Defence ${def.defence}`);
+    for (const [k, v] of Object.entries(def.resist ?? {})) parts.push(`${typeName(k)} damage ×${v}`);
+    for (const [k, v] of Object.entries(def.bonus ?? {})) parts.push(`${v > 0 ? '+' : ''}${v} ${k}`);
+    return parts.length ? `${parts.join(', ')}.` : '';
+  }
+
   // An empty equipment slot shows a faint picture of what goes in it.
   function ghostIcon(iconId, size) {
     const c = itemIconCanvas(iconId, size); c.classList.add('ghost'); return c;
@@ -210,22 +229,26 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const text = make('div', 'rpg-detail-text');
     if (!def) {
       text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'),
-        make('p', '', `Attack ${hero.attack}, defence ${hero.defence}.`));
+        make('p', '', `Damage ${hero.damage[0]}–${hero.damage[1]}${hero.damageType ? ` ${typeName(hero.damageType)}` : ''}, defence ${hero.defence}.`));
     } else {
-      text.append(make('h3', '', `${def.name}${stack?.qty > 1 ? ` x${stack.qty}` : ''}`), make('p', '', def.description));
-      const bonus = Object.entries(def.bonus ?? {}).map(([k, v]) => `${v > 0 ? '+' : ''}${v} ${k}`).join(', ');
-      if (bonus) text.append(make('p', '', bonus));
+      // The numbers first: the flavour text may need scrolling, they should not.
+      text.append(make('h3', '', `${def.name}${stack?.qty > 1 ? ` x${stack.qty}` : ''}`));
+      const stats = itemStats(def);
+      if (stats) text.append(make('p', 'rpg-stats', stats));
+      const changes = stack ? wouldChange(stack.id) : null;
+      if (changes) text.append(make('p', 'rpg-stats', changes.length ? `If worn: ${changes.join(', ')}.` : 'If worn: no change.'));
+      text.append(make('p', '', def.description));
     }
     if (note) text.append(make('p', 'rpg-note', note));
     detail.append(text);
     if (worn) {
       const actions = make('div', 'rpg-actions');
-      actions.append(textButton('Take off', () => { const r = equipment.unequip(inventory, selectedGear); if (r.ok) { selectedGear = null; say(r.message); } openInventory(r.message); }));
+      actions.append(textButton('Take off', () => { const r = onUnequip(selectedGear); if (r.ok) { selectedGear = null; say(r.message); } openInventory(r.message); }));
       detail.append(actions);
     } else if (stack) {
       const actions = make('div', 'rpg-actions');
       if (def.slot) actions.append(textButton('Equip', () => {
-        const r = equipment.equip(inventory, selected); if (r.ok) { selected = null; say(r.message); } openInventory(r.message);
+        const r = onEquip(selected); if (r.ok) { selected = null; say(r.message); } openInventory(r.message);
       }));
       const use = textButton('Use', () => { const result = onUse(selected); openInventory(result?.message ?? ''); });
       use.disabled = !def.use;
@@ -274,10 +297,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       if (target && target !== cell) {
         if (cell.dataset.slot && target.dataset.slot) { if (inventory.move(+cell.dataset.slot, +target.dataset.slot)) { selected = +target.dataset.slot; selectedGear = null; } }
         else if (cell.dataset.slot) { // pack -> equipment slot
-          const r = equipment.equip(inventory, +cell.dataset.slot, target.dataset.equip);
+          const r = onEquip(+cell.dataset.slot, target.dataset.equip);
           note = r.message; if (r.ok) { selected = null; selectedGear = target.dataset.equip; say(r.message); }
         } else if (target.dataset.slot) { // equipment slot -> pack
-          const r = equipment.unequip(inventory, cell.dataset.equip, +target.dataset.slot);
+          const r = onUnequip(cell.dataset.equip, +target.dataset.slot);
           note = r.message; if (r.ok) { selectedGear = null; selected = inventory.slots[+target.dataset.slot] ? +target.dataset.slot : null; say(r.message); }
         }
       }

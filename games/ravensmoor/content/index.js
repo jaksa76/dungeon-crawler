@@ -3,5 +3,6 @@ import { defineContent } from '../../../engine/index.js';
 import { monsters } from './monsters.js';
 import { items } from './items.js';
 import { icons } from './icons.js';
+import { arms, damageTypes, materials } from './arms.js';
 
-export const content = defineContent(new URL('../assets/', import.meta.url), { monsters, items, icons });
+export const content = defineContent(new URL('../assets/', import.meta.url), { monsters, items: { ...items, ...arms }, icons, damageTypes, materials });

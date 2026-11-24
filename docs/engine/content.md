@@ -33,6 +33,7 @@ export const campaign = {
   start: 'village',
   respawn: { level: 'village', place: 'the village', message: 'You awaken safely in the village.' },
   startingItems: [{ item: 'health-potion' }, { item: 'mana-potion' }],
+  unarmed: { name: 'fists', damage: [1, 3], speed: 600, damageType: 'blunt' }, // bare hands (optional)
 };
 ```
 
@@ -45,7 +46,7 @@ Behaviour is code on the same objects: an item's `use`, an NPC's `interact`, a c
 
 ## Content books
 
-A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons })`,
+A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons, damageTypes, materials })`,
 where `baseUrl` is the folder that holds its art (doors have none of their own: they show a building):
 
 ```
@@ -90,6 +91,9 @@ The icons are painted by Codex the same way as the engine's (see [icons.md](icon
 icons go to `art/<name>/icons/png/`, and `pack` writes the campaign's sheet, `games/<name>/assets/icons/<name>.png`,
 16-pixel tiles in the order of `sheets.json` (which the content book's `icons` list repeats). Attach the engine's
 `engine/assets/icons/atlas.png` to the Codex run as the style reference, so the campaign's icons match the engine's.
+
+Weapons and armour come in families made of materials (`iron-mace`, `steel-mail`), and damage types and resistances
+are the campaign's: see [equipment.md](equipment.md).
 
 Creatures are D&D 5e stat blocks (`cr`, `hp`, `ac`, `dmg`) from which `engine/rules/stats.js` derives the game
 stats, so a campaign writes a new monster the way a dungeon master would.

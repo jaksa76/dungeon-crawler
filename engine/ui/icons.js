@@ -1,6 +1,8 @@
 // The icon atlas: every item and interface icon, as 64x64 transparent tiles in one image.
 // Built by `node tools/icon-sheets.mjs pack` from the painted sheets; see docs/engine/icons.md.
 // A campaign's own icon spritesheets (content books' `icons`, see content/catalog.js) are added on top.
+// An id `<icon>@<material>` is that icon with its grey metal repainted in the material's colours (recolour() below):
+// the items of a family (content/catalog.js) share one picture.
 import { loadImage } from '../render/compositor.js';
 
 // style: 'pixel' (16x16 pixel art, atlas.png) or 'detailed' (painted, shrunk smoothly, atlas-hd.png).
@@ -12,7 +14,7 @@ export function savedIconStyle(search = location.search) {
 }
 export function saveIconStyle(style) { try { localStorage.setItem('iconStyle', style); } catch { /* private window: lasts until reload only */ } }
 
-export async function loadIcons(path, style = 'pixel', sheets = []) {
+export async function loadIcons(path, style = 'pixel', sheets = [], materials = {}) {
   const suffix = style === 'detailed' ? '-hd' : '';
   const [manifest, image] = await Promise.all([
     fetch(`${path}/atlas${suffix}.json`).then(response => {
@@ -23,34 +25,77 @@ export async function loadIcons(path, style = 'pixel', sheets = []) {
   ]);
   const { size, cols, icons, native = {} } = manifest; // native: id -> pixels across, for true pixel-art icons
   const extra = await loadSheets(sheets, style);
+  // Where icon `id` is: { image, x, y, tile, native } (the atlas's tile is `size` across; a native icon's n pixels
+  // were enlarged k times and centred in it, see tools/icon-sheets.mjs pack).
+  const source = id => {
+    if (extra.has(id)) return extra.get(id);
+    const i = icons[id];
+    if (i === undefined) return null;
+    return { image, x: (i % cols) * size, y: Math.floor(i / cols) * size, tile: size, native: native[id], atlas: true };
+  };
+  // Recoloured icons, made the first time they are drawn.
+  const variants = new Map();
+  const variant = id => {
+    if (!variants.has(id)) {
+      const [base, material] = id.split('@'), from = source(base), colours = materials[material]?.colours;
+      if (!from) throw new Error(`unknown icon "${base}"`);
+      if (!colours) throw new Error(`icon "${id}": unknown material "${material}"`);
+      const canvas = document.createElement('canvas'); canvas.width = canvas.height = from.tile;
+      const g = canvas.getContext('2d', { willReadFrequently: true });
+      g.drawImage(from.image, from.x, from.y, from.tile, from.tile, 0, 0, from.tile, from.tile);
+      const pixels = g.getImageData(0, 0, from.tile, from.tile);
+      recolour(pixels.data, colours);
+      g.putImageData(pixels, 0, 0);
+      variants.set(id, { ...from, image: canvas, x: 0, y: 0 });
+    }
+    return variants.get(id);
+  };
+  const find = id => id.includes('@') ? variant(id) : source(id);
+  const baseOf = id => id.split('@')[0];
   return {
     image, size, style,
-    has: id => extra.has(id) || Object.hasOwn(icons, id),
+    has: id => !!source(baseOf(id)) && (!id.includes('@') || !!materials[id.split('@')[1]]),
     // Pixels across for a true pixel-art icon (such as 12), or undefined for a painted one. Draw it at a whole
     // multiple of that and it stays crisp.
-    native: id => extra.has(id) ? extra.get(id).native : native[id],
+    native: id => source(baseOf(id))?.native,
     // Draw icon `id` into the rectangle (dx, dy, dw, dh).
     draw(g, id, dx, dy, dw, dh) {
-      const own = extra.get(id);
-      if (own) {
-        const smooth = g.imageSmoothingEnabled;
-        if (own.native) g.imageSmoothingEnabled = false;
-        g.drawImage(own.image, own.x, own.y, own.tile, own.tile, dx, dy, dw, dh);
-        g.imageSmoothingEnabled = smooth;
-        return;
-      }
-      const i = icons[id];
-      if (i === undefined) throw new Error(`unknown icon "${id}"`);
-      const tx = (i % cols) * size, ty = Math.floor(i / cols) * size, n = native[id];
-      if (!n) { g.drawImage(image, tx, ty, size, size, dx, dy, dw, dh); return; }
-      // A pixel-art icon: its n pixels were enlarged k times and centred in the tile (see tools/icon-sheets.mjs pack);
-      // draw just that part, without smoothing, so each icon pixel stays a hard block.
-      const k = Math.floor(size / n), span = n * k, pad = (size - span) >> 1, smooth = g.imageSmoothingEnabled;
+      const from = find(id);
+      if (!from) throw new Error(`unknown icon "${id}"`);
+      const smooth = g.imageSmoothingEnabled, n = from.native;
+      if (!n) { g.drawImage(from.image, from.x, from.y, from.tile, from.tile, dx, dy, dw, dh); return; }
+      // A pixel-art icon: draw just its pixels, without smoothing, so each icon pixel stays a hard block.
+      const k = from.atlas ? Math.floor(from.tile / n) : 1, span = n * k, pad = (from.tile - span) >> 1;
       g.imageSmoothingEnabled = false;
-      g.drawImage(image, tx + pad, ty + pad, span, span, dx, dy, dw, dh);
+      g.drawImage(from.image, from.x + pad, from.y + pad, span, span, dx, dy, dw, dh);
       g.imageSmoothingEnabled = smooth;
     },
   };
+}
+
+// Repaint the grey metal of an icon (RGBA bytes, changed in place) in `colours`: hex colours, dark to light. A pixel is
+// metal when it is not an outline (brightness 40 or more) and grey: its channels within 28 of each other, or (the
+// painted icons shade their metal lavender) a greyish violet, hue 240-345 degrees at no more than 55% saturation. Its
+// brightness picks the place along the colours, so the shading stays. Wood, leather, gems and outlines are kept.
+export function recolour(data, colours) {
+  const stops = colours.map(c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)));
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    if (!metallic(r, g, b)) continue;
+    const light = 0.299 * r + 0.587 * g + 0.114 * b;
+    if (light < 40) continue;
+    const t = Math.min(1, (light - 40) / 215) * (stops.length - 1), j = Math.min(stops.length - 2, Math.floor(t)), f = t - j;
+    for (let c = 0; c < 3; c++) data[i + c] = Math.round(stops[j][c] + (stops[j + 1][c] - stops[j][c]) * f);
+  }
+  return data;
+}
+function metallic(r, g, b) {
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), span = max - min;
+  if (span <= 28) return true;
+  if (span / max > 0.55) return false;
+  const hue = (max === r ? ((g - b) / span + 6) % 6 : max === g ? (b - r) / span + 2 : (r - g) / span + 4) * 60;
+  return hue >= 240 && hue <= 345;
 }
 
 // id -> { image, x, y, tile, native } for every icon of the campaign's sheets, in the player's style: a sheet's

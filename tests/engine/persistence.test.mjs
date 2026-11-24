@@ -166,7 +166,7 @@ test('the hero saves the points the player spent, so retuning the base reaches o
   const a = mk({ strength: 6, vitality: 6, intellect: 4, agility: 5 });
   a.hero.name = 'Mira'; a.hero.build({ strength: 2, agility: 1, vitality: -3, intellect: 1.5 }); // bad numbers count as 0
   assert.deepEqual(a.hero.spent, { strength: 2, vitality: 0, intellect: 0, agility: 1 });
-  assert.equal(a.hero.attack, 2 + 8);
+  assert.equal(a.hero.attack, 8 - 2 + 2); // bare hands: 1-3, plus strength 8 - 2
   const snap = JSON.parse(JSON.stringify(a.p.snapshot()));
   assert.deepEqual(Object.keys(snap.sections.engine.hero.data).sort(), ['hp', 'mp', 'name', 'spent']);
   const b = mk({ strength: 8, vitality: 6, intellect: 4, agility: 5 }); // the game was retuned: base strength 6 -> 8

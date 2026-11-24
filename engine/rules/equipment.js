@@ -1,8 +1,12 @@
 // What the hero wears. Pure logic, no DOM.
 //
 // `slots` is a list of { id, label, accepts?, ghost } (`accepts` defaults to the id: two ring slots both accept
-// 'ring'). An item fits a slot when its definition says `slot: <accepts>`. `bonus` on a definition, e.g.
-// { attack: 4, defence: 1 }, is added up by bonuses() for the combat rules. Worn items are not in the pack.
+// 'ring'). An item fits a slot when its definition says `slot: <accepts>`. Worn items are not in the pack.
+//
+// What worn items do in a fight (gear(), read by rules/combat.js):
+//   a weapon:  damage: [min, max], speed (ms between blows), damageType
+//   armour:    defence (taken off every blow), resist: { <damage type>: multiplier on damage taken }
+//   anything:  bonus: { attack, defence }, added to the hero's damage and defence (rings, amulets)
 
 export const equipSlots = [
   { id: 'head', label: 'Head', ghost: 'leather-cap' },
@@ -27,6 +31,8 @@ export function createEquipment(defs, slots = equipSlots) {
   };
   return {
     slots, worn, fits, targetFor,
+    // What would be worn if `itemId` were put on (in `slotId`, or where equip() would put it): slot -> item id.
+    preview(itemId, slotId = targetFor(itemId)) { return slotId ? { ...worn, [slotId]: itemId } : { ...worn }; },
     // Wear one item from a pack slot. What was worn there goes back to the pack. { ok, message }.
     equip(inventory, index, slotId = null) {
       const stack = inventory.slots[index];
@@ -37,7 +43,7 @@ export function createEquipment(defs, slots = equipSlots) {
       const old = worn[slotId], taken = inventory.remove(index, 1);
       if (old && inventory.add(old, 1) > 0) { inventory.add(taken.id, 1); return { ok: false, message: 'Your pack is full.' }; } // no room for the old one: undo
       worn[slotId] = stack.id;
-      return { ok: true, slot: slotId, message: `You equip ${name.toLowerCase()}.` };
+      return { ok: true, slot: slotId, message: `You equip the ${name.toLowerCase()}.` };
     },
     // Take off what is in a slot and put it in the pack, in `toIndex` if that is empty. { ok, message }.
     unequip(inventory, slotId, toIndex = null) {
@@ -46,7 +52,7 @@ export function createEquipment(defs, slots = equipSlots) {
       if (toIndex !== null && !inventory.slots[toIndex]) inventory.slots[toIndex] = { id, qty: 1 };
       else if (inventory.add(id, 1) > 0) return { ok: false, message: 'Your pack is full.' };
       worn[slotId] = null;
-      return { ok: true, message: `You take off ${defs[id].name.toLowerCase()}.` };
+      return { ok: true, message: `You take off the ${defs[id].name.toLowerCase()}.` };
     },
     // As a persistence section: what is worn in each slot.
     persistence: {
@@ -60,11 +66,21 @@ export function createEquipment(defs, slots = equipSlots) {
       },
       reset() { for (const slot of Object.keys(worn)) worn[slot] = null; },
     },
-    // Total of every worn item's `bonus`.
-    bonuses() {
-      const total = {};
-      for (const id of Object.values(worn)) for (const [k, v] of Object.entries(defs[id]?.bonus ?? {})) total[k] = (total[k] ?? 0) + v;
-      return total;
+    // What everything worn adds up to: { weapon, defence, resist, bonus }. `weapon` is the worn item with a damage
+    // range (null for bare hands); resistances of several pieces multiply. `wearing` is what to add up instead of
+    // what is worn (see preview()).
+    gear(wearing = worn) {
+      let weapon = null, defence = 0;
+      const resist = {}, bonus = {};
+      for (const id of Object.values(wearing)) {
+        const def = defs[id];
+        if (!def) continue;
+        if (Array.isArray(def.damage)) weapon ??= def;
+        defence += def.defence ?? 0;
+        for (const [k, v] of Object.entries(def.resist ?? {})) resist[k] = (resist[k] ?? 1) * v;
+        for (const [k, v] of Object.entries(def.bonus ?? {})) bonus[k] = (bonus[k] ?? 0) + v;
+      }
+      return { weapon, defence, resist, bonus };
     },
   };
 }

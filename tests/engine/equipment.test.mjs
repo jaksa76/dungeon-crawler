@@ -12,7 +12,7 @@ test('equip takes the item out of the pack and into its slot', () => {
   const { pack, gear } = setup(); pack.add('sword');
   const r = gear.equip(pack, 0);
   assert.equal(r.ok, true); assert.equal(gear.worn.weapon, 'sword'); assert.equal(pack.count('sword'), 0);
-  assert.deepEqual(gear.bonuses(), { attack: 4 });
+  assert.deepEqual(gear.gear(), { weapon: itemDefs.sword, defence: 0, resist: {}, bonus: {} });
 });
 
 test('an item only fits its own slot; others are refused and nothing changes', () => {
@@ -50,6 +50,21 @@ test('unequip returns the item to the pack, to a chosen empty slot if asked', ()
 test('unequip fails when the pack is full', () => {
   const { pack, gear } = setup(1); pack.add('sword'); gear.equip(pack, 0); pack.add('torch');
   assert.equal(gear.unequip(pack, 'weapon').ok, false); assert.equal(gear.worn.weapon, 'sword');
+});
+
+test('gear adds up defence and bonuses, multiplies resistances, and previews an item without wearing it', () => {
+  const defs = {
+    axe: { name: 'Axe', slot: 'weapon', damage: [3, 6], speed: 900, damageType: 'blade' },
+    mail: { name: 'Mail', slot: 'armour', defence: 2, resist: { blade: 0.8 } },
+    helm: { name: 'Helm', slot: 'head', defence: 1, resist: { blade: 0.5 } },
+    ring: { name: 'Ring', slot: 'ring', bonus: { attack: 1, defence: 1 } },
+  };
+  const pack = createInventory(defs, { size: 4 }), gear = createEquipment(defs);
+  for (const id of ['mail', 'helm', 'ring']) { pack.add(id); gear.equip(pack, 0); }
+  assert.deepEqual(gear.gear(), { weapon: null, defence: 3, resist: { blade: 0.4 }, bonus: { attack: 1, defence: 1 } });
+  const preview = gear.preview('axe');
+  assert.equal(preview.weapon, 'axe'); assert.equal(gear.worn.weapon, null);
+  assert.equal(gear.gear(preview).weapon, defs.axe);
 });
 
 test('every wearable item names a real slot, and both ring slots accept rings', () => {
