@@ -4,7 +4,7 @@
 // straight courses comes back as flat bricks.) The cobbles are the cells of a staggered, jittered lattice in a warped
 // plane, so their world size grows slowly with distance and they never collapse into slivers; no courses, no straight joints.
 // Same sheet layout as the floor guide: #202020 bars, the view band in the middle, magenta above the ground.
-import { DEFAULT_VIEW } from '../../engine2d/view.js';
+import { DEFAULT_VIEW } from '../../engine/render/view.js';
 import { encodePng } from './ramp.mjs';
 
 // One calm warm-mauve family with small variation: the stones differ in shape, not hue (a guide with orange and tan

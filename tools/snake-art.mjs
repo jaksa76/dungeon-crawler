@@ -18,7 +18,7 @@ const frames = sizes.flatMap(([w, h], depth) => directions.map((direction, colum
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
 try {
   const page = await browser.newPage();
-  const input = mode === 'slice' ? 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'game-2/art/painted/monsters-snake.png')).toString('base64') : null;
+  const input = mode === 'slice' ? 'data:image/png;base64,' + fs.readFileSync(path.join(root, 'art/ravensmoor/painted/monsters-snake.png')).toString('base64') : null;
   const result = await page.evaluate(async ({ mode, frames, input }) => {
     const make = (w, h) => Object.assign(document.createElement('canvas'), { width: w, height: h });
     if (mode === 'guide') {
@@ -29,7 +29,7 @@ try {
         g.fillStyle = '#788590'; g.font = '12px monospace'; g.textAlign = 'center';
         g.fillText(`${r.direction} d${r.depth}`, r.x + r.w / 2, r.y + r.h + 13);
       }
-      return { files: { 'game-2/art/guides/snake-atlas.png': c.toDataURL() }, width: 1024, height: 1024, frames };
+      return { files: { 'art/ravensmoor/guides/snake-atlas.png': c.toDataURL() }, width: 1024, height: 1024, frames };
     }
     const image = await new Promise((resolve, reject) => {
       const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = input;
@@ -62,7 +62,7 @@ try {
         const scale = Math.min((r.w - 4) / source.w, (r.h - 4) / source.h);
         const w = Math.round(source.w * scale), h = Math.round(source.h * scale);
         g.drawImage(image, source.x, source.y, source.w, source.h, Math.floor((r.w - w) / 2), r.h - h - 2, w, h);
-        output[`game-2/dungeon/assets/monsters/snake/${r.direction}-d${r.depth}.png`] = c.toDataURL();
+        output[`games/ravensmoor/assets/monsters/snake/${r.direction}-d${r.depth}.png`] = c.toDataURL();
         sourceFrames.push({ ...r, source });
       }
     }
@@ -72,6 +72,6 @@ try {
     const file = path.join(root, relative); fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, Buffer.from(data.split(',')[1], 'base64'));
   }
-  fs.writeFileSync(path.join(root, 'game-2/art/snake-atlas.json'), JSON.stringify({ width: result.width, height: result.height, guideWidth: 1024, guideHeight: 1024, columns: directions, rows: 'd0 (contact), d1 (near), d2 (far), d3 (dark)', frames: result.frames }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'art/ravensmoor/snake-atlas.json'), JSON.stringify({ width: result.width, height: result.height, guideWidth: 1024, guideHeight: 1024, columns: directions, rows: 'd0 (contact), d1 (near), d2 (far), d3 (dark)', frames: result.frames }, null, 2) + '\n');
   console.log(`Wrote ${Object.keys(result.files).length} ${mode === 'guide' ? 'guide' : 'sprite'} PNGs.`);
 } finally { await browser.close(); }

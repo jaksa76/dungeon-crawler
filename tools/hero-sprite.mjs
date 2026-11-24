@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Turns a Codex-painted hero sprite (true pixel art enlarged to hard 12x12 blocks on flat magenta) into a real
 // 48 x 96 PNG with transparency: `node tools/hero-sprite.mjs painted.png [out.png]`. Default output is
-// engine2d/assets/hero-sprite.png. Needs only pngjs. See docs/inventory.md.
+// engine/assets/ui/hero-sprite.png. Needs only pngjs. See docs/engine/inventory.md.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 const { PNG } = createRequire(import.meta.url)(path.join(path.dirname(fileURLToPath(import.meta.url)), 'node_modules/pngjs'));
-const [input, output = path.join(path.dirname(fileURLToPath(import.meta.url)), '../engine2d/assets/hero-sprite.png')] = process.argv.slice(2);
+const [input, output = path.join(path.dirname(fileURLToPath(import.meta.url)), '../engine/assets/ui/hero-sprite.png')] = process.argv.slice(2);
 if (!input) { console.error('usage: hero-sprite.mjs painted.png [out.png]'); process.exit(1); }
 const GW = 48, GH = 96;
 const src = PNG.sync.read(fs.readFileSync(input)), { width: W, height: H, data } = src;

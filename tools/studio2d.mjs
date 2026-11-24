@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// 2D art pipeline for game-2 (see docs/2d-compositing-plan.md).
+// 2D art pipeline for the engine's town art: buildings, props, NPCs and the town environment (see
+// docs/engine/2d-compositing.md). It works on what the Ravensmoor Old Quarter shows.
 //
-//   node tools/studio2d.mjs bake [walls|props|floor|backdrop|props:<art> ...]  placeholder slot images -> game-2/assets/
-//   node tools/studio2d.mjs guides                     guide + key images per sheet -> game-2/art/guides/
-//   node tools/studio2d.mjs slice <sheet> <painted.png> [out dir]  cut a painted sheet -> game-2/assets/
+//   node tools/studio2d.mjs bake [walls|props|floor|backdrop|props:<art> ...]  placeholder slot images -> engine/assets/
+//   node tools/studio2d.mjs guides                     guide + key images per sheet -> art/engine/guides/
+//   node tools/studio2d.mjs slice <sheet> <painted.png> [out dir]  cut a painted sheet -> engine/assets/
 //   node tools/studio2d.mjs plan                       list sheets and the slots each one provides
 //   node tools/studio2d.mjs paint <sheet> [--model flux|sdxl] [--denoise N] [--seed N] [--prompt text|@file] [--guide file] [--out file] [--slice]
-//                                                      repaint a guide with the local ComfyUI (tools/comfy/), -> game-2/art/painted/
+//                                                      repaint a guide with the local ComfyUI (tools/comfy/), -> art/engine/painted/
 //        sdxl can also be steered: [--controlnet STRENGTH] [--ipadapter WEIGHT] [--ref image]  (see tools/comfy/paint.mjs)
 //        `paint floor` paints the ground as a new picture (the guide only fixes the horizon), not a repaint of its texture
-//   add --px to any command to work on the pixel slice (docs/pixel-slice.md; resolution and canvas factor in game-2/quarter-px.js,
-//   160x90 painted on 1280x720 by default): art under game-2/px/, one panel per sheet, sliced by reading one pixel per cell
+//   add --px to any command to work on the pixel slice (docs/experiments/pixel-slice.md; resolution and canvas factor in experiments/pixel-slice/quarter-px.js,
+//   160x90 painted on 1280x720 by default): art under experiments/pixel-slice/, one panel per sheet, sliced by reading one pixel per cell
 //
 // Runs the studio page (tools/studio2d/studio.html) in headless Chromium via Playwright.
 import http from 'node:http';
@@ -21,7 +22,15 @@ import { fileURLToPath } from 'node:url';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+import { ROOT, books } from './content.mjs';
+// The studio names slot images as walls/<art>/, props/<art>/, floor.png and backdrop-<dir>.png. In an asset folder
+// (engine/assets/, or the pixel slice's) NPCs have their own folder and the ground and sky are the town environment's.
+const assetPath = (rel) => {
+  const [kind, art] = rel.split('/');
+  if (kind === 'props' && books.npcs[art]) return rel.replace(/^props\//, 'npcs/');
+  if (/^(floor|backdrop-[NESW])\.png$/.test(rel)) return `environments/town/${rel}`;
+  return rel;
+};
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png' };
 
 let [cmd, ...args] = process.argv.slice(2);
@@ -34,7 +43,7 @@ if (cmd === 'paint') {
   [cmd, args] = ['slice', [sheet, file]];
 }
 if (!['bake', 'guides', 'slice', 'plan'].includes(cmd)) {
-  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 13).join('\n'));
+  console.log(fs.readFileSync(fileURLToPath(import.meta.url), 'utf8').split('\n').slice(1, 14).join('\n'));
   process.exit(1);
 }
 
@@ -55,22 +64,22 @@ try {
   await page.goto(url);
   await page.waitForFunction(() => window.studio, null, { timeout: 60000 });
 
-  let files = {}, outDir = path.join(ROOT, PX ? 'game-2/px/assets' : 'game-2/assets');
+  let files = {}, outDir = path.join(ROOT, PX ? 'experiments/pixel-slice/assets' : 'engine/assets'), layout = true;
   if (cmd === 'bake') files = await page.evaluate((only) => window.studio.bake(only), args);
-  if (cmd === 'guides') { files = await page.evaluate(() => window.studio.guides()); outDir = path.join(ROOT, PX ? 'game-2/px/art' : 'game-2/art'); }
+  if (cmd === 'guides') { files = await page.evaluate(() => window.studio.guides()); outDir = path.join(ROOT, PX ? 'experiments/pixel-slice/art' : 'art/engine'); layout = false; }
   if (cmd === 'plan') {
     const plan = await page.evaluate(() => window.studio.plan());
     for (const s of plan.sheets) console.log(`${s.name}\n${s.scenes.map((sc) => `  ${sc.art}: ${sc.slots.join(' ')}`).join('\n')}`);
   }
   if (cmd === 'slice') {
     const [sheet, input, dir] = args;
-    if (dir) outDir = path.resolve(dir);
+    if (dir) { outDir = path.resolve(dir); layout = false; }
     if (!sheet || !input) throw new Error('usage: slice <sheet name> <painted.png>');
     const data = 'data:image/png;base64,' + fs.readFileSync(input).toString('base64');
     files = await page.evaluate(([s, d]) => window.studio.slice(s, d), [sheet, data]);
   }
   for (const [rel, dataURL] of Object.entries(files)) {
-    const out = path.join(outDir, rel);
+    const out = path.join(outDir, layout ? assetPath(rel) : rel);
     fs.mkdirSync(path.dirname(out), { recursive: true });
     fs.writeFileSync(out, Buffer.from(dataURL.split(',')[1], 'base64'));
   }

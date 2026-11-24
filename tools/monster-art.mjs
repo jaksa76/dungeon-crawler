@@ -1,23 +1,23 @@
 #!/usr/bin/env node
-// Monster sprite sheets for game two, painted by Codex.
+// Monster sprite sheets for the engine's bestiary (and a campaign's own creatures), painted by Codex.
 //
 //   node tools/monster-art.mjs list
-//   node tools/monster-art.mjs prompt <id>               the prompt for the image model (attach game-2/art/painted/monsters-snake.png as style)
+//   node tools/monster-art.mjs prompt <id>               the prompt for the image model (attach art/ravensmoor/painted/monsters-snake.png as style)
 //   node tools/monster-art.mjs slice <id> <sheet.png> <heightTiles>
 //                                                        key out the magenta, cut the four views, write the runtime PNGs
 //
 // A sheet is 1536x1024 on flat magenta: four equal columns, left to right front, back, left, right (left/right = facing
 // that side of the screen). `slice` scales all four views by one factor so the tallest view fills the d0 card, stands
-// them on a common baseline, and writes monsters/<id>/<direction>-d0..d3.png under game-2/dungeon/assets. The farther
+// them on a common baseline, and writes <direction>-d0..d3.png to the creature's art folder (engine/assets/monsters/<id>/, or the campaign's when
+// the creature is the campaign's; see tools/content.mjs). The farther
 // frames are the d0 frame shrunk (distance fog is applied at runtime, so monsters need no `distanceShaded`).
 // It prints the world width `w` to use in the monster definition. Needs only pngjs.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
-import { fileURLToPath } from 'node:url';
+import { ROOT, books, artDir } from './content.mjs';
 const { PNG } = createRequire(import.meta.url)('pngjs');
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const { monsters } = JSON.parse(fs.readFileSync(path.join(ROOT, 'game-2/art/monsters/roster.json'), 'utf8'));
+const { monsters } = JSON.parse(fs.readFileSync(path.join(ROOT, 'art/engine/monsters/roster.json'), 'utf8'));
 const DIRECTIONS = ['front', 'back', 'left', 'right'];
 const PX_PER_TILE = 250;              // d0 card pixels per world tile (the snake: 224px for 0.9)
 const SCALES = [1, 72 / 104, 48 / 104, 28 / 104]; // d0..d3, as the snake's cards
@@ -83,7 +83,7 @@ Each fills about 85% of the column height. No text, no labels, no grid lines, no
     }
     return out;
   };
-  const dir = path.join(ROOT, 'game-2/dungeon/assets/monsters', m.id); fs.mkdirSync(dir, { recursive: true });
+  const dir = books.monsters[m.id] ? artDir(books.monsters[m.id]) : path.join(ROOT, 'engine/assets/monsters', m.id); fs.mkdirSync(dir, { recursive: true });
   for (const v of views) {
     const w = Math.round(v.w * scale), h = Math.round(v.h * scale);
     const body = resample(sheet, v.x, v.y, v.w, v.h, w, h);

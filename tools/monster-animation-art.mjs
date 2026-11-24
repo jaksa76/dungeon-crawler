@@ -1,21 +1,23 @@
 #!/usr/bin/env node
-// Bake compact animation atlases from authored poses for EVERY bestiary kind.
+// Bake compact animation atlases from authored poses for EVERY creature: the engine's bestiary and the campaign's own.
 // Run: node tools/monster-animation-art.mjs (Playwright + Chromium required).
 import fs from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { bestiaryKinds } from '../game-2/monsters.js';
-import { CLIPS, DIRECTIONS, FRAME_COLUMNS, FRAME_PADDING, FRAME_WIDTH_SCALE } from '../engine2d/monster-animation.js';
+import { books, artPath, sourceRoot } from './content.mjs';
+import { CLIPS, DIRECTIONS, FRAME_COLUMNS, FRAME_PADDING, FRAME_WIDTH_SCALE } from '../engine/render/monster-animation.js';
 const { chromium } = createRequire(import.meta.url)('playwright');
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const posePath = kind => `game-2/art/animations/${kind}-keyposes.png`;
+const bestiaryKinds = Object.keys(books.monsters);
+const posePath = kind => `${sourceRoot('monsters', kind)}/animations/${kind}-keyposes.png`;
 const pngData = file => `data:image/png;base64,${fs.readFileSync(path.join(root, file)).toString('base64')}`;
 const poseRows = kind => kind === 'snake' ? ['windup', 'impact', 'hurt', 'corpse']
   : ['walk-a', 'walk-b', 'windup', 'impact', 'hurt', 'corpse'];
 const sources = Object.fromEntries(bestiaryKinds.map(kind => [kind, {
-  base: DIRECTIONS.map(direction => [0, 1, 2, 3].map(d => pngData(`game-2/dungeon/assets/monsters/${kind}/${direction}-d${d}.png`))),
+  out: artPath(books.monsters[kind]),
+  base: DIRECTIONS.map(direction => [0, 1, 2, 3].map(d => pngData(artPath(books.monsters[kind], `${direction}-d${d}.png`)))),
   poses: pngData(posePath(kind)), rows: poseRows(kind),
 }]));
 const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || '/usr/bin/chromium', args: ['--no-sandbox'] });
@@ -119,7 +121,7 @@ try {
             ag.drawImage(c, column * cw, direction * ch);
           }
         }
-        atlases[`game-2/dungeon/assets/monsters/${kind}/animation-d${depth}.png`] = atlas.toDataURL();
+        atlases[`${sources[kind].out}/animation-d${depth}.png`] = atlas.toDataURL();
       }
     }
     return { atlases, metadata };
@@ -129,6 +131,6 @@ try {
   for (const kind of bestiaryKinds) Object.assign(metadata[kind], {
     source: posePath(kind), sha256: createHash('sha256').update(fs.readFileSync(path.join(root, posePath(kind)))).digest('hex'),
   });
-  fs.writeFileSync(path.join(root, 'game-2/art/animations/keyposes.json'), JSON.stringify({ directions: DIRECTIONS, monsters: metadata }, null, 2) + '\n');
+  fs.writeFileSync(path.join(root, 'art/engine/animations/keyposes.json'), JSON.stringify({ directions: DIRECTIONS, monsters: metadata }, null, 2) + '\n');
   console.log(`Baked ${Object.keys(atlases).length} atlases from authored poses for all ${bestiaryKinds.length} monsters.`);
 } finally { await browser.close(); }

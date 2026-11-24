@@ -5,7 +5,7 @@ into the key colour (the game never shows that strip, and Flux paints a tree lin
 
 usage: python tools/comfy/grade-floor.py <painted.png> <out.png> <target.png> [--shift 0.85] [--spread 0.5] [--light 0] [--cut 618]
   <painted.png>  the 1536x1024 sheet from `paint floor` (magenta sky, #202020 bars)
-  <target.png>   a floor whose colours are right (its opaque pixels are the target; game-2/art/ref/floor-colour.png)
+  <target.png>   a floor whose colours are right (its opaque pixels are the target; art/engine/ref/floor-colour.png)
   --cut          first sheet row kept: 80 + 224 * 2.4 = 618 is row 224 of the 640x360 view
 Needs numpy and Pillow (ComfyUI's own .venv has both). Then: node tools/studio2d.mjs slice floor <out.png>
 """

@@ -1,4 +1,4 @@
-// Minimal ComfyUI HTTP client (no dependencies). See docs/local-image-generation.md.
+// Minimal ComfyUI HTTP client (no dependencies). See docs/art/local-image-generation.md.
 //
 //   const png = await generate(img2img({ guide: 'guide.png', prompt: '...' }), { files: { 'guide.png': buffer } });
 //

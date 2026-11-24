@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Turns the image Codex painted for the satchel screen into engine2d/assets/inventory-bg.png: the horizontal
-// 16:9 band (y 80 to 944 of the 1536x1024 original) scaled to 1280x720. See docs/inventory.md.
+// Turns the image Codex painted for the satchel screen into engine/assets/ui/inventory-bg.png: the horizontal
+// 16:9 band (y 80 to 944 of the 1536x1024 original) scaled to 1280x720. See docs/engine/inventory.md.
 //   node tools/crop-bag-bg.mjs path/to/painted.png
 // Needs Playwright and Chromium (CHROMIUM_PATH overrides the executable), like the other tools here.
 import fs from 'node:fs';
@@ -22,7 +22,7 @@ const png = await page.evaluate(async (b64) => {
   g.drawImage(img, 0, 80, 1536, 864, 0, 0, 1280, 720);
   return canvas.toDataURL('image/png').split(',')[1];
 }, fs.readFileSync(input).toString('base64'));
-const out = path.join(ROOT, 'engine2d/assets/inventory-bg.png');
+const out = path.join(ROOT, 'engine/assets/ui/inventory-bg.png');
 fs.writeFileSync(out, Buffer.from(png, 'base64'));
 await browser.close();
 console.log(`wrote ${path.relative(ROOT, out)} (${fs.statSync(out).size} bytes)`);

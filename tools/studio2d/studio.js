@@ -1,39 +1,48 @@
 // 2D art studio: everything the 2D compositor's art pipeline needs, run in a
 // browser page by tools/studio2d.mjs.
 //
-//   bake(only) placeholder slot images rendered from the experiment-1 art, so the
-//            demo runs before any painting exists. Also the content of the guides.
+//   bake(only) placeholder slot images rendered from the experiment-1 art (experiments/game-1/), so the
+//            game runs before any painting exists. Also the content of the guides.
 //            `only` limits it to some of 'walls', 'props', 'floor', 'backdrop' ('props:<art>': one prop).
 //   guides() one guide image per sheet of the art plan (what to paint, laid out
 //            exactly as the slots will be cut), a labelled key image, and plan.json.
 //   slice()  cut a painted sheet back into slot images.
 //
-// `studio.html?px` works on the pixel slice instead (docs/pixel-slice.md; resolution and canvas factor are set
-// in game-2/quarter-px.js): its own view, its own art under game-2/px/, one panel per sheet painted on a canvas
+// `studio.html?px` works on the pixel slice instead (docs/experiments/pixel-slice.md; resolution and canvas factor are set
+// in experiments/pixel-slice/quarter-px.js): its own view, its own art under experiments/pixel-slice/, one panel per sheet painted on a canvas
 // `factor` times the view, and slicing that reads one pixel per factor x factor cell instead of resampling.
 
 import * as THREE from 'three';
-import { createView } from '../../engine2d/view.js';
-import { loadSlotImages, createCompositor } from '../../engine2d/compositor.js';
-import { loadAssets } from '../../engine/assets.js';
-import { buildBackdrop } from '../../engine/backdrop.js';
-import { manifest as game1Manifest, town } from '../../game-1/town.js';
-import { tileTypes, props, quarter } from '../../game-2/quarter.js';
-import { quarterPx, PX as PX_CONFIG } from '../../game-2/quarter-px.js';
+import { createView } from '../../engine/render/view.js';
+import { loadSlotImages, createCompositor } from '../../engine/render/compositor.js';
+import { loadAssets } from '../../experiments/game-1/engine/assets.js';
+import { buildBackdrop } from '../../experiments/game-1/engine/backdrop.js';
+import { manifest as game1Manifest, town } from '../../experiments/game-1/town.js';
+import { mergeContent, engineContent, resolveLevel } from '../../engine/index.js';
+import { content } from '../../games/ravensmoor/content/index.js';
+import { village } from '../../games/ravensmoor/levels/village.js';
+import { quarterPx, pixelContent, PX as PX_CONFIG } from '../../experiments/pixel-slice/quarter-px.js';
 import { makePlan, sceneRect, sceneCellAt, SHEET, sheetForPixelView } from './plan.js';
 
 const PX = new URLSearchParams(location.search).has('px');
-const GAME = '../../game-2';
-const ASSETS = `${GAME}/${PX ? 'px/' : ''}assets`;
+const SOURCE_ART = '../../art/engine'; // hand-made sprites (SOURCE.props.<art> objects)
 const CELL = PX ? PX_CONFIG.factor : 1; // painted pixels per art pixel (pixel slice)
 const sheetSpec = PX ? sheetForPixelView(PX_CONFIG.width, PX_CONFIG.height, PX_CONFIG.factor) : SHEET;
 const KEY_COLOR = [255, 0, 255]; // flat background the painter keeps, keyed out when slicing
 const FOG = { color: '#1e1838', near: 1.5, far: 8 };
 
-const view = createView((PX ? quarterPx : quarter).view);
+// The studio paints what the Old Quarter shows: its buildings, props and NPCs and the town environment, each with its art
+// folder from the content books (the pixel slice's own art in px mode).
+const books = mergeContent(engineContent, content, ...(PX ? [pixelContent] : []));
+const courtyard = resolveLevel('village', PX ? quarterPx : village, books);
+const view = createView(courtyard.level.view);
 const { W, H } = view.V;
-const wallArts = [...new Set(Object.values(tileTypes).filter((t) => t.wall).map((t) => t.art))];
-const propArts = Object.values(props);
+const walls = [...new Map(Object.values(courtyard.tileTypes).filter((t) => t.wall).map((t) => [t.art, t])).values()];
+const wallArts = walls.map((t) => t.art);
+// In book order, NPCs first: the sheets (props-1, props-2, ...) are packed in this order, so it must not change once
+// they are painted.
+const propArts = [...Object.keys(books.npcs), ...Object.keys(books.props)].filter((id) => courtyard.props[id]).map((id) => courtyard.props[id]);
+const slotArt = () => ({ environment: courtyard.environment, walls, props: propArts });
 const plan = makePlan(view, { wallArts, propArts, sheet: sheetSpec });
 
 // Which experiment-1 art stands in for each 2D art name.
@@ -43,8 +52,8 @@ const SOURCE = {
     'shop-alchemist': 'textures/shop-alchemist', 'shop-smith': 'textures/shop-smith', 'stone-wall': 'textures/stone-wall',
   },
   props: {
-    guard: 'sprites/npc-guard', villager: 'sprites/npc-villager', hooded: 'sprites/npc-hooded', stall: { front: 'art/sprites/stall/front.png', q: 'art/sprites/stall/q.png', side: 'art/sprites/stall/side.png',
-      sideFlip: 'art/sprites/stall/side-flip.png' },
+    guard: 'sprites/npc-guard', villager: 'sprites/npc-villager', hooded: 'sprites/npc-hooded', stall: { front: 'sprites/stall/front.png', q: 'sprites/stall/q.png', side: 'sprites/stall/side.png',
+      sideFlip: 'sprites/stall/side-flip.png' },
     well: 'sprites/prop-well', barrel: 'sprites/prop-barrel', crate: 'sprites/prop-crate', chest: 'sprites/prop-chest',
     lamppost: 'sprites/prop-lamppost',
   },
@@ -66,7 +75,7 @@ function clipTo(g, poly, dx = 0, dy = 0) {
 
 // A prop's art is either one of experiment 1's billboard sprites (a path in SOURCE.props, which
 // every slot shows scaled), or sprites painted for the demo's camera, one per view, as an object
-// { front, q, side } of paths relative to game-2/ (SOURCE.props.<art>):
+// { front, q, side } of paths relative to art/engine/ (SOURCE.props.<art>):
 //   front  seen straight on        q     turned 45 degrees: the front faces right, its left side shows
 //   side   turned 90 degrees: the front faces right
 //   sideFlip  optional: the side view turned the other way, used where `side` would be mirrored (right wall)
@@ -78,7 +87,7 @@ const loadImage = (src) => new Promise((resolve, reject) => {
   im.src = src;
 });
 const loadViews = async (views) => Object.fromEntries(await Promise.all(
-  Object.entries(views).map(async ([name, src]) => [name, await loadImage(`${GAME}/${src}`)])));
+  Object.entries(views).map(async ([name, src]) => [name, await loadImage(`${SOURCE_ART}/${src}`)])));
 
 function viewFor(slot) {
   const x = Math.abs((slot.full.x + slot.full.w / 2 - W / 2) * slot.s / view.f); // lateral distance of the prop, in tiles
@@ -118,7 +127,7 @@ async function bake(only = []) {
   const want = (part) => !only.length || only.some((o) => o === part || o.startsWith(`${part}:`));
   const wantProp = (art) => !only.some((o) => o.startsWith('props:')) || only.includes('props') || only.includes(`props:${art}`);
   const extra = Object.fromEntries(Object.values(DISTANT).map((key) => [key, { trim: true }]));
-  const assets = await loadAssets({ ...game1Manifest, ...extra }, '../../game-1/assets');
+  const assets = await loadAssets({ ...game1Manifest, ...extra }, '../../experiments/game-1/assets');
   const SS = PX ? 6 : 3; // supersampling: render big, scale down smoothly, so far slots keep detail
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(1);
@@ -242,7 +251,7 @@ async function bake(only = []) {
 // ---------------------------------------------------------------- guides
 
 async function guides() {
-  const images = await loadSlotImages(view, { assetPath: ASSETS, wallArts, propArts });
+  const images = await loadSlotImages(view, slotArt());
   const comp = createCompositor(view, images);
   const out = { 'plan.json': 'data:application/json;base64,' + btoa(JSON.stringify(planSummary(), null, 2)) };
   const scenePic = (scene, { outlines = false } = {}) => {

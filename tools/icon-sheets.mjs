@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Icon sheets for game two: from the list in game-2/art/icons/sheets.json to the atlas the game loads.
+// The engine's icon sheets: from the list in art/engine/icons/sheets.json to the atlas the game loads.
 //
 //   node tools/icon-sheets.mjs list                     the sheets and their icons
 //   node tools/icon-sheets.mjs prompt <sheet> [refs..]  the prompt for an image model (refs: names of attached reference images)
-//   node tools/icon-sheets.mjs slice <sheet> <file.png> cut a painted sheet into game-2/art/icons/png/<id>.png
-//   node tools/icon-sheets.mjs pack                     build game-2/art/icons/atlas.png and atlas.json
+//   node tools/icon-sheets.mjs slice <sheet> <file.png> cut a painted sheet into art/engine/icons/png/<id>.png
+//   node tools/icon-sheets.mjs pack                     build engine/assets/icons/atlas.png and atlas.json
 //
 // A sheet is painted on a flat magenta background, 6 columns x 4 rows of 256px cells on a 1536x1024 canvas. `slice`
 // turns the magenta into real transparency, finds each icon (even if it drifted out of its cell), trims it and fits
 // it into a 64x64 tile. A sheet marked "native": 16 in sheets.json is true 16x16 pixel art, painted as 12x12-pixel
 // blocks: slice samples it back to a real grid (`native` pixels across) with no smoothing, and pack stores it enlarged
-// by a whole number with nearest neighbour inside its 64x64 tile and records it under "native". Needs only pngjs. See docs/icons.md.
+// by a whole number with nearest neighbour inside its 64x64 tile and records it under "native". Needs only pngjs. See docs/engine/icons.md.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -18,10 +18,11 @@ import { fileURLToPath } from 'node:url';
 const { PNG } = createRequire(import.meta.url)('pngjs');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = path.join(ROOT, 'game-2/art/icons');
+const DIR = path.join(ROOT, 'art/engine/icons'); // the sheet list and the cut icons (source art)
+const ATLAS_DIR = path.join(ROOT, 'engine/assets/icons'); // the atlas the engine loads
 const COLS = 6, ROWS = 4, CELL = 256, TILE = 64, INNER = 56, ATLAS_COLS = 12;
 // --hd: the detailed set. Its sheets are painted at high resolution (not pixel art) and shrunk smoothly into the tiles;
-// it is written to png-hd/ and atlas-hd.png/json instead, and the game can switch to it (see docs/icons.md).
+// it is written to png-hd/ and atlas-hd.png/json instead, and the game can switch to it (see docs/engine/icons.md).
 const HD = process.argv.includes('--hd'), SUFFIX = HD ? '-hd' : '';
 const { sheets } = JSON.parse(fs.readFileSync(path.join(DIR, 'sheets.json'), 'utf8'));
 const parse = line => { const [id, ...rest] = line.split('|'); return { id, what: rest.join('|') }; };
@@ -234,8 +235,8 @@ function pack() {
     }
     icons[id] = i;
   });
-  fs.writeFileSync(path.join(DIR, `atlas${SUFFIX}.png`), PNG.sync.write(atlas));
-  fs.writeFileSync(path.join(DIR, `atlas${SUFFIX}.json`), JSON.stringify({ size: TILE, cols: ATLAS_COLS, icons, native }, null, 1) + '\n');
+  fs.writeFileSync(path.join(ATLAS_DIR, `atlas${SUFFIX}.png`), PNG.sync.write(atlas));
+  fs.writeFileSync(path.join(ATLAS_DIR, `atlas${SUFFIX}.json`), JSON.stringify({ size: TILE, cols: ATLAS_COLS, icons, native }, null, 1) + '\n');
   console.log(`atlas: ${Object.keys(icons).length} of ${all.length} icons in ${atlas.width}x${atlas.height}`);
 }
 

@@ -6,8 +6,8 @@ no recolouring unless --grade is given (colour grades live in tools/comfy/floorg
 
 usage: python tools/comfy/fit-floor.py <picture.png> <out.png> [--horizon 180] [--vp-row 0] [--vp-col 724]
                                        [--sx 0.442] [--sy 0.442] [--cut 224] [--sheet <sheet.png>] [--grade NAME]
-       python tools/comfy/fit-floor.py --fit A --grade warm --apply     (the demo floor: reads game-2/art/ref/cobblestones-chatgpt.png,
-                                       writes game-2/assets/floor.png and the sheet game-2/art/painted/floor.png)
+       python tools/comfy/fit-floor.py --fit A --grade warm --apply     (the demo floor: reads art/engine/ref/cobblestones-chatgpt.png,
+                                       writes engine/assets/environments/town/floor.png and the sheet art/engine/painted/floor.png)
   --fit      named fit: A = horizon 180 (the engine's horizon, ~16 stones across the bottom), B = 110 (~14), B2 = 70 (~11)
   --grade    colour grade applied to the scaled picture in OKLab before placing it (the lantern glints keep their character);
              the parameters used are printed
@@ -19,7 +19,7 @@ usage: python tools/comfy/fit-floor.py <picture.png> <out.png> [--horizon 180] [
   --cut      first view row kept (rows above become transparent)
   --sheet    also write the 1536x1024 sheet that `node tools/studio2d.mjs slice floor` turns back into out.png
              (view at 2.4x, centred vertically at y=80, magenta key above the cut, #202020 bars)
-Needs Pillow (ComfyUI's .venv has it). Then, for the demo: copy out.png to game-2/assets/floor.png.
+Needs Pillow (ComfyUI's .venv has it). Then, for the demo: copy out.png to engine/assets/environments/town/floor.png.
 """
 import os
 import sys
@@ -49,8 +49,8 @@ while i < len(args):
 if opt['fit']:
     opt['horizon'] = FITS[opt['fit']]
 if opt['apply']:
-    pos = [os.path.join(ROOT, 'game-2/art/ref/cobblestones-chatgpt.png'), os.path.join(ROOT, 'game-2/assets/floor.png')]
-    opt['sheet'] = opt['sheet'] or os.path.join(ROOT, 'game-2/art/painted/floor.png')
+    pos = [os.path.join(ROOT, 'art/engine/ref/cobblestones-chatgpt.png'), os.path.join(ROOT, 'engine/assets/environments/town/floor.png')]
+    opt['sheet'] = opt['sheet'] or os.path.join(ROOT, 'art/engine/painted/floor.png')
 src, dst = pos[:2]
 if opt['sy'] is None:
     opt['sy'] = opt['sx']

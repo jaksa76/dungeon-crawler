@@ -9,7 +9,7 @@ Presets (parameters are printed when a grade is applied; GRADES below is the sin
   warm     stone hue and chroma pulled to the midpoint of the old placeholder floor and the A5 rose floor, lightness unchanged
   dusk     purple kept, chroma x0.85, shadows lifted, glints a touch brighter and more saturated
   match    OKLab mean/std transfer to the colours next to the floor in the demo (stone bases, timber, plaster)
-  concept  OKLab mean/std transfer to the concept art's own floor (game-2/art/ref/concept-ground.png)
+  concept  OKLab mean/std transfer to the concept art's own floor (art/engine/ref/concept-ground.png)
 """
 import json
 import math
@@ -92,11 +92,11 @@ def _ref(d):
 
 
 def reference_stats(root):
-    """Target stats: game-2/art/ref/floor-grade-stats.json (walls beside the floor, old placeholder floor, A5 colour target:
-    measured from the demo) plus the concept art's own floor (computed from game-2/art/ref/concept-ground.png)."""
-    j = json.load(open(f'{root}/game-2/art/ref/floor-grade-stats.json', encoding='utf-8'))
+    """Target stats: art/engine/ref/floor-grade-stats.json (walls beside the floor, old placeholder floor, A5 colour target:
+    measured from the demo) plus the concept art's own floor (computed from art/engine/ref/concept-ground.png)."""
+    j = json.load(open(f'{root}/art/engine/ref/floor-grade-stats.json', encoding='utf-8'))
     out = {k: _ref(v) for k, v in j.items() if k != 'about'}
-    lab, _ = load_lab(f'{root}/game-2/art/ref/concept-ground.png')
+    lab, _ = load_lab(f'{root}/art/engine/ref/concept-ground.png')
     flat = lab.reshape(-1, 3)
     out['concept'] = stats(flat, glint_weight(flat))
     return out

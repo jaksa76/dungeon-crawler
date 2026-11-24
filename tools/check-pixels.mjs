@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Checks that every art canvas in game two's HUD is shown at exactly the UI's pixel size (--rpg-px screen
+// Checks that every art canvas in the HUD is shown at exactly the UI's pixel size (--rpg-px screen
 // pixels per canvas pixel), in several phone and desktop layouts. A fractional scale makes pixels uneven.
 // Needs Playwright and Chromium (CHROMIUM_PATH overrides the executable), like the other tools here.
 import fs from 'node:fs';
@@ -30,7 +30,7 @@ let failures = 0;
 for (const [name, viewport, mobile] of layouts) {
   const context = await browser.newContext({ viewport, hasTouch: mobile, isMobile: mobile });
   const page = await context.newPage();
-  await page.goto(`http://localhost:${server.address().port}/game-2/`);
+  await page.goto(`http://localhost:${server.address().port}/games/ravensmoor/?level=village`); // ?level skips the start menu and character creation
   await page.waitForFunction(() => window.__game2d);
   await page.waitForTimeout(500);
   // Open the bag so its icons are on screen too.

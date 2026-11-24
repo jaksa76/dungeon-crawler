@@ -1,8 +1,8 @@
-// `studio2d paint --px`: paint one panel of the pixel slice (docs/pixel-slice.md) natively.
+// `studio2d paint --px`: paint one panel of the pixel slice (docs/experiments/pixel-slice.md) natively.
 //
 // The pixel-art-xl LoRA draws one art pixel per cell of SDXL's 8x8 latent grid, so a 160x90 panel is painted
 // on a 1280x720 canvas and comes back as a real pixel image scaled up by 8 (outlines one art pixel wide, flat
-// colour in every 8x8 cell). Resolution and factor are set in game-2/quarter-px.js; the guide size comes from
+// colour in every 8x8 cell). Resolution and factor are set in experiments/pixel-slice/quarter-px.js; the guide size comes from
 // the plan written by `guides --px`, so nothing here is tied to 160x90. The guide is the placeholder panel
 // enlarged by whole pixels; its edges steer the
 // sampler through ControlNet so the layout survives. Settings are the ones that kept the lattice in the first
@@ -13,7 +13,7 @@
 //                     [--init-blur N] [--ipadapter WEIGHT [--ref image]] [--prompt text|@file] [--negative text] [--guide file] [--out file] [--slice]
 //
 // `floor` is painted as a picture of the ground: with --control <image> that picture's edges are the layout
-// (e.g. the edges of a painted floor, see docs/pixel-slice.md), with --control ramp a depth ramp fixes the horizon.
+// (e.g. the edges of a painted floor, see docs/experiments/pixel-slice.md), with --control ramp a depth ramp fixes the horizon.
 import fs from 'node:fs';
 import path from 'node:path';
 import { generate } from './client.mjs';
@@ -50,20 +50,20 @@ const FLOOR_DEFAULTS = { denoise: 0.9, initBlur: 31 };
 const pngSize = (b) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
 
 // The art a sheet shows: "walls-house-a-2" is the house-a wall type; a prop sheet ("props-12") is named by
-// number, so it is looked up in the plan (game-2/px/art/plan.json, written by `guides --px`).
+// number, so it is looked up in the plan (experiments/pixel-slice/art/plan.json, written by `guides --px`).
 export function artOf(sheet, root) {
-  const planFile = path.join(root, 'game-2/px/art/plan.json');
+  const planFile = path.join(root, 'experiments/pixel-slice/art/plan.json');
   const entry = fs.existsSync(planFile) ? JSON.parse(fs.readFileSync(planFile, 'utf8')).sheets.find((s) => s.name === sheet) : null;
   return entry?.scenes[0]?.art ?? /^walls-(.+?)(?:-\d+)?$/.exec(sheet)?.[1] ?? sheet;
 }
 
 export async function paintPxSheet(flags, sheet, root) {
   if (!sheet) throw new Error('usage: paint <sheet> --px [--denoise N] [--seed N] [--lora N] [--controlnet N] [--control image|ramp] [--prompt text|@file] [--slice]  (see tools/comfy/paint-px.mjs)');
-  const guideFile = flags.guide ? path.resolve(root, flags.guide) : path.join(root, 'game-2/px/art/guides', `${sheet}.png`);
+  const guideFile = flags.guide ? path.resolve(root, flags.guide) : path.join(root, 'experiments/pixel-slice/art/guides', `${sheet}.png`);
   if (!fs.existsSync(guideFile)) throw new Error(`no guide ${path.relative(root, guideFile)}; run "guides --px" first`);
   const guide = fs.readFileSync(guideFile);
   const size = pngSize(guide);
-  const planFile = path.join(root, 'game-2/px/art/plan.json');
+  const planFile = path.join(root, 'experiments/pixel-slice/art/plan.json');
   const want = fs.existsSync(planFile) ? JSON.parse(fs.readFileSync(planFile, 'utf8')).sheet : null;
   if (want && (size.w !== want.w || size.h !== want.h)) console.warn(`warning: the pixel-slice canvas is ${want.w}x${want.h} (view x factor), this guide is ${size.w}x${size.h}`);
 
@@ -95,14 +95,14 @@ export async function paintPxSheet(flags, sheet, root) {
   } else if (flags['cn-type']) cn.type = flags['cn-type'];
   opts.controlnet = cn;
   if (flags.ipadapter !== undefined) {
-    const ref = path.resolve(root, flags.ref ?? 'game-2/art/ref/concept-houses.png');
+    const ref = path.resolve(root, flags.ref ?? 'art/engine/ref/concept-houses.png');
     files[`px-ref-${path.basename(ref)}`] = fs.readFileSync(ref);
     opts.ipadapter = { ref: `px-ref-${path.basename(ref)}`, weight: Number(flags.ipadapter), weightType: flags['ip-type'] ?? 'style transfer', end: Number(flags['ip-end'] ?? 1) };
   }
   console.log(`${sheet} (px, sdxl+LoRA): ${JSON.stringify(opts)}\n  prompt: ${prompt}`);
   const t0 = Date.now();
   const painted = await generate(img2img({ guide: `px-${sheet}.png`, size, prompt, negative: flags.negative ?? NEGATIVE, keep: ['#ff00ff'], ...opts }), { files });
-  const file = path.resolve(flags.out ?? path.join(root, 'game-2/px/art/painted', `${sheet}.png`));
+  const file = path.resolve(flags.out ?? path.join(root, 'experiments/pixel-slice/art/painted', `${sheet}.png`));
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, painted);
   console.log(`painted ${path.relative(root, file)} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);

@@ -49,4 +49,4 @@ font.setupNameTable({'familyName': 'RPG Pixel', 'styleName': 'Regular',
 font.setupOS2(sTypoAscender=700, sTypoDescender=-100, usWinAscent=700, usWinDescent=100)
 font.setupPost()
 font.font.flavor = 'woff'
-font.save('engine2d/assets/rpg-pixel.woff')
+font.save('engine/assets/ui/rpg-pixel.woff')

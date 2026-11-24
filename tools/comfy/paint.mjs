@@ -1,12 +1,12 @@
 // `studio2d paint`: repaint a guide sheet with the local ComfyUI (image-to-image, SDXL or Flux).
-// What each sheet shows comes from its entry in docs/art-prompts-2d.md; the look is STYLE / FLUX_STYLE below.
+// What each sheet shows comes from its entry in docs/art/art-prompts-2d.md; the look is STYLE / FLUX_STYLE below.
 import fs from 'node:fs';
 import path from 'node:path';
 import { generate } from './client.mjs';
 import { img2img, fluxImg2img } from './workflows.mjs';
 import { groundRamp } from './ramp.mjs';
 import { cobbleGuide } from './cobbles.mjs';
-import { DEFAULT_VIEW } from '../../engine2d/view.js';
+import { DEFAULT_VIEW } from '../../engine/render/view.js';
 
 // SDXL reads keywords, not the chat-style preamble in the doc.
 export const STYLE = 'hi-bit pixel art, chunky visible pixels, detailed, rich limited palette, warm wood plaster and stone, '
@@ -30,7 +30,7 @@ export function sheetPrompts(doc) {
 
 function subjectOf(sheet, doc) {
   const text = sheetPrompts(doc)[sheet];
-  if (!text) throw new Error(`no prompt for "${sheet}" in docs/art-prompts-2d.md`);
+  if (!text) throw new Error(`no prompt for "${sheet}" in docs/art/art-prompts-2d.md`);
   return text.replace(/\bPanels? [\d–, -]+:\s*/g, '').replace(/^Same style,?\s*/i, '').replace(/\bKeep the magenta[^.]*\.\s*/gi, '');
 }
 
@@ -48,7 +48,7 @@ export const FLOOR = {
     + 'terrain, rubble, tiny pebbles, mosaic, photo, 3d render, smooth gradient, blurry',
   // Small rounded fieldstones in the buildings' warm palette (stones about 8-9 across the foreground, a lumpy fieldstone
   // look, no brick or grid wording: 'strict rows' made Flux paint a grid of slabs). Flux still paints a tree line along
-  // the horizon; the game never shows that strip, so it is keyed out of the sheet (see docs/art-prompts-2d.md).
+  // the horizon; the game never shows that strip, so it is keyed out of the sheet (see docs/art/art-prompts-2d.md).
   flux: 'A hand-painted hi-bit pixel art illustration for a first-person medieval fantasy RPG: the bare cobblestone ground of ' +
     'an old town square, seen from standing eye height in strict one-point perspective, with the horizon across the middle ' +
     'of the picture. The ground is paved with many small, densely packed, irregular rounded fieldstone cobbles, each ' +
@@ -90,18 +90,18 @@ const pngSize = (b) => ({ w: b.readUInt32BE(16), h: b.readUInt32BE(20) });
 const DEFAULTS = { sdxl: { denoise: 0.52, steps: 30 }, flux: { denoise: 0.62, steps: 20 } };
 // With ControlNet / IP-Adapter on, the add-ons hold the layout and the look, so the denoise can be much higher.
 const CONDITIONED = { denoise: 0.75, steps: 28 };
-const DEFAULT_REF = 'game-2/art/ref/concept-houses.png';
+const DEFAULT_REF = 'art/engine/ref/concept-houses.png';
 // The floor starts from a heavily blurred guide at a very high denoise: a new picture, not a repaint.
 const FLOOR_DEFAULTS = { denoise: 0.95, initBlur: 31 };
 // --cobbles: the guide is a generated plane of many small cobbles (cobbles.mjs); Flux keeps its count and size
 // only at a moderate denoise, and the guide must not be blurred.
 const COBBLE_DEFAULTS = { denoise: 0.70, initBlur: 0 };
-const FLOOR_REF = 'game-2/art/ref/concept-ground.png';
+const FLOOR_REF = 'art/engine/ref/concept-ground.png';
 
 // argv: <sheet> [--model flux|sdxl] [--denoise N] [--seed N] [--steps N] [--cfg N (sdxl)] [--guidance N (flux)]
 //       [--lora N|off (sdxl)] [--init-blur N] [--prompt text|@file] [--guide file] [--out file] [--slice]
 //       floor + flux only: [--cobbles SEED [--cobble-size F]]  paint over a generated guide of many small cobbles
-//                          (tools/comfy/cobbles.mjs, saved as game-2/art/guides/floor-cobbles.png), denoise 0.70, no blur: the
+//                          (tools/comfy/cobbles.mjs, saved as art/engine/guides/floor-cobbles.png), denoise 0.70, no blur: the
 //                          cobbles stay small. F scales the guide's cells (default 1, which gives about 8 stones across the
 //                          bottom row; at 0.78 Flux still painted the foreground stones the same size and only the far rows
 //                          got denser). Then: python tools/comfy/grade-floor.py (colour + horizon cut), then slice.
@@ -118,20 +118,20 @@ export async function paintSheet(argv, root) {
     else flags[argv[i].slice(2)] = argv[++i];
   }
   const [sheet] = pos;
-  if (flags.px) return (await import('./paint-px.mjs')).paintPxSheet(flags, sheet, root); // the pixel slice (docs/pixel-slice.md)
+  if (flags.px) return (await import('./paint-px.mjs')).paintPxSheet(flags, sheet, root); // the pixel slice (docs/experiments/pixel-slice.md)
   if (!sheet) throw new Error('usage: paint <sheet> [--model flux|sdxl] [--denoise N] [--seed N] [--steps N] [--cfg N] [--guidance N] [--lora N|off] [--controlnet N] [--ipadapter N] [--ref image] [--out file] [--slice]');
   const conditioned = flags.controlnet !== undefined || flags.ipadapter !== undefined;
   const model = flags.model ?? (conditioned ? 'sdxl' : 'flux');
   if (!DEFAULTS[model]) throw new Error(`unknown --model "${model}" (flux or sdxl)`);
   if (conditioned && model !== 'sdxl') throw new Error('--controlnet and --ipadapter work with --model sdxl only');
   if (flags.ref !== undefined && flags.ipadapter === undefined) throw new Error('--ref needs --ipadapter');
-  const guideFile = flags.guide ? path.resolve(root, flags.guide) : path.join(root, 'game-2/art/guides', `${sheet}.png`);
+  const guideFile = flags.guide ? path.resolve(root, flags.guide) : path.join(root, 'art/engine/guides', `${sheet}.png`);
   if (!fs.existsSync(guideFile)) throw new Error(`no guide ${path.relative(root, guideFile)}; run "guides" first`);
   const cobbles = flags.cobbles !== undefined;
   if (cobbles && (sheet !== 'floor' || model !== 'flux')) throw new Error('--cobbles is for "paint floor" with --model flux');
   const guide = cobbles ? cobbleGuide(pngSize(fs.readFileSync(guideFile)), { seed: Number(flags.cobbles), scale: Number(flags['cobble-size'] ?? 1) }) : fs.readFileSync(guideFile);
-  if (cobbles) fs.writeFileSync(path.join(root, 'game-2/art/guides/floor-cobbles.png'), guide);
-  const doc = fs.readFileSync(path.join(root, 'docs/art-prompts-2d.md'), 'utf8');
+  if (cobbles) fs.writeFileSync(path.join(root, 'art/engine/guides/floor-cobbles.png'), guide);
+  const doc = fs.readFileSync(path.join(root, 'docs/art/art-prompts-2d.md'), 'utf8');
 
   const whole = sheet === 'floor'; // painted as a picture, not repainted over its guide
   const size = pngSize(guide);
@@ -173,7 +173,7 @@ export async function paintSheet(argv, root) {
   const common = { guide: `dc-${sheet}.png`, size, prompt, keep: sheet === 'backdrop' ? ['#202020'] : ['#ff00ff', '#202020'], ...opts };
   const t0 = Date.now();
   const painted = await generate(model === 'flux' ? fluxImg2img(common) : img2img({ ...common, negative: whole ? FLOOR.negative : NEGATIVE }), { files });
-  const file = path.resolve(flags.out ?? path.join(root, 'game-2/art/painted', `${sheet}.png`));
+  const file = path.resolve(flags.out ?? path.join(root, 'art/engine/painted', `${sheet}.png`));
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, painted);
   console.log(`painted ${path.relative(root, file)} in ${((Date.now() - t0) / 1000).toFixed(1)}s`);

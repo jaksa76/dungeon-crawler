@@ -9,10 +9,10 @@
 //
 // Pure data: runs in the browser (studio) and in node (reports).
 
-import { intersectConvex, area, swapAnchor } from '../../engine2d/view.js';
+import { intersectConvex, area, swapAnchor } from '../../engine/render/view.js';
 
 export const SHEET = { w: 1536, h: 1024, cols: 2, rows: 2 };
-// The pixel slice (docs/pixel-slice.md) paints one low-resolution panel per generation, on a canvas `factor`
+// The pixel slice (docs/experiments/pixel-slice.md) paints one low-resolution panel per generation, on a canvas `factor`
 // times as large (8 for the pixel-art LoRA, which draws one art pixel per 8 px latent cell).
 export const sheetForPixelView = (width, height, factor) => ({ w: width * factor, h: height * factor, cols: 1, rows: 1 });
 

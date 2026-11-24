@@ -1,7 +1,7 @@
 # TODO
 
-Scope: the 2D compositing engine (`engine2d/`) and game two, the Old Quarter
-and the Undercrypt (`game-2/`).
+Scope: the engine (`engine/`) and the Ravensmoor campaign, the Old Quarter
+and the Undercrypt (`games/ravensmoor/`). See docs/engine/content.md for what goes where.
 
 One backlog, in build order. Each milestone lists the **engine** work first,
 then the **game** stories it unlocks, so no story appears before the engine
@@ -76,7 +76,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Moved up so the shape of the game state is designed early, while it is still small. Everything added later (stats, flags, quests, loot, map knowledge) plugs into this one serialisable state.*
 
 **Engine**
-- [x] One serialisable game state, separate from rendering and input (`engine2d/persistence.js`, see `docs/persistence.md`). Known locations join it with the world map (M9).
+- [x] One serialisable game state, separate from rendering and input (`engine/core/persistence.js`, see `docs/engine/persistence.md`). Known locations join it with the world map (M9).
 - [x] Versioned save format with per-section migrations, so old saves survive changes
 - [x] Persistence registry: engine components register their own sections, a game adds its own (`persist`) or uses flags; engine and game ids are namespaced
 - [x] Save slots, autosave policy set by the game, on-screen message when saving fails
