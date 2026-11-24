@@ -54,14 +54,14 @@ Saves live in slots (`slot-1`, ...). The page opens on the main menu (engine/ui/
 newest save, Load game lists every save (load it, or delete it with two presses; Back or Escape returns), and New game
 goes to character creation and then starts in a free slot. When every slot is in use, New game first asks which save to
 replace (two presses). A campaign can dress the menu with `menu: { logo, background }`. Autosave is off by default (it made death cost nothing): the player saves and loads
-from the settings panel, one row per slot (`maxSlots`); overwriting a save takes two presses. A new game is not written
+from the Save and Load screens (Settings → Save, Settings → Load), one row per slot (`maxSlots`); overwriting a save takes two presses. A new game is not written
 until the player saves it. A failed write says "Your progress could not be saved." in the message log, once.
 
 ## Loading while playing
 
 `loadState(snapshot)` (returned by `startGame2d`, also `window.__game2d.loadState`) opens the saved level, restores every
 section and starts the creatures over. Autosave is off while it runs, so half-loaded state is never written. The
-settings panel's Load uses it. Dying does not: the hero returns to the village's starting point with full health,
+Load screen uses it. Dying does not: the hero returns to the village's starting point with full health,
 keeping what they carry, the creatures start over, and nothing is saved.
 
 ## Renames and edits

@@ -16,6 +16,7 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 - [x] Engine: real-time roaming monsters with sight and pursuit; directional, depth-based sprites
 - [x] Engine: defeat screen and respawn
 - [x] Game: village courtyard, 17×17 Undercrypt maze, one roaming snake
+- [x] Engine: character screen (P, or click the portrait) where skill points are spent, a help screen (H), and Save and Load screens reached from Settings
 - [x] Art: 144 icons (120 items, 24 interface) painted with Codex, in one atlas; used in the HUD, the painted panel and the satchel
 
 ## M1 — Interaction

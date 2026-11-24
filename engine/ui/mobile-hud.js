@@ -6,6 +6,8 @@ import { takeStack, takeAll } from '../rules/inventory.js';
 import { HEAD_X } from './head.js';
 import { QUICK_ICONS } from './panel-icons.js';
 import { TIER_NAMES } from './icons.js';
+import { renderCharacter } from './character-screen.js';
+import { renderHelp } from './help-screen.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
@@ -26,7 +28,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   onSpend = attribute => ({ ok: hero.spend?.(attribute) ?? false }),
   // Magic (null when the game has no spells): { spells() -> [{ id, name, icon, cost, magicType, ready, description }], cast(id), setReady(id),
   // ready() -> id, effects() -> [{ id, name, tier, left, harmful, magicType }] }.
-  magic = null }) {
+  magic = null,
+  // The game's own sections of the help screen: [{ title, text }] (ui/help-screen.js).
+  help = [] }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -74,6 +78,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const faceTarget = () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80));
   addArt(face, faceTarget, (g, n) => { g.imageSmoothingEnabled = false; g.fillStyle = '#0d0b10'; g.fillRect(0, 0, n, n); g.drawImage(portrait, Math.round(HEAD_X - n / 2), 0, n, n, 0, 0, n, n); });
   character.append(face);
+  face.tabIndex = 0; face.setAttribute('role', 'button'); face.setAttribute('aria-label', 'Your adventurer: open the character screen'); face.title = 'Character';
+  face.style.cursor = 'pointer';
+  face.addEventListener('click', () => toggle('character', openCharacter)());
+  face.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); toggle('character', openCharacter)(); } });
   const vitals = document.createElement('div'); vitals.className = 'rpg-vitals';
   const vitalNodes = [];
   for (const [label, value, max] of [['HP', hero.hp, hero.maxHp], ['MP', hero.mp, hero.maxMp], ...(hero.progress ? [['XP', hero.progress.xp - hero.progress.from, 1]] : [])]) {
@@ -193,18 +201,12 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // `selected` is a pack slot, or `selectedGear` a worn slot's id; never both.
   let selected = null, selectedGear = null;
   const make = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text) e.textContent = text; return e; };
-  // The hero's level, experience and attributes; with skill points to spend, a button to raise each attribute.
+  // The satchel's line about the hero: the level, and the way to the character screen (where skill points are spent).
   function characterSheet() {
     const { level, xp, to } = hero.progress, nodes = [];
     nodes.push(make('p', 'rpg-stats', `Level ${level} · ${to === null ? `${xp} xp (highest level)` : `${xp} / ${to} xp`}`));
-    if (!hero.unspent) { nodes.push(make('p', '', Object.entries(hero.attrs).map(([k, v]) => `${k[0].toUpperCase()}${k.slice(1)} ${v}`).join(' · '))); return nodes; }
-    nodes.push(make('p', 'rpg-note', `${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend:`));
-    const row = make('div', 'rpg-spend');
-    for (const [key, value] of Object.entries(hero.attrs)) {
-      const label = `${key[0].toUpperCase()}${key.slice(1)}`, b = textButton(`${label} ${value} +`, () => { const r = onSpend(key); openInventory(r.ok ? `${label} is now ${hero.attrs[key]}.` : 'No skill points left.'); });
-      b.setAttribute('aria-label', `Raise ${label}, now ${value}`); row.append(b);
-    }
-    nodes.push(row);
+    if (hero.unspent) nodes.push(make('p', 'rpg-note', `${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend.`));
+    nodes.push(textButton('Character', () => openCharacter()));
     return nodes;
   }
   function openInventory(note = '') {
@@ -418,11 +420,22 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     } catch { open('Full screen', 'Full screen is not available in this browser.'); }
   }
   iconButton('Full screen', 'fullscreen', menus, toggleFullscreen);
+  // The character screen (ui/character-screen.js): the figure, the attributes and where skill points are spent.
+  function openCharacter(note = '') {
+    open(hero.name, null, 'character');
+    renderCharacter(body, { hero, damageTypes, onSpend, note });
+  }
+  function openHelp() {
+    open('Help', null, 'help');
+    renderHelp(body, { magic: !!magic?.available, extra: help });
+    body.append(textButton('Back to settings', openSettings));
+  }
   function openSettings() {
     open('Settings', null, 'settings');
-    if (saves) appendSaves();
-    const controlsHeading = document.createElement('h3'); controlsHeading.textContent = 'Controls';
-    body.append(controlsHeading, paragraph('Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Tap a creature to attack; hold to keep attacking. Tap an object to use it, or use the Use button for what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.'));
+    const row = document.createElement('div'); row.className = 'rpg-settings-row';
+    if (saves) row.append(textButton('Save', () => openSaves('save')), textButton('Load', () => openSaves('load')));
+    row.append(textButton('Help', openHelp));
+    body.append(row);
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -439,33 +452,40 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const detailed = icons.style === 'detailed';
     body.append(textButton(`Icons: ${detailed ? 'detailed' : 'pixel 16x16'} (tap to switch)`, () => setIconStyle(detailed ? 'pixel' : 'detailed')));
   }
-  // Saving is by hand only: one row per slot, Save writes the game there (overwriting takes two presses), Load returns to it.
-  function appendSaves() {
-    const heading = document.createElement('h3'); heading.textContent = 'Saved games';
+  // The save screen and the load screen (from Settings): one row per slot. Saving over a slot takes two presses; loading
+  // returns to that save and closes the screen.
+  function openSaves(mode, note = '') {
+    const saving = mode === 'save';
+    open(saving ? 'Save game' : 'Load game', null, mode);
+    if (note) body.append(paragraph(note, 'rpg-note'));
     const list = document.createElement('div'); list.className = 'rpg-saves';
     const existing = new Map(saves.list().map(s => [s.slot, s]));
+    let any = false;
     for (let n = 1; n <= saves.max; n++) {
       const id = `slot-${n}`, entry = existing.get(id);
+      if (!saving && !entry) continue; // nothing to load from an empty slot
+      any = true;
       const row = document.createElement('div'); row.className = 'rpg-save-row';
       const name = document.createElement('span');
       name.textContent = entry ? `${n}. ${entry.label}  ${new Date(entry.savedAt).toLocaleString()}` : `${n}. Empty`;
-      const store = textButton('Save', () => {
-        if (entry && store.textContent === 'Save') { store.textContent = 'Overwrite?'; setTimeout(() => { store.textContent = 'Save'; }, 3000); return; }
-        const ok = saves.save(id), text = ok ? 'Game saved.' : 'Your progress could not be saved.';
-        say(text); refresh(text);
-      });
-      const restore = textButton('Load', async () => {
-        restore.disabled = true; restore.textContent = 'Loading...';
-        closePanel();
-        if (await saves.load(id)) say('Game loaded.');
-      });
-      restore.disabled = !entry;
+      const act = saving
+        ? textButton('Save', () => {
+          if (entry && act.textContent === 'Save') { act.textContent = 'Overwrite?'; setTimeout(() => { act.textContent = 'Save'; }, 3000); return; }
+          const ok = saves.save(id), text = ok ? 'Game saved.' : 'Your progress could not be saved.';
+          say(text); openSaves('save', text);
+        })
+        : textButton('Load', async () => {
+          act.disabled = true; act.textContent = 'Loading...';
+          closePanel();
+          if (await saves.load(id)) say('Game loaded.');
+        });
       if (id === saves.current()) row.classList.add('current');
-      row.append(name, store, restore); list.append(row);
+      row.append(name, act); list.append(row);
     }
-    body.append(heading, list);
+    if (!any) body.append(paragraph('There are no saved games yet. Use Save to make one.'));
+    body.append(list, textButton('Back to settings', openSettings));
   }
-  const refresh = note => { openSettings(); if (note) body.querySelector('.rpg-saves')?.prepend(paragraph(note, 'rpg-note')); };
+  iconButton('Help', 'search', menus, toggle('help', openHelp));
   iconButton('Settings and controls', 'settings', menus, toggle('settings', openSettings));
   for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title === 'Full screen' ? 'Screen' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
@@ -516,7 +536,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
-  const menu = { spells: magic ? toggle('spells', openSpells) : () => {}, journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
+  const menu = { character: toggle('character', openCharacter), help: toggle('help', openHelp), saves: () => openSaves('save'), spells: magic ? toggle('spells', openSpells) : () => {}, journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
   return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
     setView(height, pixel) {
@@ -527,7 +547,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       if (lastState) draw(lastState);
     },
     setLevel(level) { title.textContent = level.name; mapTitle.textContent = level.shortName ?? level.name; },
-    openSpells, notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
+    openSpells, openCharacter, openHelp, notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
     isOpen: () => !menuPanel.hidden,
     setLayout(mode, width) {
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));

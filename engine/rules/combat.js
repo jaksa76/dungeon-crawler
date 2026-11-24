@@ -49,12 +49,13 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
   const raise = () => { for (const k of Object.keys(base)) attrs[k] = base[k] + spent[k] + grown[k]; };
   // The hero's stats with `gear` (equipment.gear(), possibly of a preview()); what is worn now by default.
   // `modifiers()` is what status effects add right now: { attack, defence, slow } (slow: a share off the swing speed).
-  const statsWith = (gear = {}) => {
+  const compute = (attributes, gear = {}) => {
     const m = modifiers(), bonus = { ...gear.bonus, attack: (gear.bonus?.attack ?? 0) + (m.attack ?? 0), defence: (gear.bonus?.defence ?? 0) + (m.defence ?? 0) };
-    const stats = deriveStats(attrs, { ...gear, bonus, weapon: gear.weapon ?? unarmed });
+    const stats = deriveStats(attributes, { ...gear, bonus, weapon: gear.weapon ?? unarmed });
     if (m.slow) stats.attackMs = Math.round(stats.attackMs / (1 - m.slow));
     return stats;
   };
+  const statsWith = (gear = {}) => compute(attrs, gear);
   const stats = () => statsWith(equipment?.gear());
   const hero = {
     attrs, name, base, spent, unarmed,
@@ -84,6 +85,9 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
       grown[key]++; raise(); return true;
     },
     stats, statsWith,
+    // The stats the hero would have with `points` more in some attributes ({ strength: 2 }), nothing changed: the character
+    // screen shows them before the player commits.
+    statsWithPoints: (points = {}, gear = equipment?.gear()) => compute(Object.fromEntries(Object.entries(attrs).map(([k, v]) => [k, v + (points[k] ?? 0)])), gear),
     hp: 0, mp: 0,
     get alive() { return hero.hp > 0; },
     restore() { hero.hp = hero.maxHp; hero.mp = hero.maxMp; },

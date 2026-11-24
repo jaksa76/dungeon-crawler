@@ -51,6 +51,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   unarmed = FISTS,
   // Experience and levels (rules/progression.js) and the loot budget rules (rules/generate-loot.js): both optional, the engine has defaults.
   progression, loot, startingSpells = [],
+  // The game's own sections of the help screen: [{ title, text }] (ui/help-screen.js).
+  help = [],
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
@@ -248,7 +250,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
   const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
-    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend,
+    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, help,
     magic: Object.keys(books.spells).length ? {
       available: true, spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
       cast: id => castSpell(id), setReady: id => session.setReadySpell(id), ready: () => session.readySpell,
@@ -261,6 +263,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   // Desktop: the painted panel's icons (regions in the panel image's pixels) open the same menus as the phone buttons.
   const hotspots = [
     ...(Object.keys(books.spells).length ? [{ label: 'Spells', rect: [545 + 1 * 99, 20, 99, 92], run: () => bars.menu.spells() }] : []),
+    { label: 'Character', rect: uiLayout.portrait, run: () => bars.menu.character() },
     ...[['Journal', 2, 'journal'], ['Inventory', 3, 'inventory'], ['Full screen', 4, 'fullscreen'], ['Settings', 5, 'settings']]
       .map(([label, i, name]) => ({ label, rect: [545 + i * 99, 20, 99, 92], run: () => bars.menu[name]() })),
     ...bars.items.map(([label, text, , use], i) => ({ label, rect: [545 + i * 76, 130, 76, 76], run: () => (use ? quickUse(use) : bars.open(label, text)) })),
@@ -586,6 +589,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
     if (isDead() || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
+    if (ev.code === 'KeyP' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.character(); return; } // the character screen
+    if ((ev.code === 'KeyH' || ev.code === 'F1') && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.help(); return; } // help
     if (ev.code === 'KeyC' && !ev.repeat && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); act('cast'); return; } // the ready spell
     if (ev.code === 'KeyB' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && Object.keys(books.spells).length) { ev.preventDefault(); bars.menu.spells(); return; } // the spell book
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }

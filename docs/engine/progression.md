@@ -16,7 +16,7 @@ progression: { xpToLevel: n => 10 * n * (n - 1), pointsPerLevel: 2, maxLevel: 20
 passes `progression` beside `unarmed`; the engine merges it over the defaults.
 
 A new level restores the hero's health and mana and earns `pointsPerLevel` **skill points**. A point goes into an
-attribute (`session.spend('strength')`, the plus buttons in the satchel, `sim.spend()` for bots), which is what raises
+attribute (`session.spend('strength')`, the character screen, `sim.spend()` for bots), which is what raises
 the derived stats: strength the damage, vitality the health, intellect the mana, agility defence, accuracy and evasion.
 
 The hero saves `xp` and `grown` (the points put into attributes while levelling, apart from `spent` at character
@@ -26,7 +26,7 @@ follow it; a save that holds more points than the new curve allows is trimmed ra
 Events: `kill` (with `xp`), `xp { amount, xp, level }`, `level-up { level, points }`, `spend { attribute, value, unspent }`.
 
 The HUD shows the level and an experience bar (the painted panel under the mana bar, the rail on a phone); with points
-to spend the bar says so. Open the satchel (I) with nothing selected to see the character sheet and spend them.
+to spend the bar says so. Press **P**, or click the portrait, for the character screen, and spend them there (see [screens.md](screens.md)).
 
 ## Loot
 

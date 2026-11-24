@@ -36,7 +36,7 @@ fractional scale (needs Playwright and Chromium).
 - **Use** (above the turn buttons; **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
 - On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the first four quick items are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine/ui/panel-icons.js`).
 - On desktop, full screen (the panel's full screen icon, **F**, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
-- Settings contains control help, a cache-free reload, and slot outlines. Full screen has its own button.
+- Settings has buttons for the Save, Load and Help screens, a cache-free reload, and slot outlines. Full screen has its own button. The portrait (on the rail, or in the painted panel) and **P** open the character screen; **H** opens help. See [screens.md](screens.md).
 - Ravensmoor's eastern village door connects to the Undercrypt; see
   [dungeon-level.md](../ravensmoor/undercrypt.md) for travel, visibility and art authoring.
 - **Reload without cache** in Settings clears this project's Cache Storage and
