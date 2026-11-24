@@ -20,14 +20,13 @@ import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { HEAD_X } from '../ui/head.js';
 import { createEquipment } from '../rules/equipment.js';
 import { createCharacter, deriveStats, strike, createCooldown } from '../rules/combat.js';
-import { chooseCharacter } from '../ui/character-creation.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence } from '../rules/inventory.js';
 import { resolveContents } from '../rules/loot.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { createPersistence, createSaveStore, peek } from './persistence.js';
 import { createFlags } from './flags.js';
 import { startAutosave, defaultAutosave } from './autosave.js';
-import { chooseStart } from '../ui/start-menu.js';
+import { createTitleScreen } from '../ui/title-screen.js';
 import { drawText } from '../ui/bitmapfont.js';
 import { font5x8 as FONT } from '../ui/font-5x8.js';
 
@@ -66,7 +65,14 @@ export function cellLookup(world, id, { level, tileTypes }) {
 // `startingItems` is what the hero carries on a new game. Death returns the hero to `respawn` ({ level, spawn? },
 // by default the start of the first level; `place` names it on the defeat screen, `message` is said on waking). The page supplies the canvases: `viewCanvas`, `uiCanvas`, their `frame`, and
 // a `status` line for debugging.
-export async function startGame({ levels, start, content = [], startingItems = [], respawn = { level: start },
+export async function startGame(options) {
+  // The menus before the game stay up (showing "Loading...") until the first level is on screen.
+  const screen = createTitleScreen({ title: options.title ?? 'Dungeon', ...options.menu });
+  try { const game = await runGame(options, screen); screen.close(); return game; }
+  catch (error) { screen.fail(error.message); throw error; }
+}
+
+async function runGame({ levels, start, content = [], startingItems = [], respawn = { level: start },
   viewCanvas, uiCanvas, frame, status, inventorySize = 48, inventoryColumns = 8,
   heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, heroAttackMs = 700,
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
@@ -75,7 +81,8 @@ export async function startGame({ levels, start, content = [], startingItems = [
   // components ({ flags, hero, inventory, equipment, itemDefs }) and returns the list. See docs/engine/persistence.md.
   title = 'Dungeon', saveKey = 'dungeon-crawler', storage, maxSlots = 3, autosave = {}, persist = [],
   // Character creation on a new game: the player names the hero and adds `points` to the attributes. `false` skips it.
-  characterCreation = { points: 4 } }) {
+  // `menu` dresses the main menu: { logo, background } image URLs (without a logo the title is written out).
+  characterCreation = { points: 4 } }, screen) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
@@ -95,21 +102,38 @@ export async function startGame({ levels, start, content = [], startingItems = [
   if (store === undefined) { try { store = window.localStorage; } catch { store = null; } }
   const saves = createSaveStore(store, saveKey);
   const persistent = !params.has('level');
-  let slot = params.get('slot') ?? 'slot-1', saved = null;
-  if (persistent && params.has('new')) saves.clear(slot);
-  else if (persistent) {
-    const slots = saves.list();
-    if (slots.length) {
-      const choice = await chooseStart(frame, { title, slots, max: maxSlots, remove: id => saves.clear(id) });
-      slot = choice.slot;
-      if (choice.mode === 'continue') saved = saves.load(slot);
+  let slot = params.get('slot') ?? 'slot-1', saved = null, creation = null;
+  const newHero = () => (characterCreation
+    ? screen.character({ base: heroAttributes, points: characterCreation.points ?? 4, derive: attrs => deriveStats(attrs) })
+    : Promise.resolve({}));
+  if (persistent && params.has('new')) {
+    saves.clear(slot);
+    if (characterCreation) creation = await newHero();
+  } else if (persistent) {
+    // The main menu: continue the newest save, start a new game, or pick a save to load. Back returns here.
+    const freeSlot = () => { for (let n = 1; ; n++) if (!saves.list().some(s => s.slot === `slot-${n}`)) return `slot-${n}`; };
+    for (;;) {
+      const slots = saves.list();
+      const choice = await screen.main({ latest: slots[0] ?? null });
+      if (choice === 'continue') { slot = slots[0].slot; saved = saves.load(slot); break; }
+      if (choice === 'load') {
+        const picked = await screen.saves({ slots, remove: id => saves.clear(id) });
+        if (picked) { slot = picked; saved = saves.load(slot); break; }
+        continue;
+      }
+      const target = maxSlots && slots.length >= maxSlots
+        ? await screen.saves({ slots, remove: id => saves.clear(id), replace: true }) : freeSlot();
+      if (!target) continue;
+      const hero = await newHero();
+      if (!hero) continue;
+      saves.clear(target); // replacing a save: the old one goes now, not at the first save
+      slot = target; creation = characterCreation ? hero : null;
+      break;
     }
   }
+  if (persistent) screen.loading();
   const savedLevel = peek(saved, 'engine.player')?.levelId;
   if (saved && !Object.hasOwn(definitions, savedLevel)) saved = null; // that level no longer exists: start over in this slot
-  // A new game starts with the character creation screen (not when debugging with ?level=).
-  const creation = persistent && !saved && characterCreation
-    ? await chooseCharacter(frame, { title, base: heroAttributes, points: characterCreation.points ?? 4, derive: attrs => deriveStats(attrs) }) : null;
   const asked = params.get('level');
   let levelId = saved ? savedLevel : asked && Object.hasOwn(definitions, asked) ? asked : start;
   const explorations = createExplorationStore();

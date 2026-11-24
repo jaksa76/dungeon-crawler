@@ -1,0 +1,100 @@
+@font-face { font-family: 'RPG Pixel'; src: url('../assets/ui/rpg-pixel.woff') format('woff'); font-display: swap; }
+/* The screens before the game (title-screen.js): they cover the whole page. Sizes are whole multiples of --tpx
+   (screen pixels per font pixel, set from the window size) so the 8-pixel font stays sharp. */
+html.rpg-title-open, html.rpg-title-open body { overflow: hidden; }
+.rpg-title { --tpx: 2; --u: calc(var(--tpx) * 1px);
+  --ink: #ebd6ad; --muted: #a8916f; --gold: #e8c688; --line: #715036; --good: #9fd27f;
+  position: fixed; inset: 0; z-index: 50; overflow-y: auto; box-sizing: border-box;
+  display: flex; padding: calc(8 * var(--u));
+  color: var(--ink); font: calc(8 * var(--u)) / 1.5 'RPG Pixel', monospace; -webkit-font-smoothing: none;
+  background: radial-gradient(ellipse at 50% 35%, #231a26 0%, #100c12 55%, #060408 100%); }
+.rpg-title.has-bg { background: linear-gradient(#0806 0%, #080610cc 100%), var(--title-bg) center / cover no-repeat, #060408; image-rendering: pixelated; }
+.rpg-title[hidden] { display: none; }
+.rpg-title > * { margin: auto; } /* centred, but scrolls from the top when taller than the window */
+.rpg-title *, .rpg-title *::before { box-sizing: border-box; }
+
+.rpg-title button { min-height: 44px; padding: calc(2 * var(--u)) calc(8 * var(--u)); color: #efd7aa; background: #211c19;
+  border: var(--u) solid #8b6542; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.rpg-title button:hover:not(:disabled) { background: #2d2520; border-color: #c39258; }
+.rpg-title button:focus-visible, .rpg-title input:focus-visible { outline: var(--u) solid #ffe0a0; outline-offset: var(--u); }
+.rpg-title button:active:not(:disabled) { filter: brightness(1.3); transform: translateY(1px); }
+.rpg-title button:disabled { opacity: .4; cursor: default; }
+.rpg-title button.rpg-title-primary { background: #4a2f1a; border-color: #d9a55e; color: #ffe7b8; }
+.rpg-title button.rpg-title-primary:hover { background: #5c3a20; }
+
+/* The main menu: the title, and three buttons beneath it. */
+.rpg-title-main { display: flex; flex-direction: column; align-items: center; gap: calc(24 * var(--u)); width: 100%; }
+.rpg-title-name { margin: 0; font-size: calc(24 * var(--u)); line-height: 1; font-weight: normal; letter-spacing: var(--u);
+  color: var(--gold); text-shadow: var(--u) var(--u) 0 #5a3a1e, calc(2 * var(--u)) calc(2 * var(--u)) 0 #000; text-align: center; }
+.rpg-title-name img { display: block; max-width: min(90vw, 100%); max-height: 40vh; image-rendering: pixelated; }
+@media (max-width: 560px) { .rpg-title-name { font-size: calc(16 * var(--u)); } }
+.rpg-title-menu { display: flex; flex-direction: column; gap: calc(4 * var(--u)); width: min(100%, calc(150 * var(--u))); }
+.rpg-title-menu button { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: calc(4 * var(--u)) calc(8 * var(--u));
+  border: calc(5 * var(--u)) solid #8b6542; border-image: var(--rpg-panel) 3 fill / calc(5 * var(--u)) / 0 stretch; background: #1c1818; }
+.rpg-title-menu button small { color: var(--muted); font-size: inherit; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+.rpg-title-loading { margin: 0; color: var(--muted); }
+
+/* Panels: the save list and character creation, framed in the stone panel. */
+.rpg-title-panel { display: flex; flex-direction: column; gap: calc(6 * var(--u)); width: min(100%, calc(200 * var(--u)));
+  padding: calc(8 * var(--u)) calc(10 * var(--u)); background: #100d0bf2;
+  border: calc(7 * var(--u)) solid var(--line); border-image: var(--rpg-panel) 3 fill / calc(7 * var(--u)) / 0 stretch; }
+.rpg-title-panel h2 { margin: 0; font-size: inherit; font-weight: normal; color: var(--gold); text-align: center;
+  padding-bottom: calc(4 * var(--u)); border-bottom: var(--u) solid #3a2b20; }
+.rpg-title-panel footer { display: flex; gap: calc(4 * var(--u)); justify-content: flex-end; flex-wrap: wrap; }
+.rpg-title-note { margin: 0; color: var(--ink); }
+
+.rpg-title-panel.rpg-title-saves { width: min(100%, calc(260 * var(--u))); }
+.rpg-title-slots { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: calc(3 * var(--u)); }
+.rpg-title-slots li { display: flex; gap: calc(3 * var(--u)); }
+.rpg-title-slots .rpg-title-slot { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: calc(3 * var(--u)) calc(6 * var(--u)); }
+.rpg-title-slot span { color: var(--gold); }
+.rpg-title-slot small { font-size: inherit; color: var(--muted); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rpg-title-slot[data-sure], .rpg-title-delete[data-sure] { color: #ffb59e; border-color: #c0573f; }
+.rpg-title-empty { color: var(--muted); justify-content: center; padding: calc(8 * var(--u)) 0; }
+
+/* Character creation: the hero on the left; name, attributes and what they do on the right; the stats below. */
+.rpg-title-panel.rpg-creation-panel { width: min(100%, calc(310 * var(--u))); }
+.rpg-cc-body { display: flex; gap: calc(10 * var(--u)); align-items: stretch; }
+.rpg-cc-figure { flex: none; margin: 0; display: flex; align-items: center; justify-content: center; padding: calc(4 * var(--u)) calc(8 * var(--u));
+  background: radial-gradient(ellipse at 50% 85%, #3a2a1c 0%, #15100d 70%); border: var(--u) solid #3a2b20; }
+.rpg-cc-figure img { display: block; width: calc(48 * 2 * var(--u)); height: calc(96 * 2 * var(--u)); image-rendering: pixelated; }
+.rpg-cc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: calc(4 * var(--u)); }
+.rpg-cc-caption { color: var(--muted); }
+.rpg-cc-name { display: flex; align-items: center; gap: calc(6 * var(--u)); }
+.rpg-cc-name input { flex: 1; min-width: 0; min-height: 40px; padding: calc(2 * var(--u)) calc(4 * var(--u)); font: inherit; color: #fff0d0;
+  background: #0a0807; border: var(--u) solid #8b6542; caret-color: var(--gold); }
+.rpg-cc-points { display: flex; align-items: center; gap: calc(6 * var(--u)); margin-top: calc(2 * var(--u)); }
+.rpg-cc-points[hidden] { display: none; }
+.rpg-cc-pips { display: flex; gap: calc(2 * var(--u)); }
+.rpg-cc-pips i { width: calc(5 * var(--u)); height: calc(5 * var(--u)); background: #2a211b; border: var(--u) solid #5a4330; }
+.rpg-cc-pips i.is-free { background: var(--gold); border-color: #fff0c8; }
+.rpg-cc-left { margin-left: auto; color: var(--gold); }
+.rpg-cc-attrs { list-style: none; margin: 0; padding: 0; display: grid; gap: calc(2 * var(--u)); }
+.rpg-cc-attr { display: grid; grid-template-columns: 1fr auto calc(16 * var(--u)) auto; align-items: center; gap: calc(3 * var(--u));
+  padding: var(--u) calc(3 * var(--u)); border: var(--u) solid transparent; }
+.rpg-cc-attr.is-active { background: #1d1714; border-color: #3a2b20; }
+.rpg-cc-attr .rpg-cc-step { min-width: 40px; min-height: 40px; padding: 0; }
+.rpg-cc-value { text-align: center; color: #fff0d0; }
+.rpg-cc-attr.is-raised .rpg-cc-value { color: var(--good); }
+.rpg-cc-about { margin: 0; min-height: 4.5em; color: var(--ink); }
+.rpg-cc-raises { display: block; color: var(--gold); }
+.rpg-cc-points { white-space: nowrap; }
+.rpg-cc-stats { margin: 0; display: grid; grid-template-columns: repeat(6, 1fr); gap: calc(3 * var(--u));
+  padding-top: calc(5 * var(--u)); border-top: var(--u) solid #3a2b20; }
+.rpg-cc-stats div { display: flex; flex-direction: column; align-items: center; padding: calc(2 * var(--u)); background: #0b0908; border: var(--u) solid #2a211b; }
+.rpg-cc-stats dt { color: var(--muted); }
+.rpg-cc-stats dd { margin: 0; color: #fff0d0; white-space: nowrap; }
+.rpg-cc-delta { color: var(--good); margin-left: calc(2 * var(--u)); }
+
+/* Narrow screens: the figure shrinks beside the name, the stats go to two rows, and what an attribute raises is
+   left to the description line. */
+@media (max-width: 720px) {
+  .rpg-title { padding: calc(4 * var(--u)); }
+  .rpg-title-panel { padding: calc(6 * var(--u)); }
+  .rpg-cc-body { flex-direction: column; gap: calc(4 * var(--u)); }
+  .rpg-cc-figure { align-self: center; padding: calc(2 * var(--u)) calc(6 * var(--u)); }
+  .rpg-cc-figure img { width: calc(48 * var(--u)); height: calc(96 * var(--u)); }
+  .rpg-cc-stats { grid-template-columns: repeat(3, 1fr); }
+  .rpg-title-panel footer button { flex: 1; }
+}
+.rpg-title-delete { flex: none; width: calc(46 * var(--u)); padding: 0 !important; }

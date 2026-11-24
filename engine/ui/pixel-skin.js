@@ -1,8 +1,10 @@
 // Render HUD art at a small logical resolution, then let CSS enlarge its pixels.
 // Controls remain native buttons at their full touch-target size.
-export function pixelSkin(root) {
-  const frame = new Image();
-  const ready = new Promise((resolve, reject) => {
+// The stone panel frame, drawn at 64 x 64 and set as --rpg-panel for CSS border-images. Loaded once.
+let panelFrame = null;
+export function loadPanelFrame() {
+  return panelFrame ??= new Promise((resolve, reject) => {
+    const frame = new Image();
     frame.onload = () => {
       const c = document.createElement('canvas'); c.width = c.height = 64;
       c.getContext('2d').drawImage(frame, 0, 0, 64, 64);
@@ -10,8 +12,12 @@ export function pixelSkin(root) {
       resolve();
     };
     frame.onerror = () => reject(new Error('Could not load the HUD panel artwork.'));
+    frame.src = new URL('../assets/ui/panel-stone.png', import.meta.url).href;
   });
-  frame.src = new URL('../assets/ui/panel-stone.png', import.meta.url).href;
+}
+
+export function pixelSkin(root) {
+  const ready = loadPanelFrame();
 
   function rasterize(svg) {
     if (svg.dataset.rasterizing) return;

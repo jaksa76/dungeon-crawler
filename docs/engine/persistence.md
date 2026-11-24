@@ -50,8 +50,10 @@ For small things skip the section and use `flags`. The call returns `{ persisten
 
 ## Slots and the player
 
-Saves live in slots (`slot-1`, ...). With saves present the start screen lists them: continue, delete (two presses),
-or start a new game in a free slot. Autosave is off by default (it made death cost nothing): the player saves and loads
+Saves live in slots (`slot-1`, ...). The page opens on the main menu (engine/ui/title-screen.js): Continue loads the
+newest save, Load game lists every save (load it, or delete it with two presses; Back or Escape returns), and New game
+goes to character creation and then starts in a free slot. When every slot is in use, New game first asks which save to
+replace (two presses). A campaign can dress the menu with `menu: { logo, background }`. Autosave is off by default (it made death cost nothing): the player saves and loads
 from the settings panel, one row per slot (`maxSlots`); overwriting a save takes two presses. A new game is not written
 until the player saves it. A failed write says "Your progress could not be saved." in the message log, once.
 
