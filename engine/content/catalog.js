@@ -2,7 +2,7 @@
 // and the NPCs, props, buildings and environments a campaign builds its levels from. A campaign may add a book of its
 // own: new ids add things, an id the engine already has changes it (house rules).
 //
-//   defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons })
+//   defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, doors, icons })
 //
 // `baseUrl` is the folder that holds the book's art (`new URL('./assets/', import.meta.url)`), laid out by kind:
 //   monsters/<art>/  npcs/<art>/  props/<art>/  walls/<art>/  environments/<art>/  icons/<sheet image>
@@ -18,7 +18,7 @@
 // An entry's `art` defaults to its id. An entry that overrides one from an earlier book keeps that book's art unless it
 // names an `art` of its own, so a campaign can retune the engine's troll without painting a new one.
 
-export const KINDS = ['items', 'monsters', 'npcs', 'props', 'buildings', 'environments', 'icons'];
+export const KINDS = ['items', 'monsters', 'npcs', 'props', 'buildings', 'environments', 'doors', 'icons'];
 export const ART_FOLDERS = { monsters: 'monsters', npcs: 'npcs', props: 'props', buildings: 'walls', environments: 'environments' };
 
 const BASE = Symbol('base');
@@ -49,6 +49,10 @@ export function mergeContent(...books) {
     if (entry[BASE]) entry.assets = new URL(`${folder}/${entry.art}/`, entry[BASE]).href;
   }
   for (const [id, entry] of Object.entries(merged.items)) entry.id = id;
+  for (const [id, entry] of Object.entries(merged.doors)) {
+    if (!merged.buildings[entry.building]) throw new Error(`content: door "${id}" shows an unknown building "${entry.building}"`);
+    entry.id = id;
+  }
   for (const [id, sheet] of Object.entries(merged.icons)) {
     if (typeof sheet.image !== 'string' || !(sheet.tile > 0) || !Array.isArray(sheet.icons)) throw new Error(`content: icon sheet "${id}" needs an image, a tile size and a list of icons`);
     const folder = new URL('icons/', sheet[BASE]);

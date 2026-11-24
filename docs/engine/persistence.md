@@ -78,3 +78,10 @@ heroes that already exist.
 ## Not yet
 
 A per-level state scope (monster respawn in M8, doors in M13), and levels and XP as saved progression (M8).
+
+## The world
+
+Placed and spawned things (props, NPCs, doors, creatures) save through one engine section, `world`
+(`engine/core/world.js`): per level, each placed instance's `state` (or that it was removed), and every spawned
+instance with its kind, placement and state. It loads before `player`, so the level the player is on opens with its
+things already restored. See [behaviour.md](behaviour.md).

@@ -40,10 +40,13 @@ The page passes it to the engine together with its canvases: `startGame({ ...cam
 status })`. The level format is described at the top of `engine/core/levels.js`: a level names its environment, maps
 its map characters to buildings, and places props, NPCs and creatures by id.
 
+Behaviour is code on the same objects: an item's `use`, an NPC's `interact`, a creature's `onDeath`, a level's
+`onEnter`, with `this.state` for what must be saved. See [behaviour.md](behaviour.md).
+
 ## Content books
 
 A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons })`,
-where `baseUrl` is the folder that holds its art:
+where `baseUrl` is the folder that holds its art (doors have none of their own: they show a building):
 
 ```
 <baseUrl>/monsters/<id>/       front|back|left|right-d0..d3.png, animation-d0..d3.png

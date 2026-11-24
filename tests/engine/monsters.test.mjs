@@ -67,7 +67,7 @@ test('stats default sensibly and come from the definition', () => {
   assert.deepEqual([a.hp, a.maxHp, a.attack, a.defence, a.speed, a.name], [30, 30, 12, 1, 1, 'creature']);
 });
 
-test('damage hurts, a killing blow makes it fade, reap removes it, reset brings it back whole', () => {
+test('damage hurts, a killing blow makes it fade and stay dead; brought back to life, reset makes it whole', () => {
   const monsters = fixture(['#####', '#...#', '#####'], { x: 1, z: 1, hp: 10 });
   const a = monsters.actors[0], v = monsters.version;
   assert.equal(monsters.damage(a, 4, 100), false);
@@ -82,8 +82,27 @@ test('damage hurts, a killing blow makes it fade, reap removes it, reset brings 
   assert.equal(monsters.at(1, 1).length, 1);
   assert.deepEqual(monsters.reap(300), []);
   assert.equal(monsters.reap(2000).length, 1); assert.equal(monsters.actors.length, 0);
+  assert.equal(a.state.dead, true, 'the death is remembered (and saved)');
   monsters.reset();
-  assert.equal(monsters.actors[0].hp, 10); assert.equal(monsters.actors[0].dyingUntil, 0);
+  assert.equal(monsters.actors.length, 0, 'dead stays dead');
+  a.state.dead = false; // what respawn does
+  monsters.reset();
+  assert.equal(monsters.actors[0], a, 'the same creature, worked on in place');
+  assert.equal(a.hp, 10); assert.equal(a.dyingUntil, 0);
+});
+
+test('creatures move through the given move function, and spawned ones join and leave the fight', () => {
+  const moved = [], rows = ['#######', '#.....#', '#######'];
+  const actors = [{ id: 'a', x: 1, z: 1, dir: 1 }];
+  const monsters = createMonsters({ tiles: rows, start: { x: 5, z: 1 } }, cellFor(rows), () => .1,
+    { list: () => actors, move: (actor, x, z) => { moved.push([actor.id, x, z]); actor.x = x; actor.z = z; } });
+  monsters.step({ x: -20, z: -20 });
+  assert.deepEqual(moved, [['a', 2, 1]]);
+  const b = { id: 'b', x: 3, z: 1 };
+  monsters.add(b);
+  assert.equal(monsters.actors.length, 2); assert.equal(b.hp, 10, 'defaults filled in');
+  monsters.drop(b);
+  assert.deepEqual(monsters.actors.map(x => x.id), ['a']);
 });
 
 test('masonry blocks perception, including nearby parallel corridors', () => {

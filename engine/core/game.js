@@ -12,7 +12,9 @@ import { createMobileHUD } from '../ui/mobile-hud.js';
 import { createExploration, createExplorationStore } from './exploration.js';
 import { createMonsters, actorDirection } from '../rules/monsters.js';
 import { createGameOver } from '../ui/game-over.js';
-import { interact, interactTarget, checkBehavior } from '../rules/interaction.js';
+import { interact, interactTarget } from '../rules/interaction.js';
+import { createWorld, flat } from './world.js';
+import { itemUse } from '../rules/behaviours.js';
 import { withIcons, panelOverlay } from '../ui/panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { HEAD_X } from '../ui/head.js';
@@ -42,28 +44,20 @@ const DIR_KEYS = 'NESW';
 const ANCHOR_BY_TURN = ['far', 'right', 'near', 'left'];
 const anchorOf = (side, dir) => ANCHOR_BY_TURN[(DIR_KEYS.indexOf(side) - dir + 4) % 4];
 
-// Map a level + tile types to a world cell lookup: { wall } | { entities } | {} | null.
-export function cellLookup(level, tileTypes, props) {
+// A level's cells, as the renderer, movement, the map and the creatures see them: { wall, door? } | { entities?, door? }
+// | {} | null. The map is fixed; what stands on it comes from the world, so doors and spawned things count at once.
+export function cellLookup(world, id, { level, tileTypes }) {
   const rows = level.tiles;
-  const entitiesAt = new Map(), ids = new Set();
-  for (const e of level.entities) {
-    const where = `${e.x},${e.z}`, label = e.name ?? e.prop;
-    if (!props[e.prop]) throw new Error(`${label}: unknown prop "${e.prop}"`);
-    if (!DIR_KEYS.includes(e.side) || e.side.length !== 1) throw new Error(`${label} at (${where}) needs a side: N, E, S or W`);
-    if (tileTypes[rows[e.z]?.[e.x]]?.floor !== true) throw new Error(`${label} at (${where}) is not on a floor tile`);
-    checkBehavior(e.behavior ?? props[e.prop].behavior, label);
-    if (e.id !== undefined) { if (ids.has(e.id)) throw new Error(`${label}: the id "${e.id}" is used twice`); ids.add(e.id); }
-    const list = entitiesAt.get(where) ?? [];
-    if (list.some((o) => o.side === e.side)) throw new Error(`two things on the ${e.side} side of tile (${where})`);
-    entitiesAt.set(where, [...list, e]);
-  }
   return (x, z) => {
     if (z < 0 || z >= rows.length || x < 0 || x >= rows[0].length) return null;
     const t = tileTypes[rows[z][x]];
     if (!t) return null;
     if (t.wall) return { wall: t.art };
-    const entities = entitiesAt.get(`${x},${z}`);
-    return entities ? { entities } : {};
+    const things = world.at(id, x, z);
+    const door = things.find(i => i.category === 'door') ?? null;
+    if (door && !(door.isOpen?.() ?? door.state.open)) return { wall: door.art, door };
+    const entities = things.filter(i => i.category === 'prop' || i.category === 'npc');
+    return entities.length ? { entities, door } : door ? { door } : {};
   };
 }
 
@@ -90,6 +84,9 @@ export async function startGame({ levels, start, content = [], startingItems = [
   if (!Object.hasOwn(levels, start)) throw new Error(`The start level "${start}" is not one of the levels`);
   if (!Object.hasOwn(levels, respawn.level)) throw new Error(`The respawn level "${respawn.level}" is not one of the levels`);
   const definitions = Object.fromEntries(Object.entries(levels).map(([id, def]) => [id, resolveLevel(id, def, books)]));
+  // Every placed and spawned thing, as instances with saved state (world.js). Levels are created when first needed.
+  const world = createWorld({ levels: definitions, books });
+  for (const def of Object.values(itemDefs)) { const use = itemUse(def); if (use) def.use = use; } // data { hp, mp } -> restore()
   // Saves. The URL can ask for a fresh start in a slot (?new, ?slot=name) or a particular level (?level=, which plays
   // without saving so a debugging jump never overwrites a real save).
   const params = new URLSearchParams(location.search);
@@ -122,32 +119,51 @@ export async function startGame({ levels, start, content = [], startingItems = [
     if (!cache.has(id)) {
       const job = (async () => {
         const def = definitions[id], view = createView(def.level.view);
-        const unique = list => [...new Map(list.map(thing => [thing.art, thing])).values()];
-        const walls = unique(Object.values(def.tileTypes).filter(t => t.wall));
-        const actors = unique(def.level.monsters.filter(actor => actor.art))
-          .map(actor => ({ art: actor.art, assets: actor.assets, animated: !!actor.animations }));
-        const images = await loadSlotImages(view, { environment: def.environment, walls, props: Object.values(def.props), actors });
+        world.level(id);
+        const art = artOf(id), loaded = new Set();
+        const images = await loadSlotImages(view, { environment: def.environment, ...art });
+        for (const thing of [...art.walls, ...art.props, ...art.actors]) loaded.add(thing.art);
         // Required dungeon art must be complete before replacing the active scene.
-        if (def.level.atmosphere && (!images.has('floor') || walls.some(({ art }) =>
+        if (def.level.atmosphere && (!images.has('floor') || art.walls.some(({ art }) =>
           view.wallSlots.some(slot => !images.has(`walls:${art}:${slot.id}`))))) {
           throw new Error('The dungeon artwork could not be loaded. Please try again.');
         }
-        const cell = cellLookup(def.level, def.tileTypes, def.props);
+        const cell = cellLookup(world, id, def);
         const exploration = createExploration(def.level, cell);
         explorations.attach(id, exploration);
-        return { ...def, view, images, cell, comp: createCompositor(view, images), exploration, monsters: createMonsters(def.level, cell) };
+        const sim = createMonsters(def.level, cell, Math.random, { list: () => world.all(id, 'monster'), move: world.move });
+        return { ...def, id, view, images, loaded, cell, comp: createCompositor(view, images), exploration, monsters: sim };
       })();
       cache.set(id, job);
       job.catch(() => cache.delete(id));
     }
     return cache.get(id);
   }
+  // The art a level's things need: its walls and doors, and the props, NPCs and creatures in it now.
+  function artOf(id) {
+    const unique = list => [...new Map(list.map(thing => [thing.art, thing])).values()];
+    const things = world.all(id);
+    return {
+      walls: unique([...Object.values(definitions[id].tileTypes).filter(t => t.wall), ...things.filter(i => i.category === 'door')]),
+      props: unique(things.filter(i => i.category === 'prop' || i.category === 'npc').map(flat)),
+      actors: unique(things.filter(i => i.category === 'monster' && i.art)).map(i => ({ art: i.art, assets: i.assets, animated: !!i.animations })),
+    };
+  }
+  // Load what a prepared level's things need and it does not have yet (something was spawned there).
+  async function ensureArt(context) {
+    const art = artOf(context.id), missing = list => list.filter(thing => !context.loaded.has(thing.art));
+    const want = { walls: missing(art.walls), props: missing(art.props), actors: missing(art.actors) };
+    if (!want.walls.length && !want.props.length && !want.actors.length) return;
+    const images = await loadSlotImages(context.view, want);
+    for (const [key, image] of images) context.images.set(key, image);
+    for (const thing of [...want.walls, ...want.props, ...want.actors]) context.loaded.add(thing.art);
+  }
   let active = await prepare(levelId);
   let { level, props } = active;
   let { view, images, cell, comp, exploration, monsters } = active;
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1;
-  let transitioning = false, dead = false, loading = false;
+  let transitioning = false, dead = false, loading = false, drawnVersion = world.version;
   let monsterDue = performance.now() + monsters.graceMs;
 
   // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
@@ -203,7 +219,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
   // A container is named in saves by its `id` (stable when the level is edited), or else by where it stands.
   const containerKey = entity => `${levelId}:${entity.id ?? `${entity.x},${entity.z},${entity.side}`}`;
   const pileKey = () => `${levelId}:${p.x},${p.z}`;
-  function openContainer(entity, behavior) {
+  function openContainer(entity, behavior = {}) {
     const key = containerKey(entity);
     if (!containers.has(key)) containers.set(key, resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty)));
     bars.openContainer({ title: behavior.title ?? entity.name ?? 'Container', text: behavior.text, stacks: containers.get(key) });
@@ -214,20 +230,19 @@ export async function startGame({ levels, start, content = [], startingItems = [
     bars.openContainer({ title: 'On the floor', text: 'Things lie here where they were dropped.', stacks });
     return true;
   }
-  // Potions and the like: def.use is { hp, mp } to restore. One is used up unless it would be wasted.
+  // Using an item from the pack: its definition's use(game, stack) (see rules/behaviours.js). It returns
+  // { consumed, message }: a consumed item is used up, the message is shown in the satchel.
   function useItem(index) {
-    const stack = inventory.slots[index], use = stack && itemDefs[stack.id].use;
-    if (!use) return { message: 'Nothing happens.' };
-    const hp = Math.min(use.hp ?? 0, hero.maxHp - hero.hp), mp = Math.min(use.mp ?? 0, hero.maxMp - hero.mp);
-    if (hp <= 0 && mp <= 0) return { message: use.hp ? 'Your health is already full.' : 'Your mana is already full.' };
-    hero.hp += hp; hero.mp += mp; inventory.remove(index, 1);
-    const message = `You use ${itemDefs[stack.id].name.toLowerCase()}${hp ? ` and recover ${hp} health` : ''}${mp ? ` and recover ${mp} mana` : ''}.`;
-    say(message); drawHud();
-    return { message };
+    const stack = inventory.slots[index], def = stack && itemDefs[stack.id];
+    if (!def?.use) return { message: 'Nothing happens.' };
+    const result = def.use.call(def, api, stack) ?? {};
+    if (result.consumed && inventory.slots[index]?.id === stack.id) inventory.remove(index, 1);
+    drawHud();
+    return { message: result.message ?? '' };
   }
   // Drink the first potion in the pack that restores `kind` ('hp' or 'mp'), without opening the satchel.
   function quickUse(kind) {
-    const index = inventory.slots.findIndex(stack => stack && itemDefs[stack.id].use?.[kind]);
+    const index = inventory.slots.findIndex(stack => stack && itemDefs[stack.id].use?.restores?.[kind]);
     if (index < 0) { say(`You have no ${kind === 'hp' ? 'health' : 'mana'} potion.`); return; }
     useItem(index);
   }
@@ -241,6 +256,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
   // Saving. Every component that has state to keep registers a section with the persistence registry (persistence.js);
   // the game adds its own. The player saves from the settings panel; a game may also set an `autosave` policy. Never while dead or between levels.
   const persistence = createPersistence();
+  persistence.engine.register(world.persistence); // first: the player's level opens with its things already restored
   persistence.engine.register({
     id: 'player', // where the hero stands. The level itself was chosen above, from this same data.
     save: () => ({ levelId, x: p.x, z: p.z, dir: p.dir }),
@@ -260,6 +276,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
   if (saved) {
     const { issues } = await persistence.restore(saved);
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
+    await ensureArt(active); monsters.reset(); // the level's things, as saved
   }
   let lastSaved = saved ? persistence.digest(persistence.snapshot()) : '', saveWarned = false;
   function save() {
@@ -283,15 +300,15 @@ export async function startGame({ levels, start, content = [], startingItems = [
       slot = id; lastSaved = persistence.digest(persistence.snapshot()); return true;
     },
   } : null;
-  const world = {
+  const mapView = { // what the HUD shows of the level: its name, journal, known tiles and named things
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
     typeAt: (x, z) => { if (!exploration.isKnown(x, z)) return null; const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
-    get billboards() { return level.entities.filter(e => e.name && exploration.isKnown(e.x, e.z)).map(entity => ({ entity })); },
+    get billboards() { return world.all(levelId).filter(e => e.name && e.category !== 'monster' && exploration.isKnown(e.x, e.z)).map(entity => ({ entity })); },
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -310,7 +327,38 @@ export async function startGame({ levels, start, content = [], startingItems = [
   uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame, { place: respawn.place });
-  window.__game2d = { view, images, level, levelId, p, world, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame,
+
+  // The game API: what content methods get as `game` (see rules/behaviours.js and docs/engine/behaviour.md). Instances
+  // are found by level and key; spawn and respawn resolve once the thing's art is loaded, if its level is being played.
+  const liveMonster = inst => inst.category === 'monster' && !inst.state.dead;
+  async function arrive(inst) {
+    world.changed();
+    const context = cache.has(inst.level) ? await cache.get(inst.level).catch(() => null) : null;
+    if (context) await ensureArt(context);
+    if (inst.level === levelId && liveMonster(inst)) monsters.add(inst);
+    world.changed();
+  }
+  const api = {
+    say: text => say(text), flags, hero, inventory, equipment, items: itemDefs,
+    get level() { return levelId; },
+    get player() { return { x: p.x, z: p.z, dir: p.dir }; },
+    find: (level, key) => world.find(level, key),
+    all: (level = levelId, category) => world.all(level, category),
+    at: (level, x, z) => world.at(level, x, z),
+    async spawn(kind, at) { const inst = world.spawn(kind, { level: levelId, ...at }); await arrive(inst); return inst; },
+    remove(inst) {
+      if (inst.category === 'monster' && inst.level === levelId) monsters.drop(inst);
+      return world.remove(inst);
+    },
+    async respawn(inst, key) { const it = world.respawn(inst, key); if (it) await arrive(it); return it; },
+    openContainer: (entity, spec) => openContainer(entity, spec),
+    changed: () => world.changed(),
+    isHere: inst => inst.level === levelId,
+    // Is the player or a living creature on this instance's tile (a door must not shut on them)?
+    blocked: inst => (inst.level === levelId && p.x === inst.x && p.z === inst.z) || world.at(inst.level, inst.x, inst.z).some(liveMonster),
+    travel: (to, spawn) => travel({ to, spawn }),
+  };
+  window.__game2d = { view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame,
     get targets() { return comp.targets(); },
     get phase() { return dead ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
@@ -351,8 +399,8 @@ export async function startGame({ levels, start, content = [], startingItems = [
     if (!c || c.wall) return c;
     const x = p.x + fx * d + rx * l, z = p.z + fz * d + rz * l;
     return {
-      props: (c.entities ?? []).map(e => ({ ...props[e.prop], type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })),
-      actors: arrangeActors(monsters.at(x, z).map(actor => ({ ...actor, direction: actorDirection(actor.dir, p.dir),
+      props: (c.entities ?? []).map(e => ({ ...flat(e), type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })),
+      actors: arrangeActors(monsters.at(x, z).map(actor => ({ ...flat(actor), direction: actorDirection(actor.dir, p.dir),
         animation: monsters.animation(actor, performance.now()) }))),
     };
   };
@@ -456,7 +504,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
       mapShown = { x: mapFrom.x + (to.x - mapFrom.x) * e, z: mapFrom.z + (to.z - mapFrom.z) * e, yaw: mapFrom.yaw + turn * e };
       if (k >= 1) { mapFrom = null; mapShown = to; }
     } else mapShown = to;
-    const hud = { world, hero, tileX: mapShown.x, tileZ: mapShown.z, yaw: mapShown.yaw, zoom: MAP_ZOOM };
+    const hud = { world: mapView, hero, tileX: mapShown.x, tileZ: mapShown.z, yaw: mapShown.yaw, zoom: MAP_ZOOM };
     ui.draw(hud);
     bars.draw(hud);
   }
@@ -496,8 +544,11 @@ export async function startGame({ levels, start, content = [], startingItems = [
           (destination.view.V.pixel ?? 1) !== SHOWN) throw new Error('Level view sizes must match.');
       const landing = destination.cell(spawn.x, spawn.z);
       if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
+      await ensureArt(destination);
+      level.onExit?.(api);
       active = destination; levelId = exit.to;
       ({ level, props, view, images, cell, comp, exploration, monsters } = active);
+      // The living creatures go back to their places, whole; the dead stay dead.
       if (respawn) {
         await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
         hero.restore();
@@ -510,7 +561,9 @@ export async function startGame({ levels, start, content = [], startingItems = [
       document.title = `${level.shortName ?? level.name} · ${title}`;
       log.length = 0; logKey = '';
       show(); say(`You enter ${level.shortName ?? level.name}.`); look();
-      transitioning = false; if (policy.onLevelChange) save();
+      transitioning = false;
+      level.onEnter?.(api);
+      if (policy.onLevelChange) save();
       return true;
     } catch (error) {
       say(error.message);
@@ -533,6 +586,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
       const { issues } = await persistence.restore(snapshot);
       for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
       if (issues.some(issue => issue.section === 'engine.player' && issue.problem === 'failed')) return false;
+      await ensureArt(active);
       await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
       if (respawn) hero.restore();
       monsterDue = performance.now() + monsters.graceMs; swing.reset();
@@ -584,7 +638,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
     if (!result.hit) { say(`You miss the ${target.name}.`); float('Miss', '#d8d0c0', fx, fy); }
     else {
       say(`You hit the ${target.name} for ${result.damage}.`); float(`-${result.damage}`, '#ffe08a', fx, fy);
-      if (monsters.damage(target, result.damage, now)) say(`The ${target.name} dies.`);
+      if (monsters.damage(target, result.damage, now)) { say(`The ${target.name} dies.`); target.onDeath?.(api); }
     }
     peeks.clear(); peekKey = ''; render(next);
     return target.hp > 0;
@@ -610,14 +664,20 @@ export async function startGame({ levels, start, content = [], startingItems = [
   function act(cmd) {
     if (bars.isOpen() || transitioning || loading || dead) return;
     if (cmd === 'attack') { attack(); return; }
-    if (cmd === 'interact') { interact(relCell, { say, exit: exitAhead(), openContainer, pile: openPile, flags }); return; }
+    if (cmd === 'interact') {
+      const [dx, dz] = DIRS[p.dir];
+      interact(relCell, { say, game: api, exit: exitAhead(), door: cell(p.x + dx, p.z + dz)?.door ?? null, pile: openPile });
+      return;
+    }
     sceneInput?.cancel();
     const exit = cmd === 'forward' && exitAhead();
     if (exit) { void travel(exit); return; }
     const st = plan(cmd);
     if (!st) {
       const [dx, dz] = DIRS[(p.dir + { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd]) % 4];
-      say(monsters.occupied(p.x + dx, p.z + dz) ? 'A creature blocks your way.' : 'You bump into a wall.'); settleDrag(); return;
+      const door = cell(p.x + dx, p.z + dz)?.door;
+      say(monsters.occupied(p.x + dx, p.z + dz) ? 'A creature blocks your way.' : door ? (door.state.locked ? 'The door is locked.' : 'The door is shut.') : 'You bump into a wall.');
+      settleDrag(); return;
     }
     Object.assign(p, st);
     show(cmd);
@@ -638,7 +698,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
     hit: (x, y) => { const r = viewCanvas.getBoundingClientRect(); return comp.hitAt((x - r.left) * W / r.width, (y - r.top) * H / r.height); },
     getTarget: id => comp.target(id),
     blocked: () => dead || transitioning || loading || bars.isOpen() || document.hidden || !!(anim || drag || release),
-    attack, interact: target => interactTarget(target, { say, openContainer, flags }),
+    attack, interact: target => interactTarget(target, { say, game: api }),
     changed: () => render(next), cancelGesture: () => touch.cancel(),
   });
   window.addEventListener('keydown', (ev) => {
@@ -707,6 +767,8 @@ export async function startGame({ levels, start, content = [], startingItems = [
   document.title = `${level.shortName ?? level.name} · ${title}`;
   monsterDue = performance.now() + monsters.graceMs;
   say(saved ? `Welcome back, ${hero.name}.` : `Welcome to ${level.name}, ${hero.name}.`);
+  world.setApi(api); // instances made so far get their onCreate (a new game's first level)
+  level.onEnter?.(api);
   if (!saved && (policy.intervalMs || policy.onHidden || policy.onLevelChange)) save(); // with autosave on, a new game is written at once
   show();
   look();
@@ -716,7 +778,10 @@ export async function startGame({ levels, start, content = [], startingItems = [
       monsterDue = now + monsters.stepMs; monsters.freeze(now); return;
     }
     monsters.resume(now);
-    let changed = monsters.reap(now).length > 0;
+    const gone = monsters.reap(now);
+    for (const actor of gone) if (actor.spawned) world.remove(actor); // a spawned creature that died is gone for good
+    let changed = gone.length > 0 || world.version !== drawnVersion;
+    drawnVersion = world.version;
     if (monsters.actors.length && now >= monsterDue) {
       monsterDue = now + monsters.stepMs;
       const version = monsters.version;

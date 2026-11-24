@@ -2,14 +2,18 @@
 // step() at the level's chosen interval; the monster only walks onto floor cells and never onto the player's tile:
 // it stops beside the player and fights (engage). Stats are on the definition: hp, damage, defence, accuracy,
 // evasion, attackMs (time between blows) and speed (steps per tick, 1 by default).
+//
+// The creatures are the level's monster instances (engine/core/world.js), worked on in place: `options.list()` gives
+// them (default: level.monsters) and `options.move(actor, x, z)` moves one (default: just sets x and z), so the world
+// keeps its tile index. A dead creature stays dead: its `state.dead` is set, which is saved, and reset() leaves it out.
+// reset() brings the living ones back to their home tile at full health.
 import { createMonsterAnimator, clipFor, durationOf } from '../render/monster-animation.js';
 
 const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]];
 export const HURT_MS = 220, DEATH_MS = 1460;
 export const actorDirection = (facing, viewer) => ['back', 'right', 'front', 'left'][(facing - viewer + 4) % 4];
 
-export function createMonsters(level, cell, random = Math.random) {
-  const definitions = level.monsters ?? [];
+export function createMonsters(level, cell, random = Math.random, { list = () => level.monsters ?? [], move = (actor, x, z) => { actor.x = x; actor.z = z; } } = {}) {
   const actors = [];
   let version = 0, lastNow = 0, animator = createMonsterAnimator();
   let signatures = new WeakMap();
@@ -22,17 +26,29 @@ export function createMonsters(level, cell, random = Math.random) {
     }
   }
   const open = (x, z) => { const c = cell(x, z); return !!c && !c.wall; };
+  const DEFAULTS = { w: .4, h: .9, dir: 0, name: 'creature', hp: 10, damage: 3, defence: 0, accuracy: 4, evasion: 3, attackMs: 1500, speed: 1 };
+  // Ready a creature to fight: at its home tile, whole, calm.
+  function prepare(actor, i = actors.length) {
+    for (const [key, value] of Object.entries(DEFAULTS)) if (actor[key] === undefined) actor[key] = value;
+    actor.id ??= `monster-${i}`;
+    actor.home ??= { x: actor.x, z: actor.z, dir: actor.dir };
+    actor.maxHp ??= actor.hp;
+    const { x, z, dir } = actor.home;
+    if (!open(x, z)) throw new Error(`Monster ${actor.id} must start on a floor tile.`);
+    if (x === level.start.x && z === level.start.z) throw new Error('A monster cannot start on the player entrance.');
+    if (actor.x !== x || actor.z !== z) move(actor, x, z);
+    return Object.assign(actor, { dir, hp: actor.maxHp, attack: actor.damage, target: null, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0 });
+  }
   function reset() {
     animator = createMonsterAnimator(); signatures = new WeakMap();
-    actors.splice(0, actors.length, ...definitions.map((def, i) => {
-      if (!open(def.x, def.z)) throw new Error(`Monster ${def.id ?? i} must start on a floor tile.`);
-      if (def.x === level.start.x && def.z === level.start.z) throw new Error('A monster cannot start on the player entrance.');
-      const stats = { name: 'creature', hp: 10, damage: 3, defence: 0, accuracy: 4, evasion: 3, attackMs: 1500, speed: 1 };
-      const actor = { w: .4, h: .9, dir: 0, ...stats, ...def, id: def.id ?? `monster-${i}`, target: null, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0 };
-      return Object.assign(actor, { maxHp: actor.hp, attack: actor.damage });
-    }));
+    const living = list().filter(actor => !actor.state?.dead);
+    actors.splice(0, actors.length, ...living.map((actor, i) => prepare(actor, i)));
     version++;
   }
+  // A creature that came into being on this level while it is played (spawned, or brought back to life).
+  function add(actor) { if (!actors.includes(actor)) { actors.push(prepare(actor)); version++; } }
+  // A creature taken out of the world.
+  function drop(actor) { const i = actors.indexOf(actor); if (i >= 0) { actors.splice(i, 1); version++; } }
   function sees(actor, player) {
     const dx = player.x - actor.x, dz = player.z - actor.z;
     if ((dx !== 0 && dz !== 0) || Math.abs(dx) + Math.abs(dz) > (actor.sight ?? 4)) return false;
@@ -81,7 +97,7 @@ export function createMonsters(level, cell, random = Math.random) {
         direction = choices.includes(actor.dir) && random() < .65 ? actor.dir : choices[Math.floor(random() * choices.length)];
       }
       const [dx, dz] = DIRS[direction];
-      actor.x += dx; actor.z += dz; actor.dir = direction; version++;
+      move(actor, actor.x + dx, actor.z + dz); actor.dir = direction; version++;
       animator.play(actor, 'move', now, { restart: true });
     }
   }
@@ -130,6 +146,7 @@ export function createMonsters(level, cell, random = Math.random) {
       actor.hurtUntil = now + durationOf(actor, 'hurt'); animator.play(actor, 'hurt', now, { force: true }); return false;
     }
     actor.dyingUntil = now + durationOf(actor, 'dead'); actor.hurtUntil = 0; actor.readyAt = null;
+    actor.state = { ...actor.state, dead: true }; // remembered, and saved: dead stays dead
     animator.play(actor, 'dead', now, { force: true }); return true;
   }
   function reap(now) {
@@ -151,7 +168,7 @@ export function createMonsters(level, cell, random = Math.random) {
     return changed;
   }
   reset();
-  return { actors, step, occupied, adjacent, engage, face, freeze, resume, damage, reap, animating, updateAnimations, reset,
+  return { actors, step, occupied, adjacent, engage, face, freeze, resume, damage, reap, animating, updateAnimations, reset, add, drop,
     animation: (actor, now = lastNow) => animator.sample(actor, now), get version() { return version; },
     at: (x, z) => actors.filter(actor => actor.x === x && actor.z === z),
     stepMs: level.monsterStepMs ?? 1100, graceMs: level.monsterGraceMs ?? 3500 };

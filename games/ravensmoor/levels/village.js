@@ -25,7 +25,14 @@ export const village = {
     { id: 'start-chest', prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
       text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
       contents: [{ item: 'sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
-    { npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S' },
+    // A placement can have its own methods and saved state: the stranger hands over the Raven horn once.
+    { npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S', state: { gaveHorn: false },
+      interact(game) {
+        if (this.state.gaveHorn) { game.say('“Sound the horn in the dark, and the old gate will hear it.”'); return; }
+        if (game.inventory.add('raven-horn', 1) > 0) { game.say('“Your pack is full. Come back when it is not.”'); return; }
+        this.state.gaveHorn = true;
+        game.say('The stranger presses a black horn into your hands. “The crypt gate below answers only to the ravens.”');
+      } },
     { prop: 'lamppost', name: 'a lamp post', x: 1, z: 2, side: 'W' },
     { npc: 'villager', name: 'a villager', x: 1, z: 3, side: 'W' },
     { prop: 'crate', x: 1, z: 3, side: 'S' },

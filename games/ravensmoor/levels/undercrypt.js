@@ -25,7 +25,12 @@ export const undercrypt = {
     '#...............#',
     '#################',
   ],
-  entities: [],
+  // The crypt gate seals the gallery at the bottom of the maze; the Raven horn (content/items.js) opens it.
+  doors: [{ door: 'iron-door', id: 'crypt-gate', name: 'the crypt gate', x: 7, z: 12, state: { locked: true } }],
+  entities: [
+    { id: 'crypt-hoard', prop: 'chest', name: 'an old chest', x: 3, z: 13, side: 'W', behavior: { type: 'open', title: 'Old chest',
+      text: 'Dust and old bones, and beneath them a shield and two corked vials.', contents: [{ item: 'shield' }, { item: 'health-potion', qty: 2 }] } },
+  ],
   monsterStepMs: 1100,
   monsterGraceMs: 3500,
   // Placed by danger: vermin near the door, the dangerous ones in the far dead ends. The snake is Ravensmoor's own

@@ -104,12 +104,13 @@ test('a container holds its contents plus what was rolled', () => {
   assert.deepEqual(resolveContents({ contents: [] }, add(defs)), []);
 });
 
-test('using a container hands its entity and behaviour to the game', () => {
-  const entity = { name: 'a chest', behavior: { type: 'open', contents: [] } };
+test('using a container hands the container and what it holds to the game', () => {
+  const entity = { name: 'a chest', behavior: { type: 'open', title: 'Chest', contents: [{ item: 'sword' }] } };
   const relCell = (l, d) => (d === 0 ? { props: [{ anchor: 'far', entity }] } : {});
   const opened = [];
-  interact(relCell, { say() {}, openContainer: (e, b) => opened.push([e, b]) });
-  assert.deepEqual(opened, [[entity, entity.behavior]]);
+  interact(relCell, { say() {}, openContainer: (e, spec) => opened.push([e, spec]) });
+  assert.equal(opened[0][0], entity);
+  assert.deepEqual(opened[0][1].contents, [{ item: 'sword' }]); assert.equal(opened[0][1].title, 'Chest');
 });
 
 test('a pile on the floor is opened when nothing else is in reach, before the door ahead', () => {

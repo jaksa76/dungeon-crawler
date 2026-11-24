@@ -3,9 +3,6 @@ import assert from 'node:assert/strict';
 import { resolveLevel } from '../../engine/core/levels.js';
 import { engineBooks } from '../support.mjs';
 
-// game.js touches the browser when loaded; cellLookup itself is pure.
-globalThis.matchMedia ??= () => ({ matches: false, addEventListener() {} });
-const { cellLookup } = await import('../../engine/core/game.js');
 
 const square = {
   name: 'Test square', environment: 'town',
@@ -33,9 +30,14 @@ test('a dungeon environment brings its darkness and fog of war, and a level may 
   assert.equal(resolve({ environment: 'dungeon', exploration: { radius: 1 } }).level.exploration.radius, 1);
 });
 
-test('creatures are placed by kind, with the bestiary’s stats', () => {
-  const { level } = resolve({ monsters: [{ monster: 'rat', id: 'rat-1', x: 1, z: 1, dir: 2 }] });
-  assert.equal(level.monsters[0].id, 'rat-1'); assert.equal(level.monsters[0].kind, 'rat'); assert.ok(level.monsters[0].hp > 0);
+test('creatures, doors and things are placements, checked when the level is resolved', () => {
+  const { level } = resolve({ monsters: [{ monster: 'rat', id: 'rat-1', x: 1, z: 1, dir: 2 }], doors: [{ door: 'iron-door', id: 'gate', x: 1, z: 0 }],
+    tiles: ['#.#', '#.#', '###'], start: { x: 1, z: 1, dir: 0 }, entities: [] });
+  assert.deepEqual(level.monsters, [{ monster: 'rat', id: 'rat-1', x: 1, z: 1, dir: 2 }]);
+  assert.equal(level.doors[0].id, 'gate');
+  assert.throws(() => resolve({ doors: [{ door: 'iron-door', x: 0, z: 0 }] }), /not on a floor tile/);
+  assert.throws(() => resolve({ doors: [{ door: 'portcullis', x: 1, z: 1 }] }), /unknown door/);
+  assert.throws(() => resolve({ doors: [{ door: 'iron-door', x: 1, z: 1 }] }), /player's entrance/);
 });
 
 test('unknown names and unmapped map characters are errors', () => {
@@ -45,12 +47,14 @@ test('unknown names and unmapped map characters are errors', () => {
   assert.throws(() => resolve({ entities: [{ prop: 'throne', x: 1, z: 1, side: 'N' }] }), /unknown prop/);
   assert.throws(() => resolve({ entities: [{ npc: 'king', x: 1, z: 1, side: 'N' }] }), /unknown NPC/);
   assert.throws(() => resolve({ entities: [{ prop: 'chest', npc: 'guard', x: 1, z: 1, side: 'N' }] }), /one of prop or npc/);
-  assert.throws(() => resolve({ monsters: [{ monster: 'dragon', x: 1, z: 1 }] }), /Unknown monster/);
+  assert.throws(() => resolve({ monsters: [{ monster: 'dragon', x: 1, z: 1 }] }), /unknown monster/);
+  assert.throws(() => resolve({ entities: [{ prop: 'chest', x: 1, z: 1 }] }), /needs a side/);
+  assert.throws(() => resolve({ entities: [{ prop: 'chest', x: 0, z: 0, side: 'N' }] }), /not on a floor tile/);
+  assert.throws(() => resolve({ entities: [{ prop: 'chest', x: 1, z: 1, side: 'N' }, { prop: 'barrel', x: 1, z: 1, side: 'N' }] }), /two things on the N side/);
+  assert.throws(() => resolve({ entities: [{ prop: 'chest', x: 1, z: 1, side: 'N', behavior: { type: 'dance' } }] }), /unknown behavior/);
 });
 
 test('entity ids are optional but unique within a level', () => {
-  const { level, tileTypes, props } = resolve();
-  assert.doesNotThrow(() => cellLookup(level, tileTypes, props));
-  const twice = { ...level, entities: [...level.entities, { ...level.entities[0], side: 'S' }] };
-  assert.throws(() => cellLookup(twice, tileTypes, props), /used twice/);
+  assert.doesNotThrow(() => resolve());
+  assert.throws(() => resolve({ entities: [...square.entities, { id: 'box', prop: 'barrel', x: 1, z: 1, side: 'S' }] }), /used twice/);
 });

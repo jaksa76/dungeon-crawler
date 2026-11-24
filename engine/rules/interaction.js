@@ -1,20 +1,31 @@
-// "Use": what the player does to whatever they are facing. An entity (or the prop it is made
-// from) carries a `behavior` as data, `{ type, ...options }`; each type is a handler below.
-// An entity's own behavior wins over its prop's default. Later milestones add talk and shop here.
+// "Use": what the player does to whatever they are facing. The thing (an instance: a placed prop or NPC, see
+// engine/core/world.js) has an `interact(game)` method, its own or its definition's (see behaviours.js for the
+// interface and the factories). A thing may still carry a `behavior` as data, `{ type, ...options }`, which is turned
+// into the same method:
 //
 //   { type: 'examine', text }                        say something
 //   { type: 'open', title?, text?, contents?, loot? } open a container: see loot.js for contents and loot
 //
-// `open` hands the entity and its behavior to ctx.openContainer, which owns what is inside it.
+// `ctx.game` is the API the method gets; without one, ctx itself (`say`, `openContainer`) serves.
+import { behaviorTypes, behaviourFrom } from './behaviours.js';
 
-export const behaviors = {
-  examine: (behavior, target, { say }) => say(behavior.text),
-  open: (behavior, target, { openContainer }) => openContainer(target.entity, behavior),
+// The method Use runs for a thing: its own, its data behaviour, or the prop's (definition's) default.
+export function handlerOf(entity, prop = null) {
+  if (typeof entity?.interact === 'function') return entity.interact;
+  if (entity?.behavior) return behaviourFrom(entity.behavior);
+  if (typeof prop?.interact === 'function') return prop.interact;
+  return behaviourFrom(prop?.behavior);
+}
+const run = (target, ctx) => {
+  const handler = handlerOf(target.entity, target.prop);
+  if (!handler) return false;
+  handler.call(target.entity, ctx.game ?? ctx);
+  return true;
 };
 
 // Throws on a behavior the engine does not know, so a typo fails when the level loads.
 export function checkBehavior(behavior, label) {
-  if (behavior && !behaviors[behavior.type]) throw new Error(`${label}: unknown behavior "${behavior.type}"`);
+  if (behavior && !behaviorTypes[behavior.type]) throw new Error(`${label}: unknown behavior "${behavior.type}"`);
 }
 
 // `relCell(l, d)` is the engine's view of the cell `d` ahead and `l` to the right of the player;
@@ -32,24 +43,23 @@ export function findTarget(relCell) {
 // Pointing names the exact rendered object. Reach is still governed by the same
 // tile-side rules as Use, so a visible chest cannot be opened through a corridor.
 export function interactTarget(target, ctx) {
-  const { entity, prop } = target;
+  const { entity } = target;
   if (target.tooFar) { ctx.say(entity.name ? `Step closer to use ${entity.name}.` : 'Step closer.'); return; }
-  const behavior = entity.behavior ?? prop.behavior;
-  if (behavior) behaviors[behavior.type](behavior, target, ctx);
-  else ctx.say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
+  if (!run(target, ctx)) ctx.say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
 }
 
-// Use what is in front of the player. ctx: `say`; `exit`, the passage they face, if any; `openContainer`
-// for `open` behaviors; `pile()`, which opens whatever lies on the floor here and says whether anything did. A pile wins over
-// anything that has no behaviour of its own, and over a door ahead, but not over a container in reach.
+// Use what is in front of the player. ctx: `say`; `game`, the API handed to methods; `exit`, the passage they face, if
+// any; `door`, the door ahead (an instance), if any; `pile()`, which opens whatever lies on the floor here and says
+// whether anything did. A pile wins over anything that has no behaviour of its own, and over a door or passage ahead,
+// but not over a container in reach.
 export function interact(relCell, ctx) {
-  const { say, exit = null, pile = () => false } = ctx;
+  const { say, exit = null, door = null, pile = () => false } = ctx;
   const target = findTarget(relCell);
   if (target && !target.tooFar) {
-    const { entity, prop } = target, behavior = entity.behavior ?? prop.behavior;
-    if (behavior) behaviors[behavior.type](behavior, target, ctx);
-    else if (!pile()) say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
+    const { entity } = target;
+    if (!run(target, ctx) && !pile()) say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
   } else if (pile()) return;
+  else if (door) run({ entity: door }, ctx);
   else if (exit) say(exit.message ?? 'Step forward to pass through.');
   else if (target) say(target.entity.name ? `Step closer to use ${target.entity.name}.` : 'Step closer.');
   else say('There is nothing to use here.');

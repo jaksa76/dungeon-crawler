@@ -14,7 +14,10 @@ are facing. Nothing blocks a tile, so "facing" follows the rule used by the
 | A passage door ahead, nothing else in reach | the door's message |
 | Nothing | "There is nothing to use here." |
 
-## Behaviours are data
+## Behaviours are data, or methods
+
+A thing's behaviour is its `interact(game)` method (see [behaviour.md](behaviour.md)); the data form below is turned into one
+by the engine's factories.
 
 An entity, or the prop it is built from, carries a `behavior`:
 

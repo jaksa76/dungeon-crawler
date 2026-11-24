@@ -3,6 +3,8 @@
 export { defineContent, mergeContent } from './content/catalog.js';
 export { engineContent } from './content/index.js';
 export { resolveLevel } from './core/levels.js';
+// Behaviour factories for content methods (see docs/engine/behaviour.md).
+export { examine, container, restore, door } from './rules/behaviours.js';
 
 export async function startGame(options) {
   const { startGame: start } = await import('./core/game.js');

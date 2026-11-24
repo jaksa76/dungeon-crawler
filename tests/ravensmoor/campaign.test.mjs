@@ -6,11 +6,8 @@ import { createEquipment } from '../../engine/rules/equipment.js';
 import { createInventory, addToStacks, checkItems } from '../../engine/rules/inventory.js';
 import { resolveContents } from '../../engine/rules/loot.js';
 import { checkBehavior } from '../../engine/rules/interaction.js';
-import { campaign, books, levels, artFile, own } from '../support.mjs';
+import { campaign, books, levels, artFile, own, campaignWorld } from '../support.mjs';
 
-// game.js touches the browser when loaded; cellLookup itself is pure.
-globalThis.matchMedia ??= () => ({ matches: false, addEventListener() {} });
-const { cellLookup } = await import('../../engine/core/game.js');
 
 const itemDefs = books.items, village = levels.village;
 const attrs = { strength: 6, vitality: 6, intellect: 4, agility: 5 };
@@ -35,9 +32,8 @@ test('Ravensmoor retunes the engine torch but keeps its art and stats', () => {
   assert.equal(itemDefs.torch.icon, 'torch'); assert.equal(itemDefs.torch.stack, 3);
 });
 
-test('entity ids in the village are unique, and the start chest has one', () => {
+test('the village’s start chest has an id, so its contents are saved by name', () => {
   assert.ok(village.level.entities.some(e => e.id === 'start-chest'));
-  assert.doesNotThrow(() => cellLookup(village.level, village.tileTypes, village.props));
 });
 
 test('every container in the village names real items; the chest holds the sword, the well, barrels and crate hide something', () => {
@@ -68,11 +64,11 @@ test('the village things that carry a behaviour use known types and say somethin
 test('the snake is Ravensmoor’s own creature, with its art in the campaign', () => {
   assert.deepEqual(own(campaign.content, 'monsters'), ['snake']);
   assert.match(books.monsters.snake.assets, /games\/ravensmoor\/assets\/monsters\/snake\/$/);
-  assert.equal(levels.dungeon.level.monsters.find(m => m.id === 'prowler').kind, 'snake');
+  assert.equal(campaignWorld().find('dungeon', 'prowler').kind, 'snake');
 });
 
 test('the snake can be fought: several hits unarmed, fewer with the sword; it hurts the hero but not in one bite', () => {
-  const snake = levels.dungeon.level.monsters.find(m => m.kind === 'snake'), hero = createCharacter(attrs, createEquipment(itemDefs));
+  const snake = campaignWorld().all('dungeon', 'monster').find(m => m.kind === 'snake'), hero = createCharacter(attrs, createEquipment(itemDefs));
   const hits = attack => Math.ceil(snake.hp / strike({ attack, accuracy: 5 }, snake, seq(.1, .5)).damage);
   assert.ok(hits(8) >= 4); assert.ok(hits(12) <= 3);
   const bite = strike({ attack: snake.damage, accuracy: snake.accuracy }, hero, seq(.1, .5)).damage;
@@ -96,7 +92,7 @@ test('the snake has all sixteen exported direction and distance frames', () => {
 
 test('every creature in the Undercrypt stands on floor and has its sixteen frames', () => {
   const { level, tileTypes } = levels.dungeon;
-  for (const m of level.monsters) {
+  for (const m of campaignWorld().all('dungeon', 'monster')) {
     assert.equal(tileTypes[level.tiles[m.z][m.x]].floor, true, `${m.id} must stand on floor`);
     for (const d of ['front', 'back', 'left', 'right']) for (let n = 0; n < 4; n++) {
       assert.ok(fs.existsSync(new URL(`${d}-d${n}.png`, m.assets)), `${m.art} ${d}-d${n}`);
@@ -126,4 +122,30 @@ test('the raven amulet is Ravensmoor’s own item, worn as an amulet, and hidden
   assert.deepEqual(books.items['raven-amulet'].slot, 'amulet');
   const well = village.level.entities.find(e => e.prop === 'well');
   assert.ok(well.behavior.contents.some(c => c.item === 'raven-amulet'));
+});
+
+// A game API over a world of the campaign, for content methods: enough to talk, carry things and open doors.
+function play() {
+  const world = campaignWorld(), said = [], inventory = createInventory(itemDefs, { size: 48 });
+  const game = { say: t => said.push(t), inventory, items: itemDefs, find: world.find, changed: world.changed,
+    level: 'village', isHere: inst => inst.level === 'village', blocked: () => false };
+  return { world, said, inventory, game };
+}
+
+test('the hooded stranger gives the Raven horn once, and remembers it', () => {
+  const { world, said, inventory, game } = play(), stranger = world.all('village', 'npc').find(n => n.prop === 'hooded');
+  stranger.interact(game);
+  assert.equal(inventory.count('raven-horn'), 1); assert.equal(stranger.state.gaveHorn, true);
+  stranger.interact(game);
+  assert.equal(inventory.count('raven-horn'), 1); assert.match(said.at(-1), /Sound the horn/);
+});
+
+test('the Raven horn opens the locked crypt gate in the Undercrypt from the village', () => {
+  const { world, said, game } = play(), gate = world.find('dungeon', 'crypt-gate');
+  assert.equal(gate.isOpen(), false); assert.equal(gate.state.locked, true);
+  const horn = itemDefs['raven-horn'], result = horn.use.call(horn, game);
+  assert.equal(gate.isOpen(), true); assert.equal(result.consumed, undefined, 'the horn is kept');
+  assert.match(said.at(-1), /Far below/);
+  horn.use.call(horn, game);
+  assert.match(said.at(-1), /already stands open/);
 });

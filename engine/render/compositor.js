@@ -13,15 +13,15 @@ export function loadImage(url) {
 }
 
 // Every piece of art comes from its own folder (`assets`, a URL ending in /; see engine/content/catalog.js):
-//   environment:  floor.png, backdrop-<N|E|S|W>.png (when `backdrop`)
+//   environment:  floor.png, backdrop-<N|E|S|W>.png (when `backdrop`); leave it out to load only the rest
 //   walls, props: <slot id>.png, one per slot of the view
 //   actors:       <front|back|left|right>-d<depth>.png, and animation-d<depth>.png when `animated`
 export async function loadSlotImages(view, { environment, walls = [], props = [], actors = [] }) {
   const images = new Map();
   const jobs = [];
   const want = (key, folder, file) => jobs.push(loadImage(new URL(file, folder).href).then((img) => img && images.set(key, img)));
-  if (environment.backdrop) for (const dir of 'NESW') want(`backdrop:${dir}`, environment.assets, `backdrop-${dir}.png`);
-  want('floor', environment.assets, 'floor.png');
+  if (environment?.backdrop) for (const dir of 'NESW') want(`backdrop:${dir}`, environment.assets, `backdrop-${dir}.png`);
+  if (environment) want('floor', environment.assets, 'floor.png');
   for (const w of walls) for (const s of view.wallSlots) want(`walls:${w.art}:${s.id}`, w.assets, `${s.id}.png`);
   for (const p of props) for (const s of view.propSlots(p.w, p.h, p.sideW).list) {
     if (!s.borrows) want(`props:${p.art}:${s.id}`, p.assets, `${s.id}.png`);
