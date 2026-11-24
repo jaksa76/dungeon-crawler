@@ -38,7 +38,7 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
     if (x === level.start.x && z === level.start.z) throw new Error('A monster cannot start on the player entrance.');
     if (actor.x !== x || actor.z !== z) move(actor, x, z);
     // `slowFactor` (1: normal speed) and `stunned` are set from the creature's status effects (core/session.js).
-    return Object.assign(actor, { dir, hp: actor.maxHp, attack: actor.damage, target: null, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0, slowFactor: 1, stunned: false, fx: null });
+    return Object.assign(actor, { dir, hp: actor.maxHp, attack: actor.damage, target: null, patrolIndex: 0, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0, slowFactor: 1, stunned: false, fx: null });
   }
   function reset() {
     animator = createMonsterAnimator(); signatures = new WeakMap();
@@ -59,7 +59,7 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
     }
     return true;
   }
-  function toward(actor, target) {
+  function toward(actor, target, passable = open) {
     const queue = [{ x: actor.x, z: actor.z, first: null }], seen = new Set();
     for (let i = 0; i < queue.length; i++) {
       const node = queue[i], key = `${node.x},${node.z}`;
@@ -68,13 +68,40 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
       if (node.x === target.x && node.z === target.z) return node.first;
       for (let d = 0; d < 4; d++) {
         const [dx, dz] = DIRS[d], x = node.x + dx, z = node.z + dz;
-        if (open(x, z)) queue.push({ x, z, first: node.first ?? d });
+        if (passable(x, z)) queue.push({ x, z, first: node.first ?? d });
       }
     }
     return null;
   }
   const alive = actor => actor.hp > 0 && !actor.dyingUntil;
   const apart = (actor, player) => Math.abs(actor.x - player.x) + Math.abs(actor.z - player.z);
+
+  function chooseDirection(actor, player) {
+    const tactic = actor.tactics, guard = tactic?.type === 'guard';
+    const passable = (x, z) => open(x, z) && (!guard || apart(actor.home, { x, z }) <= (tactic.radius ?? 2));
+    const next = d => ({ x: actor.x + DIRS[d][0], z: actor.z + DIRS[d][1] });
+    const free = d => { const at = next(d); return passable(at.x, at.z) && apart(at, player) > 0; };
+    if (tactic?.type === 'flee' && actor.hp <= actor.maxHp * (tactic.at ?? .3) && actor.target) {
+      const away = DIRS.findIndex((_, d) => free(d) && apart(next(d), player) > apart(actor, player));
+      if (away >= 0) { actor.mode = 'fleeing'; return away; }
+    }
+    const direction = actor.target ? toward(actor, actor.target, passable) : null;
+    if (direction !== null) { actor.mode = 'hunting'; return free(direction) ? direction : -1; }
+    actor.mode = 'roaming';
+    if (guard || tactic?.type === 'patrol') {
+      const route = guard ? [actor.home] : tactic.route;
+      if (!route?.length) return -1;
+      if (!apart(actor, route[actor.patrolIndex])) actor.patrolIndex = (actor.patrolIndex + 1) % route.length;
+      const nextDirection = toward(actor, route[actor.patrolIndex], passable);
+      return nextDirection !== null && free(nextDirection) ? nextDirection : -1;
+    }
+    const options = DIRS.map((_, d) => free(d) ? d : -1).filter(d => d >= 0);
+    const forward = options.filter(d => d !== (actor.dir + 2) % 4);
+    const choices = forward.length ? forward : options;
+    if (!choices.length) return -1;
+    return choices.includes(actor.dir) && random() < .65 ? actor.dir : choices[Math.floor(random() * choices.length)];
+  }
+
   function step(player, now = lastNow) {
     resume(now);
     for (const actor of actors) {
@@ -86,17 +113,8 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
       actor.energy -= 1;
       if (sees(actor, player)) actor.target = { x: player.x, z: player.z };
       else if (actor.target?.x === actor.x && actor.target?.z === actor.z) actor.target = null;
-      let direction = actor.target ? toward(actor, actor.target) : null;
-      actor.mode = direction === null ? 'roaming' : 'hunting';
-      const free = d => { const nx = actor.x + DIRS[d][0], nz = actor.z + DIRS[d][1]; return open(nx, nz) && !(nx === player.x && nz === player.z); };
-      if (direction !== null && !free(direction)) continue; // beside the player: hold and fight
-      if (direction === null) {
-        const options = DIRS.map((_, d) => free(d) ? d : -1).filter(d => d >= 0);
-        const forward = options.filter(d => d !== (actor.dir + 2) % 4);
-        const choices = forward.length ? forward : options;
-        if (!choices.length) continue;
-        direction = choices.includes(actor.dir) && random() < .65 ? actor.dir : choices[Math.floor(random() * choices.length)];
-      }
+      const direction = chooseDirection(actor, player);
+      if (direction < 0) continue;
       const [dx, dz] = DIRS[direction];
       move(actor, actor.x + dx, actor.z + dz); actor.dir = direction; version++;
       animator.play(actor, 'move', now, { restart: true });

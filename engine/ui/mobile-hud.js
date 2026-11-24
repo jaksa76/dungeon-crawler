@@ -2,12 +2,13 @@ import { drawText } from './bitmapfont.js';
 import { font5x8 as FONT } from './font-5x8.js';
 import { pixelSkin } from './pixel-skin.js';
 import { reloadFresh } from '../core/reload.js';
-import { takeStack, takeAll } from '../rules/inventory.js';
 import { HEAD_X } from './head.js';
 import { createQuickHud, dragGesture, SHOWN_SMALL } from './quickbar-hud.js';
 import { TIER_NAMES } from './icons.js';
 import { renderCharacter } from './character-screen.js';
 import { renderHelp } from './help-screen.js';
+import { renderShop } from './shop-screen.js';
+import { renderWorldMap } from './world-map.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
@@ -23,9 +24,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing
   // a pack item would change (session.wouldChange), and `damageTypes` names the damage types.
   onEquip = (index, slot) => equipment.equip(inventory, index, slot), onUnequip = (slot, toIndex) => equipment.unequip(inventory, slot, toIndex),
-  wouldChange = () => null, damageTypes = {},
+  wouldChange = () => null, damageTypes = {}, sound = null,
   // Put a skill point (from levelling up) into an attribute: session.spend, which returns { ok }.
   onSpend = attribute => ({ ok: hero.spend?.(attribute) ?? false }),
+  wallet = null, onTake, onTakeAll,
   // Magic (null when the game has no spells): { spells() -> [{ id, name, icon, cost, magicType, ready, description }], cast(id), setReady(id),
   // ready() -> id, effects() -> [{ id, name, tier, left, harmful, magicType }] }.
   magic = null,
@@ -80,7 +82,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // The portrait is the top of the 48 x 96 hero sprite, cropped to the frame (never scaled): one art pixel is one UI pixel.
   const faceTarget = () => (document.documentElement.dataset.layout === 'portrait' ? (shortScreen() ? 48 : 88) : (shortScreen() ? 56 : 80));
   addArt(face, faceTarget, (g, n) => { g.imageSmoothingEnabled = false; g.fillStyle = '#0d0b10'; g.fillRect(0, 0, n, n); g.drawImage(portrait, Math.round(HEAD_X - n / 2), 0, n, n, 0, 0, n, n); });
-  character.append(face);
+  const profile = document.createElement('div'); profile.className = 'rpg-profile';
+  const skillBadge = document.createElement('span'); skillBadge.className = 'rpg-skill-badge';
+  skillBadge.textContent = '+'; skillBadge.hidden = true; skillBadge.setAttribute('aria-hidden', 'true');
+  profile.append(face, skillBadge); character.append(profile);
   face.tabIndex = 0; face.setAttribute('role', 'button'); face.setAttribute('aria-label', 'Your adventurer: open the character screen'); face.title = 'Character';
   face.style.cursor = 'pointer';
   face.addEventListener('click', () => toggle('character', openCharacter)());
@@ -110,13 +115,25 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const body = document.createElement('div'); body.className = 'rpg-dialog-body';
   const footer = document.createElement('footer');
   header.append(heading); footer.append(close); menuPanel.append(header, body, footer); frame.append(menuPanel);
-  let shown = null;
-  function closePanel() { menuPanel.hidden = true; shown = null; }
+  let shown = null, onClose = null;
+  function finishPanel() { const finished = onClose; onClose = null; finished?.(); }
+  function closePanel() { menuPanel.hidden = true; shown = null; finishPanel(); }
   close.addEventListener('click', closePanel);
   function open(title, text, kind = null) {
+    if (kind !== shown) finishPanel();
     heading.textContent = title; body.replaceChildren(); shown = kind; menuPanel.classList.toggle('rpg-bag-panel', kind === 'inventory');
+    menuPanel.classList.toggle('rpg-world-map-panel', kind === 'world-map');
+    menuPanel.classList.toggle('rpg-shop-panel', kind === 'shop');
     if (text) { const p = document.createElement('p'); p.textContent = text; body.append(p); }
     menuPanel.hidden = false; body.scrollTop = 0; close.focus({ preventScroll: true });
+  }
+  function openWorldMap(map, travel) {
+    open('World map', null, 'world-map');
+    body.append(renderWorldMap(map, async id => {
+      const arrived = await travel(id);
+      if (arrived && shown === 'world-map') closePanel();
+      return arrived;
+    }));
   }
   function iconButton(label, iconId, target, handler, size = 48) {
     const button = document.createElement('button'); button.type = 'button';
@@ -199,8 +216,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   function characterSheet() {
     const { level, xp, to } = hero.progress, nodes = [];
     nodes.push(make('p', 'rpg-stats', `Level ${level} · ${to === null ? `${xp} xp (highest level)` : `${xp} / ${to} xp`}`));
-    if (hero.unspent) nodes.push(make('p', 'rpg-note', `${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend.`));
-    nodes.push(textButton('Character', () => openCharacter()));
+    const profileLink = textButton(hero.unspent > 0 ? 'Character +' : 'Character', () => openCharacter());
+    if (hero.unspent > 0) profileLink.setAttribute('aria-label', 'Character, skill points available');
+    nodes.push(profileLink);
     return nodes;
   }
   function openInventory(note = '') {
@@ -249,6 +267,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const stack = selected === null ? null : inventory.slots[selected], worn = selectedGear === null ? null : equipment.worn[selectedGear];
     const def = stack ? itemDefs[stack.id] : worn ? itemDefs[worn] : null;
     const text = make('div', 'rpg-detail-text');
+    if (wallet) text.append(make('p', 'rpg-gold', `Gold: ${wallet.amount}`));
     if (!def) {
       text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, onto the figure to wear them, or onto the quick bar.'),
         make('p', '', `Damage ${hero.damage[0]}–${hero.damage[1]}${hero.damageType ? ` ${typeName(hero.damageType)}` : ''}, defence ${hero.defence}.`));
@@ -369,17 +388,22 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       const take = document.createElement('span'); take.className = 'rpg-take'; take.textContent = 'Take';
       row.append(itemIcon(stack.id, 48), name, take);
       row.addEventListener('click', () => {
-        const n = takeStack(inventory, box.stacks, i), label = stackLabel({ id: stack.id, qty: n });
+        const n = onTake(i), label = stackLabel({ id: stack.id, qty: n });
         const note = !n ? 'Your pack is full.' : `You take ${label}.${box.stacks.includes(stack) ? ' Your pack is full.' : ''}`;
         say(note); openContainer(box, note);
       });
       list.append(row);
     });
     body.append(list, textButton('Take all', () => {
-      const taken = takeAll(inventory, box.stacks);
+      const taken = onTakeAll();
       const note = !taken.length ? 'Your pack is full.' : `You take ${taken.map(stackLabel).join(', ')}.${box.stacks.length ? ' Your pack is full.' : ''}`;
       say(note); openContainer(box, note);
     }));
+  }
+  function openShop(shop) {
+    open(shop.title, null, 'shop');
+    onClose = shop.close;
+    renderShop(shop, { root: body, itemIcon, items: itemDefs });
   }
   // A menu button opens its panel, or closes it when that panel is already showing.
   const toggle = (kind, openIt) => () => { if (shown === kind) closePanel(); else openIt(); };
@@ -393,9 +417,39 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     body.append(list);
   }
   function openJournal() {
-    open('Field journal', world.journal, 'journal');
+    const quests = world.quests ?? [];
+    open('Field journal', quests.length ? null : world.journal, 'journal');
+    for (const [status, label] of [['active', 'Active quests'], ['completed', 'Completed quests']]) {
+      const entries = quests.filter(quest => quest.status === status);
+      if (!entries.length) continue;
+      const group = make('section', 'rpg-quest-group');
+      const list = make('ul', 'rpg-quests');
+      for (const entry of entries) {
+        const row = make('li');
+        row.append(make('strong', null, entry.title), make('p', null, entry.objective));
+        list.append(row);
+      }
+      group.append(make('h3', null, label), list);
+      body.append(group);
+    }
+    if (quests.length && world.journal) {
+      const details = make('details', 'rpg-field-notes');
+      details.append(make('summary', null, 'Field notes'), make('p', null, world.journal));
+      body.append(details);
+    }
     const more = document.createElement('button'); more.type = 'button'; more.textContent = 'Message log';
     more.addEventListener('click', openLog); body.append(more);
+  }
+
+  function showDialogue(line, dismiss) {
+    if (!line) { if (shown === 'dialogue') closePanel(); return; }
+    open(line.title, line.text, 'dialogue');
+    onClose = dismiss;
+    for (const choice of line.choices) {
+      const button = make('button', null, choice.label); button.type = 'button';
+      button.addEventListener('click', choice.choose); body.append(button);
+    }
+    body.querySelector('button')?.focus({ preventScroll: true });
   }
   iconButton('Journal', 'journal', menus, toggle('journal', openJournal));
   // The spells the hero knows: what each does, and a button to cast it or make it the ready one (the C key casts that).
@@ -458,6 +512,14 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const row = document.createElement('div'); row.className = 'rpg-settings-row';
     if (saves) row.append(textButton('Save', () => openSaves('save')), textButton('Load', () => openSaves('load')));
     row.append(textButton('Help', openHelp));
+    if (sound) {
+      const toggleSound = textButton('Sound', () => {
+        sound.setMuted(!sound.muted);
+        toggleSound.setAttribute('aria-pressed', String(!sound.muted));
+      });
+      toggleSound.setAttribute('aria-pressed', String(!sound.muted));
+      row.append(toggleSound);
+    }
     body.append(row);
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
@@ -514,11 +576,16 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);
 
   function draw(state) {
+    const hasPoints = hero.unspent > 0;
+    if (skillBadge.hidden === hasPoints) {
+      skillBadge.hidden = !hasPoints;
+      face.setAttribute('aria-label', hasPoints ? 'Open the character screen. Skill points are available.' : 'Your adventurer: open the character screen');
+    }
     for (const { key, meter, number } of vitalNodes) {
       if (key === 'xp') { // level and the way to the next
         const { level, xp, from, to } = hero.progress;
         meter.max = to === null ? 1 : to - from; meter.value = to === null ? 1 : xp - from;
-        number.textContent = `Lv ${level}${hero.unspent > 0 ? ` +${hero.unspent}` : ''}`;
+        number.textContent = `Lv ${level}`;
         continue;
       }
       meter.value = hero[key]; number.textContent = `${hero[key]}/${meter.max}`;
@@ -561,7 +628,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
   const menu = { character: toggle('character', openCharacter), help: toggle('help', openHelp), saves: () => openSaves('save'), spells: magic ? toggle('spells', openSpells) : () => {}, journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
-  return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, quick: quickHud, close: closePanel, isLogOpen: () => shown === 'log', ready,
+  return { left, right, controls, draw, open, openJournal, openLog, openContainer, openWorldMap, openShop, showDialogue, menu, quick: quickHud, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
     setView(height, pixel) {
       frame.style.setProperty('--rpg-view-h', height);

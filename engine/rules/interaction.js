@@ -53,14 +53,15 @@ export function interactTarget(target, ctx) {
 // whether anything did. A pile wins over anything that has no behaviour of its own, and over a door or passage ahead,
 // but not over a container in reach.
 export function interact(relCell, ctx) {
-  const { say, exit = null, door = null, pile = () => false } = ctx;
+  const { say, exit = null, door = null, pile = () => false, inspect = () => false } = ctx;
   const target = findTarget(relCell);
   if (target && !target.tooFar) {
     const { entity } = target;
-    if (!run(target, ctx) && !pile()) say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
+    if (!run(target, ctx) && !pile() && !inspect()) say(entity.name ? `You study ${entity.name}, but there is nothing to do yet.` : 'Nothing of interest.');
   } else if (pile()) return;
   else if (door) run({ entity: door }, ctx);
   else if (exit) say(exit.message ?? 'Step forward to pass through.');
+  else if (inspect()) return;
   else if (target) say(target.entity.name ? `Step closer to use ${target.entity.name}.` : 'Step closer.');
   else say('There is nothing to use here.');
 }

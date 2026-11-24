@@ -10,10 +10,14 @@
 //                                here wins over the book's for that prop or NPC.
 //   doors                        [{ door, x, z, id?, state?, <methods> }]: doors on floor tiles
 //   monsters                     [{ monster, x, z, dir, id?, sight?, state?, <methods> }]: creatures from the bestiary
+//   traps                        [{ x, z, name, damage, type?, hint?, message? }]: hidden hazards on floor tiles
 //   exits                        [{ x, z, dir, to, spawn?, message? }]: stepping forward there leads to level `to`
+//                                or { x, z, dir, worldMap: true, message? } opens the campaign's world map
+//   backdrop                     optional URL for a single painted horizon around the level
 //   atmosphere, exploration      override the environment's
 //   monsterStepMs, monsterGraceMs, view
 //   lootScale                    multiplies what its creatures may leave behind (default 1; docs/engine/progression.md)
+//   triggers                     [{ on: 'enterTile' | 'faceSide' | 'flagSet', x?, z?, side?, flag?, when?, effect }]
 //   onEnter(game), onExit(game)  called when the player arrives on the level or leaves it
 //
 // Each placement becomes an instance of its definition when the level is first needed (engine/core/world.js), with
@@ -39,6 +43,15 @@ export function resolveLevel(id, def, content) {
   }
   for (const row of def.tiles) for (const char of row) if (!tileTypes[char]) throw new Error(`${label}: map character "${char}" is not in the legend`);
   const floorAt = (x, z) => tileTypes[def.tiles[z]?.[x]]?.floor === true;
+  for (const trigger of def.triggers ?? []) {
+    if (!['enterTile', 'faceSide', 'flagSet'].includes(trigger.on) || typeof trigger.effect !== 'function' ||
+        trigger.when !== undefined && typeof trigger.when !== 'function') throw new Error(`${label}: invalid trigger`);
+    if (trigger.side !== undefined && (trigger.on !== 'faceSide' || !/^[NESW]$/.test(trigger.side))) throw new Error(`${label}: invalid trigger side`);
+    if (trigger.flag !== undefined && (trigger.on !== 'flagSet' || typeof trigger.flag !== 'string' || !trigger.flag)) throw new Error(`${label}: invalid trigger flag`);
+    if ([trigger.x, trigger.z].some(coordinate => coordinate !== undefined && (trigger.on === 'flagSet' || !Number.isInteger(coordinate)))) {
+      throw new Error(`${label}: invalid trigger coordinates`);
+    }
+  }
   const ids = new Set(), sides = new Set(), doorTiles = new Set();
   const uniqueId = (what, placeId) => {
     if (placeId === undefined) return;
@@ -83,10 +96,19 @@ export function resolveLevel(id, def, content) {
     return placement;
   });
 
+  const trapTiles = new Set();
+  for (const trap of def.traps ?? []) {
+    const at = `${trap.x},${trap.z}`;
+    if (trapTiles.has(at) || !floorAt(trap.x, trap.z) || !trap.name || !Number.isInteger(trap.damage) || trap.damage < 1) {
+      throw new Error(`${label}: invalid or duplicate trap at (${at})`);
+    }
+    trapTiles.add(at);
+  }
+
   const level = {
     ...def, entities, doors, monsters,
     atmosphere: def.atmosphere ?? environment.atmosphere,
     exploration: def.exploration ?? environment.exploration,
   };
-  return { level, tileTypes, props, environment: { ...environment, backdrop: !!environment.backdrop && !level.atmosphere } };
+  return { level, tileTypes, props, environment: { ...environment, backdrop: !level.atmosphere && (def.backdrop ?? !!environment.backdrop) } };
 }

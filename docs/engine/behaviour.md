@@ -16,13 +16,7 @@ factories, which supply the same methods (`engine/rules/behaviours.js`).
   } },
 
 // games/ravensmoor/levels/village.js: a placement with its own method and saved state
-{ npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S', state: { gaveHorn: false },
-  interact(game) {
-    if (this.state.gaveHorn) { game.say('“Sound the horn in the dark…”'); return; }
-    if (game.inventory.add('raven-horn', 1) > 0) { game.say('“Your pack is full.”'); return; }
-    this.state.gaveHorn = true;
-    game.say('The stranger presses a black horn into your hands.');
-  } },
+{ npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S', state: { gaveHorn: false }, interact: talkToStranger },
 ```
 
 ## Instances
@@ -56,7 +50,7 @@ All methods are optional. Where one is missing, the engine does what the data sa
 | Category | Method | Called when | Data form |
 | --- | --- | --- | --- |
 | item | `use(game, stack)` → `{ consumed?, message? }` | the player uses it from the pack. `consumed` uses one up; `message` shows in the satchel | `use: { hp, mp }` = `restore({ hp, mp })` |
-| prop, NPC | `interact(game)` | the player uses the thing they face | `behavior: { type: 'examine' \| 'open', … }` |
+| prop, NPC | `interact(game)` | the player uses the thing they face | `behavior: { type: 'examine' \| 'open' \| 'talk' \| 'shop', … }` |
 | door | `interact(game)`, `open(game, { force })`, `close(game)`, `isOpen()` | Use on the door ahead; code that opens it | `door({ key })` |
 | creature | `onDeath(game)` | it has just been killed | |
 | any instance | `onCreate(game)` | once per playthrough, when it first comes into being | |
@@ -70,8 +64,9 @@ All methods are optional. Where one is missing, the engine does what the data sa
 - `container({ title, text, contents, loot })`: an `interact` that opens a container. What is in it is rolled
   the first time and saved (see [inventory.md](inventory.md)).
 - `restore({ hp, mp })`: an item `use` that heals. The quick slots find potions by its `restores`.
-- `door({ key, opens, closes, locked })`: the door methods and `state: { open, locked }`. A locked door opens for
-  its `key` item, or for anything that calls `open(game, { force: true })`.
+- `door({ key, hidden, opens, closes, locked })`: the door methods and saved open and lock state. A locked door opens
+  for its `key` item, or for anything that calls `open(game, { force: true })`. A hidden door is treated as a wall
+  until opened. Use it with a matching masonry building for a secret passage.
 
 A campaign uses them as they are (`interact: examine('…')`), wraps them (call the factory's method from its own),
 or replaces them.
@@ -91,12 +86,54 @@ The `game` argument is the contract between engine and campaign:
 | `remove(instance)` | take it out of the world; a placed one stays removed |
 | `respawn(instance)` or `respawn(level, ref)` | back to its starting state and home tile; brings back a removed placed one |
 | `openContainer(instance, { title, text, contents, loot })` | open a container's panel |
+| `openShop(instanceOrId)` | open trade with a merchant on the current level |
+| `gainGold(amount)` | add gold to the saved purse and return the amount added |
+| `talk(instance, dialogue)` | open a conversation with a placed entity |
+| `quests` | read or advance the campaign's saved quest stages |
+| `detectTrap(x, z)`, `disarmTrap(x, z)` | reveal a trap or disarm a revealed trap on the current level |
 | `changed()` | call after changing something the player can see, so the view is drawn again |
 | `isHere(instance)`, `blocked(instance)` | is it on the level being played; is the player or a living creature on its tile |
 | `travel(level, spawn?)` | send the player to a level |
 
 Spawned things are saved with their kind, placement and state. Methods given to `spawn()` are not saved: put
 behaviour on the definition. A spawned creature that dies is gone for good (it is removed, not remembered as dead).
+
+## Merchants
+
+Give a prop or NPC a `merchant` definition with a `title`, optional `text`, and `stock` mapping item IDs to
+`{ qty, price }`. Set `behavior: { type: 'shop' }` to open the shop on interaction. To open it from a dialogue
+choice, call `game.openShop(merchantId)` in the choice's effect. Stock and the purse are saved.
+
+The merchant pays half the listed price for an item it stocks, or half the item's `value` otherwise, rounded
+down with a minimum of one gold. Set `sell: false` on an item that must stay out of trade. Loot stacks whose item
+definition has `currency: true` go into the purse when taken, even if the pack is full.
+
+## Dialogue and quests
+
+Use `behavior: { type: 'talk', dialogue }` on a prop or NPC. A dialogue has a `title`, a `start` line ID or
+function that returns one, and a `nodes` object. Each node has `text` and optional `choices`. A choice has a
+`label` and can include `when(game)`, `effect(game)` and a destination `to`. Choosing a line with no destination
+closes the conversation before its effect runs. A line with no choices has only the Close button.
+
+Campaign `quests` are keyed by ID. Each definition has `title`, a `start` stage ID, `stages` mapping stage IDs to
+objective text or functions of `game`, `completed` text and an optional `reward(game)` callback. Use
+`game.quests.start(id)` to accept the quest, `advance(id, stage)` to change its active objective, and
+`complete(id)` to mark it complete and award its reward once. The field journal shows active and completed
+quests. Use `game.showEnding({ title, text })` to display a chapter ending and signal completion to bots.
+
+A level can define `triggers` with an `on` event and an `effect(game, event)` callback. `enterTile` fires for a
+step or arrival and can match `x` and `z`. `faceSide` also runs after a turn and can match `side` (`N`, `E`, `S`
+or `W`). `flagSet` runs for changed flags and can match the `flag` name. Set `when(game, event)` to gate a trigger
+on current game state. Restoring a save does not replay tile, facing or flag triggers.
+
+Traps are floor placements in `level.traps` with coordinates, a `name`, and positive integer `damage`. Stepping
+on one reveals it and hurts the hero. Using the tile reveals a concealed trap and disarms a revealed trap. The
+optional `type`, `hint` and `message` label the damage event and customize the feedback. Detection and disarming
+are saved per level.
+
+Creatures may have `tactics` on their definition or placement. A patrol follows `route` waypoints between fights,
+a guard stays within its `radius` (two tiles by default), and a fleeing creature backs away when its health falls
+to a fraction `at` of its maximum (30 percent by default).
 
 ## Lifecycle and performance
 

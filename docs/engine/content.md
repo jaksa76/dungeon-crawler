@@ -46,6 +46,18 @@ its map characters to buildings, and places props, NPCs and creatures by id.
 Behaviour is code on the same objects: an item's `use`, an NPC's `interact`, a creature's `onDeath`, a level's
 `onEnter`, with `this.state` for what must be saved. See [behaviour.md](behaviour.md).
 
+### World travel
+
+A campaign can provide `worldMap: { image, locations }`, with a 3:2 painted image URL and a list of destinations.
+Each destination names an `id`, a `name`, its map position as `x` and `y` percentages from the top left,
+and its destination `level`. Arrival defaults to that level's start. Set `spawn: { x, z, dir }` for a different
+arrival tile, or `travelTime` in milliseconds for a journey that takes time.
+
+Mark a destination with `known: true` to show it from the start. Visiting its level, setting the truthy flag
+named in `requires`, or calling `game.discoverLocation(id)` also reveals it and records the discovery in the save.
+A level exit with `worldMap: true` opens the map instead of travelling directly to another level. Bots can read
+`sim.worldMap()` and use `sim.travelToLocation(id)` while facing a map exit.
+
 ## Content books
 
 A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons, damageTypes, materials,

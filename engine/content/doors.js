@@ -5,4 +5,5 @@ import { door } from '../rules/behaviours.js';
 
 export const doors = {
   'iron-door': { name: 'an ironbound door', building: 'dungeon-door', ...door({ key: 'key' }) },
+  'secret-door': { building: 'dungeon-stone', ...door({ hidden: true, opens: 'The stonework slides aside, revealing a secret passage.', closes: 'The stonework slides shut.' }) },
 };

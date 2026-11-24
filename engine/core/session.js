@@ -10,8 +10,10 @@
 //
 //   travel(exit, { respawn })   async; take the player to `exit.to` (game.js loads the level's art first, then calls
 //                               enter()). Default: enter() at once.
+//   passTravelTime(ms)          in a headless playthrough, advance the clock before entering.
 //   ensureArt(levelId)          async; something was spawned on a level: load its art before it shows.
 //   openContainer(box)          a container or pile was opened: { title, text, stacks }
+//   openShop(shop)              a merchant was opened: { title, text, view(), buy(id), sell(index, id) }
 //   canTarget(monster)          may the player point at this creature? (game.js: is it drawn?). Default: it stands on
 //                               the player's tile or the one they face.
 //
@@ -27,11 +29,16 @@ import { spellDamage, spellHeal, spellRange, canLearn, isImmune, describeSpell }
 import { createEquipment } from '../rules/equipment.js';
 import { createCharacter, strike, createCooldown, compareStats, statDelta, FISTS } from '../rules/combat.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll, canonicalId } from '../rules/inventory.js';
+import { createWallet, merchantTrade } from '../rules/economy.js';
 import { createQuickBar, QUICK_SLOTS } from '../rules/quickbar.js';
 import { resolveContents } from '../rules/loot.js';
 import { resolveLootRules, lootBudget, lootPool, generateLoot } from '../rules/generate-loot.js';
 import { createPersistence } from './persistence.js';
 import { createFlags } from './flags.js';
+import { createWorldMap } from './world-map.js';
+import { createTraps } from '../rules/traps.js';
+import { createDialogue } from './dialogue.js';
+import { createQuests } from './quests.js';
 
 export const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
 export const DIR_KEYS = 'NESW';
@@ -59,12 +66,14 @@ export const EVENTS = {
   death: '{ source }: the hero died',
   respawn: '{ to }: the hero woke at the respawn point',
   container: '{ title, stacks }: a container or pile was opened',
-  pickup: '{ item, qty, from }: items went into the pack (from a container or pile)',
+  door: '{ id, open }: a door opened or closed on this level',
+  pickup: '{ item, qty, from }: items went into the pack or gold went into the purse (from a container or pile)',
   drop: '{ item, qty }: items left the pack for the floor',
   use: '{ item, consumed, message }: an item was used from the pack',
   quickbar: '{ slots }: the quick bar changed (slots: [null or { kind: "item" or "spell", id }])',
   equip: '{ item, slot, changes }: changes are words (rules/combat.js compareStats)', unequip: '{ item, slot, changes }',
   level: '{ from, to }: the player is on another level',
+  ending: '{ title, text }: the campaign chapter is complete',
 };
 
 const describe = monster => ({ id: monster.id, kind: monster.kind, name: monster.name });
@@ -94,7 +103,7 @@ export function cellLookup(world, id, { level, tileTypes }) {
 export function createSession({ levels: definitions, start, books, startingItems = [], respawn = { level: start },
   inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, unarmed = FISTS,
   creation = null, persist = [], progression, loot: lootOptions, startingSpells = [], quickSlots = QUICK_SLOTS, level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
-  hooks = {} }) {
+  quests: questDefinitions = {}, worldMap, hooks = {} }) {
   const itemDefs = books.items;
   if (!Object.hasOwn(definitions, start)) throw new Error(`The start level "${start}" is not one of the levels`);
   if (!Object.hasOwn(definitions, respawn.level)) throw new Error(`The respawn level "${respawn.level}" is not one of the levels`);
@@ -134,6 +143,8 @@ export function createSession({ levels: definitions, start, books, startingItems
   }
 
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
+  const wallet = createWallet();
+  const lootReceiver = { add: (id, qty) => itemDefs[id].currency ? qty - wallet.gain(qty) : inventory.add(id, qty) };
   const equipment = createEquipment(itemDefs);
   const heroFx = createEffects(books.effects); // the status effects on the hero (creatures carry their own, `fx`)
   const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name, progression,
@@ -144,16 +155,57 @@ export function createSession({ levels: definitions, start, books, startingItems
   if (creation) { hero.build(creation.spent); hero.restore(); }
   const containers = new Map(); // `level:x,z,side` -> stacks of opened containers (rolled the first time they are opened)
   const piles = new Map(); // `level:x,z` -> stacks the player dropped
-  const flags = createFlags(); // the game's own facts (dialogue, quests): saved with the game
+  const map = createWorldMap(worldMap, definitions);
+  const flags = createFlags((flag, value) => {
+    map?.flag(flag, value);
+    if (value !== undefined) runTriggers('flagSet', { flag, value });
+  });
+  const quests = createQuests(questDefinitions, () => api);
   const swing = createCooldown(hero.attackMs);
   const p = { x: 0, z: 0, dir: 0, steps: 0 };
-  let active = context(firstLevel), dead = false, openBox = null, monsterDue = 0;
+  let active = context(firstLevel), dead = false, openBox = null, openShopView = null, monsterDue = 0;
   Object.assign(p, active.level.start);
+  const traps = createTraps(definitions, { say, hurt: hurtHero });
+  let restoring = false;
+
+  function runTriggers(on, event) {
+    if (restoring) return;
+    const source = active;
+    for (const trigger of source.level.triggers ?? []) {
+      if (active !== source || dead) break;
+      if (trigger.on !== on) continue;
+      if (trigger.x !== undefined && trigger.x !== event.x || trigger.z !== undefined && trigger.z !== event.z) continue;
+      if (trigger.side !== undefined && trigger.side !== event.side || trigger.flag !== undefined && trigger.flag !== event.flag) continue;
+      if (!trigger.when || trigger.when(api, event)) trigger.effect(api, event);
+    }
+  }
+
+  function lookTriggers(entered) {
+    const source = active;
+    const { x, z, dir } = p;
+    if (entered) runTriggers('enterTile', { x, z });
+    if (active === source && p.x === x && p.z === z && p.dir === dir) runTriggers('faceSide', { x, z, side: DIR_KEYS[dir] });
+  }
 
   // A container is named in saves by its `id` (stable when the level is edited), or else by where it stands.
   const containerKey = entity => `${session.levelId}:${entity.id ?? `${entity.x},${entity.z},${entity.side}`}`;
   const pileKey = () => `${session.levelId}:${p.x},${p.z}`;
-  function showBox(box) { openBox = box; emit('container', { title: box.title, stacks: box.stacks.map(s => ({ ...s })) }); hooks.openContainer?.(box); }
+  function showBox(box) { openBox = box; openShopView = null; emit('container', { title: box.title, stacks: box.stacks.map(s => ({ ...s })) }); hooks.openContainer?.(box); }
+  function openShop(entity) {
+    if (typeof entity === 'string') entity = world.find(session.levelId, entity);
+    if (dead || !entity?.merchant || entity.level !== session.levelId) return null;
+    const trade = merchantTrade(entity, entity.merchant, inventory, itemDefs, wallet);
+    const run = action => (...args) => {
+      if (openShopView !== shop || dead || world.find(session.levelId, entity.ref) !== entity) return { ok: false, message: 'The merchant is no longer available.' };
+      const result = action(...args);
+      if (result.ok) say(result.message);
+      return result;
+    };
+    const shop = { ...trade, buy: run(trade.buy), sell: run(trade.sell), close() { if (openShopView === shop) openShopView = null; } };
+    openBox = null; openShopView = shop;
+    hooks.openShop?.(shop);
+    return shop;
+  }
   function openContainer(entity, behavior = {}) {
     const key = containerKey(entity);
     if (!containers.has(key)) containers.set(key, resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty), random, spec => generated(spec, spec)));
@@ -265,24 +317,31 @@ export function createSession({ levels: definitions, start, books, startingItems
     if (!st) {
       const [dx, dz] = DIRS[(p.dir + MOVES[cmd]) % 4];
       const door = active.cell(p.x + dx, p.z + dz)?.door;
-      const reason = active.monsters.occupied(p.x + dx, p.z + dz) ? 'creature' : door ? (door.state.locked ? 'locked' : 'door') : 'wall';
+      const visibleDoor = door && (!door.hidden || door.state.revealed);
+      const reason = active.monsters.occupied(p.x + dx, p.z + dz) ? 'creature' : visibleDoor ? (door.state.locked ? 'locked' : 'door') : 'wall';
       say({ creature: 'A creature blocks your way.', locked: 'The door is locked.', door: 'The door is shut.', wall: 'You bump into a wall.' }[reason]);
       emit('blocked', { cmd, reason });
       return { blocked: reason };
     }
+    const entered = p.x !== st.x || p.z !== st.z;
+    dialogue.close();
     Object.assign(p, st);
-    openBox = null;
+    openBox = null; openShopView = null;
     active.exploration.reveal(p);
     before?.(); // game.js shows the new picture before anything is said about it
+    if (entered) traps.enter(active.id, p.x, p.z);
     emit('move', { cmd, x: p.x, z: p.z, dir: p.dir });
     look();
+    lookTriggers(entered);
     return { moved: true };
   }
 
   // Use what is in front of the player (rules/interaction.js).
   function interact() {
     const [dx, dz] = DIRS[p.dir];
-    interactWith(relCell, { say, game: api, exit: exitAhead(), door: active.cell(p.x + dx, p.z + dz)?.door ?? null, pile: openPile });
+    const x = p.x + dx, z = p.z + dz;
+    interactWith(relCell, { say, game: api, exit: exitAhead(), door: active.cell(x, z)?.door ?? null, pile: openPile,
+      inspect: () => traps.inspect(active.id, x, z) || traps.inspect(active.id, p.x, p.z) });
   }
 
   // Using an item from the pack: its definition's use(game, stack) (see rules/behaviours.js). It returns
@@ -315,13 +374,13 @@ export function createSession({ levels: definitions, start, books, startingItems
     if (!openBox) return 0;
     const stack = openBox.stacks[index];
     if (!stack) return 0;
-    const id = stack.id, n = takeStack(inventory, openBox.stacks, index);
+    const id = stack.id, n = takeStack(lootReceiver, openBox.stacks, index);
     if (n) { emit('pickup', { item: id, qty: n, from: openBox.from }); quickFill({ kind: 'item', id }); }
     return n;
   }
   function takeEverything() {
     if (!openBox) return [];
-    const taken = takeAll(inventory, openBox.stacks);
+    const taken = takeAll(lootReceiver, openBox.stacks);
     for (const { id, qty } of taken) { emit('pickup', { item: id, qty, from: openBox.from }); quickFill({ kind: 'item', id }); }
     return taken;
   }
@@ -627,18 +686,35 @@ export function createSession({ levels: definitions, start, books, startingItems
     const landing = destination.cell(spawn.x, spawn.z);
     if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
     const from = session.levelId;
+    dialogue.close();
     active.level.onExit?.(api);
-    active = destination; openBox = null;
+    active = destination; openBox = null; openShopView = null;
     if (waking) { for (const c of contexts.values()) c.monsters.reset(); hero.restore(); heroFx.clear(); }
     else active.monsters.reset();
     delayMonsters();
     Object.assign(p, spawn, { steps: 0 });
     active.exploration.reveal(p);
+    map?.visit(id);
     emit('level', { from, to: id });
     say(`You enter ${active.level.shortName ?? active.level.name}.`); look();
     active.level.onEnter?.(api);
+    if (!waking) lookTriggers(true);
   }
-  const travel = (exit, options = {}) => (hooks.travel ? hooks.travel(exit, options) : (enter(exit.to, exit.spawn, options), Promise.resolve(true)));
+  function travel(exit, options = {}) {
+    if (exit.worldMap) {
+      if (map) hooks.openWorldMap?.(worldMapView());
+      return Promise.resolve(!!map);
+    }
+    if (hooks.travel) return hooks.travel(exit, options);
+    if (exit.travelTime) hooks.passTravelTime?.(exit.travelTime);
+    enter(exit.to, exit.spawn, options);
+    return Promise.resolve(true);
+  }
+  const worldMapView = () => map?.view(session.levelId) ?? null;
+  function travelToLocation(id) {
+    const exit = !dead && exitAhead()?.worldMap && map?.exit(id, session.levelId);
+    return exit ? travel(exit) : Promise.resolve(false);
+  }
 
   // Back to the respawn point after death (by default the start of the first level), healed; the creatures start over.
   // Returns whether it worked: at once without a travel hook, else as a promise.
@@ -664,7 +740,10 @@ export function createSession({ levels: definitions, start, books, startingItems
     world.changed();
   }
   const api = {
-    say, flags, hero, inventory, equipment, items: itemDefs, random, learn, applyEffect,
+    discoverLocation: id => map?.discover(id) ?? false,
+    say, flags, quests, hero, inventory, equipment, items: itemDefs, random, learn, applyEffect,
+    talk: (speaker, tree) => dialogue.talk(speaker, tree),
+    showEnding(ending) { emit('ending', ending); hooks.showEnding?.(ending); },
     removeEffect: id => heroFx.remove(id),
     get level() { return session.levelId; },
     get player() { return { x: p.x, z: p.z, dir: p.dir }; },
@@ -678,12 +757,23 @@ export function createSession({ levels: definitions, start, books, startingItems
     },
     async respawn(inst, key) { const it = world.respawn(inst, key); if (it) await arrive(it); return it; },
     openContainer: (entity, spec) => openContainer(entity, spec),
+    openShop, gainGold: qty => wallet.gain(qty),
     changed: () => world.changed(),
+    doorChanged(inst) {
+      world.changed();
+      if (inst.level === session.levelId) {
+        active.exploration.reveal(p);
+        emit('door', { id: inst.id, open: inst.state.open });
+      }
+    },
+    detectTrap: (x, z) => traps.detect(active.id, x, z),
+    disarmTrap: (x, z) => traps.disarm(active.id, x, z),
     isHere: inst => inst.level === session.levelId,
     // Is the player or a living creature on this instance's tile (a door must not shut on them)?
     blocked: inst => (inst.level === session.levelId && p.x === inst.x && p.z === inst.z) || world.at(inst.level, inst.x, inst.z).some(liveMonster),
     travel: (to, spawn) => travel({ to, spawn }),
   };
+  const dialogue = createDialogue(api, line => hooks.showDialogue?.(line));
 
   // Saving. Every component that has state to keep registers a section with the persistence registry (persistence.js);
   // the game adds its own.
@@ -715,17 +805,30 @@ export function createSession({ levels: definitions, start, books, startingItems
   persistence.engine.register({ ...quickbar.persistence, reset() { quickbar.persistence.reset(); quickSeed(); } }); // a save without a bar gets one from what the hero has
   persistence.engine.register(stacksPersistence('containers', itemDefs, containers));
   persistence.engine.register(stacksPersistence('piles', itemDefs, piles));
+  persistence.engine.register(wallet.persistence);
+  if (Object.values(definitions).some(({ level }) => level.traps?.length)) persistence.engine.register(traps.persistence);
+  if (Object.keys(questDefinitions).length) persistence.engine.register(quests.persistence);
+  if (map) persistence.engine.register(map.persistence);
   persistence.game.register(flags.persistence);
   for (const section of typeof persist === 'function' ? persist({ flags, hero, inventory, equipment, itemDefs, say }) : persist) persistence.game.register(section);
 
   // Put a save back: every component is restored, the creatures start over. `respawn` also heals the hero.
   // Returns { issues }.
   async function load(snapshot, { respawn: waking = false } = {}) {
-    const result = await persistence.restore(snapshot);
+    dialogue.close();
+    restoring = true;
+    let result;
+    try { result = await persistence.restore(snapshot); }
+    finally { restoring = false; }
+    if (map) {
+      map.visit(session.levelId);
+      for (const level of explorations.visited()) map.visit(level);
+      for (const flag of flags.keys) map.flag(flag, flags.get(flag));
+    }
     await hooks.ensureArt?.(session.levelId);
     for (const c of contexts.values()) c.monsters.reset();
     if (waking) { hero.restore(); heroFx.clear(); }
-    dead = false; openBox = null; swing.reset(); delayMonsters();
+    dead = false; openBox = null; openShopView = null; swing.reset(); delayMonsters();
     return result;
   }
 
@@ -733,13 +836,16 @@ export function createSession({ levels: definitions, start, books, startingItems
   function begin({ welcome = true, loaded = false } = {}) {
     if (welcome) say(loaded ? `Welcome back, ${hero.name}.` : `Welcome to ${active.level.name}, ${hero.name}.`);
     world.setApi(api);
+    map?.visit(session.levelId);
     active.exploration.reveal(p);
     active.level.onEnter?.(api);
+    if (!loaded) lookTriggers(true);
     delayMonsters();
   }
 
   const session = {
     books, itemDefs, definitions, world, hero, inventory, equipment, flags, persistence, containers, piles, messages, api,
+    dialogue, quests, wallet,
     random, clock, swing, player: p, heroEffects: heroFx,
     get known() { return [...known]; },
     quickbar, quickView, quickDescribe,
@@ -756,11 +862,13 @@ export function createSession({ levels: definitions, start, books, startingItems
     get monsters() { return active.monsters; },
     get dead() { return dead; },
     get openBox() { return openBox; },
+    get openShop() { return openShopView; },
     closeBox() { openBox = null; },
     contextOf: context,
     on(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); return () => listeners.get(type).delete(fn); },
     emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend, learn, cast, applyEffect,
     attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
+    worldMapView, travelToLocation,
   };
   quickSeed(); // a new game's bar, from the starting items and spells
   return session;

@@ -1,14 +1,17 @@
 // Ravensmoor: the campaign. The engine (engine/) is the rule book and the creature book; this is the setting, the
 // maps and the story.
 import { content } from './content/index.js';
+import { quests } from './content/quests.js';
+import { worldMap } from './content/world-map.js';
 import { village } from './levels/village.js';
 import { undercrypt } from './levels/undercrypt.js';
+import { market } from './levels/market.js';
 
 export const campaign = {
   title: 'Ravensmoor',
   saveKey: 'ravensmoor',
-  content,
-  levels: { village, dungeon: undercrypt },
+  content, quests, worldMap,
+  levels: { village, dungeon: undercrypt, market },
   start: 'village',
   respawn: { level: 'village', place: 'the village', message: 'You awaken safely in the village.' },
   // What the player carries at the start: no equipment, only a few potions.

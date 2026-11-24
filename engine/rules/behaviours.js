@@ -37,10 +37,11 @@ export function restore({ hp = 0, mp = 0 }) {
 
 // A door: shut it is a wall, open the tile is floor. `key` is an item id that unlocks it. Use opens or closes it;
 // a locked one opens only for its key, or when something opens it with { force: true } (a lever, a spell, a horn).
-export function door({ key = null, opens = 'The door swings open.', closes = 'The door closes.', locked = 'It is locked.' } = {}) {
+export function door({ key = null, hidden = false, opens = 'The door swings open.', closes = 'The door closes.', locked = 'It is locked.' } = {}) {
+  const changed = (game, instance) => game.doorChanged ? game.doorChanged(instance) : game.changed();
   return {
     state: { open: false, locked: false },
-    key,
+    key, hidden,
     isOpen() { return this.state.open; },
     open(game, { force = false } = {}) {
       if (this.state.open) return true;
@@ -48,14 +49,14 @@ export function door({ key = null, opens = 'The door swings open.', closes = 'Th
         if (!this.key || !game.inventory.count(this.key)) { game.say(locked); return false; }
         game.say(`You unlock it with the ${game.items[this.key].name.toLowerCase()}.`);
       }
-      this.state.locked = false; this.state.open = true; game.changed();
+      this.state.locked = false; this.state.open = true; this.state.revealed = true; changed(game, this);
       if (game.isHere(this)) game.say(opens);
       return true;
     },
     close(game) {
       if (!this.state.open) return true;
       if (game.blocked(this)) { game.say('Something is in the way.'); return false; }
-      this.state.open = false; game.changed();
+      this.state.open = false; changed(game, this);
       if (game.isHere(this)) game.say(closes);
       return true;
     },
@@ -81,6 +82,8 @@ export function itemUse(def) {
 export const behaviorTypes = {
   examine: b => examine(b.text),
   open: b => container(b),
+  shop: () => function interact(game) { game.openShop(this); },
+  talk: b => function interact(game) { game.talk(this, b.dialogue); },
 };
 export function behaviourFrom(data) {
   if (!data) return null;

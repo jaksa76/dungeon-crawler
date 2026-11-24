@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { levels } from '../support.mjs';
+import { campaign } from '../../games/ravensmoor/campaign.js';
 import { createExploration } from '../../engine/core/exploration.js';
 import { createView } from '../../engine/render/view.js';
 
@@ -28,16 +29,20 @@ test('the dungeon is enclosed and every corridor is reachable from its entrance'
   assert(visited.size > 100, 'a labyrinth should contain substantial exploration space');
 });
 
-test('both travel directions have a valid door, destination and landing tile', () => {
-  for (const def of Object.values(levels)) for (const exit of def.level.exits) {
+test('level and world map exits have valid gateways and landing tiles', () => {
+  const checkLanding = (destination, spawn = destination?.level.start) => {
+    assert(destination);
+    assert(floor(destination, spawn.x, spawn.z));
+    assert(spawn.dir >= 0 && spawn.dir < 4);
+  };
+  for (const def of Object.values(levels)) for (const exit of def.level.exits ?? []) {
     assert(floor(def, exit.x, exit.z));
     const [dx, dz] = directions[exit.dir];
     assert(def.tileTypes[def.level.tiles[exit.z + dz]?.[exit.x + dx]]?.wall);
-    const destination = levels[exit.to]; assert(destination);
-    const spawn = exit.spawn ?? destination.level.start;
-    assert(floor(destination, spawn.x, spawn.z));
-    assert(spawn.dir >= 0 && spawn.dir < 4);
+    if (exit.worldMap) assert(campaign.worldMap.locations.length);
+    else checkLanding(levels[exit.to], exit.spawn);
   }
+  for (const { level, spawn } of campaign.worldMap.locations) checkLanding(levels[level], spawn);
 });
 
 test('discovery stops at walls and keeps previously explored corridors', () => {
@@ -63,6 +68,7 @@ test('every wall, floor and sky the campaign’s levels use has baked artwork', 
       assert(data.readUInt32BE(16) > 0 && data.readUInt32BE(20) > 0);
     }
     assert(fs.existsSync(new URL('floor.png', def.environment.assets)));
-    if (def.environment.backdrop) for (const dir of 'NESW') assert(fs.existsSync(new URL(`backdrop-${dir}.png`, def.environment.assets)));
+    if (typeof def.environment.backdrop === 'string') assert(fs.existsSync(new URL(def.environment.backdrop)));
+    else if (def.environment.backdrop) for (const dir of 'NESW') assert(fs.existsSync(new URL(`backdrop-${dir}.png`, def.environment.assets)));
   }
 });

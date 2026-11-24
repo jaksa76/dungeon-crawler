@@ -32,6 +32,13 @@ export function createExplorationStore() {
   const apply = (id, exploration) => { exploration.known.clear(); for (const c of saved.get(id) ?? []) exploration.known.add(c); };
   return {
     attach(id, exploration) { live.set(id, exploration); apply(id, exploration); },
+    visited() {
+      const visited = new Set();
+      for (const id of new Set([...saved.keys(), ...live.keys()])) {
+        if ((live.get(id)?.known.size ?? saved.get(id)?.length ?? 0) > 0) visited.add(id);
+      }
+      return visited;
+    },
     persistence: {
       id: 'exploration',
       save() {

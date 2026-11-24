@@ -40,7 +40,7 @@ export function panelOverlay(icons, { quick = () => [], hot = () => -1, colourOf
     const size = 16, top = Math.round(QUICK_CENTRE_Y * s - size / 2);
     for (let i = 0; i < QUICK_COUNT; i++) {
       const left = Math.round((QUICK_LEFT + (i + 0.5) * QUICK_CELL) * s - size / 2), v = slots[i] ?? null;
-      g.fillStyle = '#0e0b10'; g.fillRect(left, top, size, size); // the slot's well
+      g.fillStyle = '#120d12'; g.fillRect(left, top, size, size); // the slot's well
       g.fillStyle = over === i ? '#ffe0a0' : v?.worn ? '#d8a840' : '#43332b'; // its rim: lit while a drag is over it, gold for what is worn
       g.fillRect(left, top, size, 1); g.fillRect(left, top + size - 1, size, 1); g.fillRect(left, top, 1, size); g.fillRect(left + size - 1, top, 1, size);
       if (!v) continue;
@@ -69,16 +69,19 @@ export function withIcons(image, icons) {
   // pseudo-random pattern, so it is the same every time.
   let seed = 12345;
   const random = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
-  const stone = (x0, y0, x1, y1) => {
+  const stone = (x0, y0, x1, y1, tint = STONE) => {
     const patch = g.createImageData(x1 - x0, y1 - y0);
     for (let i = 0; i < patch.data.length; i += 4) {
       const grain = (random() - 0.5) * 14;
-      patch.data[i] = STONE[0] + grain; patch.data[i + 1] = STONE[1] + grain * 0.8; patch.data[i + 2] = STONE[2] + grain * 0.8; patch.data[i + 3] = 255;
+      patch.data[i] = tint[0] + grain; patch.data[i + 1] = tint[1] + grain * 0.8; patch.data[i + 2] = tint[2] + grain * 0.8; patch.data[i + 3] = 255;
     }
     g.putImageData(patch, x0, y0);
   };
   for (const [left, right] of MENU_CELLS) stone(left - 4, MENU_TOP, right + 5, MENU_BOTTOM);
-  stone(QUICK_LEFT, QUICK_TOP, QUICK_RIGHT, QUICK_BOTTOM);
+  stone(QUICK_LEFT, QUICK_TOP, QUICK_RIGHT, QUICK_BOTTOM, [42, 29, 27]);
+  const strip = QUICK_RIGHT - QUICK_LEFT, height = QUICK_BOTTOM - QUICK_TOP;
+  g.fillStyle = '#755137'; g.fillRect(QUICK_LEFT, QUICK_TOP, strip, 4); g.fillRect(QUICK_LEFT, QUICK_TOP, 4, height);
+  g.fillStyle = '#170e12'; g.fillRect(QUICK_LEFT, QUICK_BOTTOM - 4, strip, 4); g.fillRect(QUICK_RIGHT - 4, QUICK_TOP, 4, height);
 
   // Painted (not pixel-art) icons are drawn here, smoothly; pixel-art icons are drawn crisply by panelOverlay.
   MENU_ICONS.forEach((id, i) => { if (!icons.native(id)) icons.draw(g, id, cellCentre(i) - 29, MENU_CENTRE_Y - 29, 58, 58); });

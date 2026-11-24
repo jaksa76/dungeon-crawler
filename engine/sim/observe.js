@@ -43,7 +43,7 @@ export function viewAhead(session, depth = VIEW_DEPTH) {
     if (c.wall) { out.push({ d, x, z, wall: true, ...(door ? { door } : {}) }); break; }
     const rel = session.relCell(0, d);
     const exit = d === 0 ? session.exitAhead() : null;
-    out.push({ d, x, z, ...(door ? { door } : {}), ...(exit ? { exit: { to: exit.to } } : {}),
+    out.push({ d, x, z, ...(door ? { door } : {}), ...(exit ? { exit: exit.worldMap ? { worldMap: true } : { to: exit.to } } : {}),
       things: rel.props.map(pr => ({ id: pr.entity.id ?? pr.entity.ref, kind: pr.entity.prop, name: pr.entity.name ?? null, side: pr.entity.side, anchor: pr.anchor })),
       monsters: rel.monsters.filter(alive).map(a => a.id) });
   }

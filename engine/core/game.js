@@ -25,6 +25,7 @@ import { startAutosave, defaultAutosave } from './autosave.js';
 import { createTitleScreen } from '../ui/title-screen.js';
 import { drawText } from '../ui/bitmapfont.js';
 import { font5x8 as FONT } from '../ui/font-5x8.js';
+import { createSound } from '../ui/sound.js';
 
 // Grid crawler drawn by 2D compositing: every step and turn shows a new
 // composite of pre-painted slot images (see view.js). Movement is instant, softened by a very short, subtle
@@ -44,13 +45,13 @@ export async function startGame(options) {
   catch (error) { screen.fail(error.message); throw error; }
 }
 
-async function runGame({ levels, start, content = [], startingItems = [], respawn = { level: start },
+async function runGame({ levels, start, worldMap, content = [], startingItems = [], respawn = { level: start },
   viewCanvas, uiCanvas, frame, status, inventorySize = 48, inventoryColumns = 8,
   heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 },
   // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
   unarmed = FISTS,
   // Experience and levels (rules/progression.js) and the loot budget rules (rules/generate-loot.js): both optional, the engine has defaults.
-  progression, loot, startingSpells = [],
+  progression, loot, startingSpells = [], quests = {},
   // The game's own sections of the help screen: [{ title, text }] (ui/help-screen.js).
   help = [],
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
@@ -76,6 +77,18 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const policy = { ...defaultAutosave, ...autosave };
   let store = storage;
   if (store === undefined) { try { store = window.localStorage; } catch { store = null; } }
+  const soundKey = `${saveKey}.muted`;
+  let initiallyMuted = false;
+  try { initiallyMuted = store?.getItem(soundKey) === 'true'; } catch { /* Sound still works without storage. */ }
+  const sound = Object.values(levels).some(level => level.sound) ? createSound({ initiallyMuted, saveMuted(muted) {
+    try { store?.setItem(soundKey, String(muted)); } catch { /* The setting still applies to this playthrough. */ }
+  } }) : null;
+  if (sound) {
+    const unlock = () => sound.unlock();
+    window.addEventListener('pointerdown', unlock);
+    window.addEventListener('keydown', unlock);
+    document.addEventListener('visibilitychange', () => sound.setPresent(!document.hidden));
+  }
   const saves = createSaveStore(store, saveKey);
   const persistent = !params.has('level');
   let slot = params.get('slot') ?? 'slot-1', saved = null, creation = null;
@@ -115,11 +128,18 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const random = params.has('seed') ? createRng(params.get('seed')) : () => Math.random();
   // The rules. Its hooks are where the screen takes part: a level's art loads before the player arrives there.
   const session = createSession({ levels: definitions, start, books, startingItems, respawn, inventorySize, heroAttributes,
-    unarmed, creation, persist, progression, loot, startingSpells, level: firstLevel, random, clock: () => performance.now(),
+    unarmed, creation, persist, progression, loot, startingSpells, quests, worldMap, level: firstLevel, random, clock: () => performance.now(),
     hooks: {
       travel: (exit, options) => travel(exit, options),
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
       openContainer: box => bars.openContainer(box),
+      openWorldMap: map => {
+        settleDrag();
+        bars.openWorldMap(map, session.travelToLocation);
+      },
+      openShop: shop => bars.openShop(shop),
+      showDialogue: line => bars.showDialogue(line, () => session.dialogue.close()),
+      showEnding: ending => { bars.open(ending.title, ending.text, 'ending'); save(); },
       canTarget: target => !!comp.target(target.id),
     } });
   const { world, hero, inventory, equipment, flags, persistence, messages, api, player: p } = session;
@@ -169,6 +189,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   let active = await prepare(levelId);
   let { level, props } = active;
   let { view, images, cell, comp, exploration, monsters } = active;
+  sound?.setLevel(level.sound);
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1;
   let transitioning = false, loading = false;
@@ -242,6 +263,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     },
   } : null;
   const mapView = { // what the HUD shows of the level: its name, journal, known tiles and named things
+    get quests() { return session.quests.journal(); },
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
     typeAt: (x, z) => { if (!exploration.isKnown(x, z)) return null; const c = cell(x, z); return c === null ? null : (c.wall ? { wall: true } : { floor: true }); },
@@ -268,7 +290,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     setHot: i => { if (i !== quickHot) { quickHot = i; drawHud(); } },
   };
   const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
-    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, help,
+    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, help, sound,
+    wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, onTake: session.take, onTakeAll: session.takeAll,
     magic: Object.keys(books.spells).length ? {
       available: true, spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
       cast: id => castSpell(id), setReady: id => session.setReadySpell(id), ready: () => session.readySpell,
@@ -425,6 +448,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     ui.draw(hud);
     bars.draw(hud);
   }
+  session.on('spend', () => drawHud());
+  session.on('level-up', () => drawHud());
   // Start sliding from wherever the map is now (the player moved or turned, or changed level: then jump).
   function moveMap(jump) {
     if (jump) { mapFrom = null; return; }
@@ -455,6 +480,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     frame.setAttribute('aria-busy', 'true');
     say('Opening the passage...');
     try {
+      const journey = exit.travelTime ? new Promise(resolve => window.setTimeout(resolve, exit.travelTime)) : null;
       const destination = await prepare(exit.to);
       const spawn = exit.spawn ?? destination.level.start;
       if (destination.view.V.W !== W || destination.view.V.H !== H ||
@@ -462,6 +488,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
       const landing = destination.cell(spawn.x, spawn.z);
       if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
       await ensureArt(destination);
+      if (journey) await journey;
       // The session moves the player; the 'level' event (below) switches what is drawn before the arrival is said.
       arriving = destination;
       session.enter(exit.to, spawn, { respawn });
@@ -482,6 +509,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   session.on('level', () => {
     active = arriving ?? active; arriving = null; levelId = session.levelId;
     ({ level, props, view, images, cell, comp, exploration, monsters } = active);
+    sound?.setLevel(level.sound);
+    sound?.effect('door');
     Object.assign(window.__game2d, { levelId, level, view, images, monsters });
     peeks.clear(); peekKey = '';
     bars.setLevel(level);
@@ -489,6 +518,13 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     log.length = 0; logKey = '';
     show();
   });
+  if (sound) {
+    session.on('move', ({ cmd }) => { if (cmd !== 'left' && cmd !== 'right') sound.effect('step'); });
+    session.on('door', () => sound.effect('door'));
+    session.on('damage-dealt', () => sound.effect('hit'));
+    session.on('damage-taken', () => sound.effect('hit'));
+    session.on('pickup', () => sound.effect('pickup'));
+  }
 
   // Load a snapshot while playing: the saved level opens, every component is restored, creatures start over.
   // `respawn` also heals the hero (coming back from death). Returns false, and plays on, when it cannot.
@@ -582,7 +618,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     sceneInput?.cancel();
     // The session moves the player and says what they see; the picture is shown before that is said.
     const result = session.move(cmd, { before: () => show(cmd) });
-    if (result.exit) { void travel(result.exit); return; }
+    if (result.exit) { void session.travel(result.exit); return; }
     if (result.blocked) settleDrag();
   }
 
@@ -678,6 +714,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   function updateMonsters(now) {
     const paused = isDead() || transitioning || loading || bars.isOpen() || document.hidden;
     const { changed, struck } = session.update(now, { paused });
+    sound?.update(p, monsters.actors, paused);
     for (const blow of struck) struckBy(blow, now);
     if (changed) {
       // Update moving creatures without interrupting a player's current motion.

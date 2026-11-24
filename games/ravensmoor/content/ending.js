@@ -1,0 +1,4 @@
+export const ravenSealEnding = {
+  title: 'The Quiet Bell',
+  text: 'The stranger fits the seal into a bronze case. Far beneath the Old Quarter, the scraping falls silent. Then the watch bell rings once across the river. A raven circles above Greybridge, carrying a ribbon marked with the same sign. “I thought this would buy us more time,” the stranger says, and turns toward the west road.',
+};

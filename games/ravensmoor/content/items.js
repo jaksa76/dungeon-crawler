@@ -2,6 +2,10 @@
 // icon from the engine's atlas or from Ravensmoor's sheet (icons.js). `use(game, stack)` is what using it does (see
 // docs/engine/behaviour.md).
 export const items = {
+  gold: { name: 'Gold', type: 'currency', currency: true, icon: 'gold-coin', stack: 9999, value: 1, drop: false,
+    description: 'A worn coin accepted by the merchants of Ravensmoor.' },
+  'raven-seal': { name: 'Raven Seal', type: 'quest', icon: 'rune-stone',
+    description: 'A palm-sized piece of slate cut with a raven. The groove beneath its wings is still warm.' },
   'raven-amulet': { name: 'Raven amulet', type: 'armour', slot: 'amulet', bonus: { defence: 1, luck: 1 }, value: 60, drop: false, icon: 'raven-amulet',
     description: 'A black iron raven on a silver chain, its eye a chip of violet glass. Ravensmoor’s old sign of luck.' },
   // Opens the crypt gate in the Undercrypt, from wherever it is blown.

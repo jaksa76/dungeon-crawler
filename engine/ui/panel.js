@@ -124,12 +124,21 @@ export function createUI(canvas, assets, layout, { width = UI_W, font, overlay }
     const [px, py, pw, ph] = R(layout.portrait);
     const crop = portrait.height * (pw / ph);
     g.drawImage(portrait, (portrait.width - crop) / 2, 0, crop, portrait.height, px, py, pw, ph);
+    if (state.hero.unspent > 0) {
+      const pixel = Math.max(1, Math.round(k)), size = 11 * pixel;
+      const x = Math.round(px + pw) - size - 2 * pixel, y = Math.round(py) + 2 * pixel;
+      g.fillStyle = '#dfb675'; g.fillRect(x, y, size, size);
+      g.fillStyle = '#241711'; g.fillRect(x + pixel, y + pixel, size - 2 * pixel, size - 2 * pixel);
+      g.fillStyle = '#ffe2a0';
+      g.fillRect(x + 3 * pixel, y + 5 * pixel, 5 * pixel, pixel);
+      g.fillRect(x + 5 * pixel, y + 3 * pixel, pixel, 5 * pixel);
+    }
 
     bar(layout.hp, state.hero.hp, state.hero.maxHp, '#c42424', '#ff7a60');
     bar(layout.mp, state.hero.mp, state.hero.maxMp, '#2454d0', '#7ab0ff');
     if (layout.xp && state.hero.progress) { // level and experience, when the hero has them
-      const { level, xp, from, to } = state.hero.progress, points = state.hero.unspent;
-      bar(layout.xp, to === null ? 1 : xp - from, to === null ? 1 : to - from, '#b8892a', '#f0d070', points > 0 ? `${points} POINT${points === 1 ? '' : 'S'} TO SPEND` : to === null ? 'MAX' : `${xp} / ${to}`);
+      const { level, xp, from, to } = state.hero.progress;
+      bar(layout.xp, to === null ? 1 : xp - from, to === null ? 1 : to - from, '#b8892a', '#f0d070', to === null ? 'MAX' : `${xp} / ${to}`);
       text(`LV ${level}`, ...R([...layout.xpLabel]).slice(0, 2), Math.round(14 * k), '#f0d070', 'center');
     }
     minimap(state);

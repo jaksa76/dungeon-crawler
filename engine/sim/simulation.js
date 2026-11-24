@@ -51,6 +51,7 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
   let time = 0;
   const session = createSession({ ...campaign, levels, books, random, clock: () => time,
     level: scenario.level ?? campaign.start,
+    hooks: { ...campaign.hooks, passTravelTime: ms => { time += ms; session.update(time, { paused: true }); } },
     creation: scenario.hero ? { name: scenario.hero.name, spent: scenario.hero.spent } : null });
   const { hero, inventory, equipment, flags, player: p } = session;
   const events = [];
@@ -62,7 +63,7 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     if (!c || c.wall) throw new Error(`scenario: (${x},${z}) is not a floor tile on "${session.levelId}"`);
     Object.assign(p, { x, z, dir });
   }
-  session.begin({ welcome: false });
+  session.begin({ welcome: false, loaded: !!scenario.save });
   if (scenario.hero) {
     if (Number.isFinite(scenario.hero.xp)) hero.gain(scenario.hero.xp);
     if (Number.isFinite(scenario.hero.hp)) hero.hp = Math.min(hero.maxHp, scenario.hero.hp);
@@ -85,6 +86,7 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
 
   let outcome = null; // 'dead' | 'won' | 'stopped' | null while running
   session.on('death', () => { if (!respawn) outcome ??= 'dead'; });
+  session.on('ending', () => { outcome ??= 'won'; });
   const over = () => outcome !== null;
 
   // Let `ms` of game time pass: the creatures move and fight in fixed ticks. Stops early when the run is over.
@@ -100,11 +102,19 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
   // Every action: skip if the run is over, else do it and let its time pass.
   const act = (ms, fn) => { if (over()) return { ok: false, reason: 'over' }; const result = fn(); advance(ms); return result; };
   const stackIndex = item => typeof item === 'number' ? item : inventory.slots.findIndex(s => s?.id === item);
+  function dialogueView() {
+    const line = session.dialogue.current;
+    return line ? { title: line.title, text: line.text, choices: line.choices.map(choice => choice.label) } : null;
+  }
 
   function step(cmd) {
     return act(cmd === 'left' || cmd === 'right' ? speed.turn : cmd === 'forward' || cmd === 'back' ? speed.step : speed.strafe, () => {
       const result = session.move(cmd);
       if (result.exit) {
+        if (result.exit.worldMap) {
+          const worldMap = session.worldMapView();
+          return worldMap ? { ok: true, worldMap } : { ok: false, reason: 'no-world-map' };
+        }
         const from = session.levelId;
         session.travel(result.exit); // headless travel is synchronous
         return { ok: session.levelId !== from, travelled: session.levelId };
@@ -129,7 +139,8 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     map: () => knownMap(session),
     monsters: () => visibleMonsters(session),
     path: (to, options) => findPath(session, to, options),
-    exits: () => (session.level.exits ?? []).map(({ x, z, dir, to }) => ({ x, z, dir, to })),
+    exits: () => (session.level.exits ?? []).map(({ x, z, dir, to, worldMap }) => ({ x, z, dir, ...(worldMap ? { worldMap } : { to }) })),
+    worldMap: () => session.worldMapView(),
     // Events since the last call (or since the start), and stop collecting them.
     drain: () => events.splice(0),
     on: (type, fn) => session.on(type, fn),
@@ -170,8 +181,11 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     interact: () => act(speed.interact, () => { session.interact(); return { ok: true, container: session.openBox ? boxView() : null }; }),
     // Put a skill point (from levelling up) into an attribute: 'strength', 'vitality', 'intellect' or 'agility'.
     spend: attribute => act(100, () => session.spend(attribute)),
-    // Talking is Use on an NPC (talk behaviours arrive with dialogue); casting needs spells, which the engine has not yet.
-    talk: () => sim.interact(),
+    // Talking is Use on an NPC. Read the available choices, then choose by its index.
+    talk: () => ({ ...sim.interact(), dialogue: dialogueView() }),
+    dialogue: dialogueView,
+    choose: index => act(speed.interact, () => ({ ok: session.dialogue.current?.choices[index]?.choose() ?? false, dialogue: dialogueView() })),
+    journal: () => session.quests.journal(),
     // Magic: cast a spell (an id; without one the ready spell) at the nearest creature in the line ahead, or at `targetId`.
     // { ok, spell, targets } or { ok: false, reason: 'no-spells' | 'unknown' | 'not-known' | 'stunned' | 'cooldown' | 'mana' | 'no-target' }.
     cast: (spell, targetId = null) => act(speed.cast, () => session.cast(spell, targetId)),
@@ -210,6 +224,10 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     wait: ms => act(ms, () => ({ ok: true })),
     // Go to a level directly, as content's game.travel does (a scenario shortcut, not a player action).
     travel: (to, spawn) => act(0, () => { session.enter(to, spawn); return { ok: true }; }),
+    async travelToLocation(id) {
+      if (over()) return { ok: false, reason: 'over' };
+      return await session.travelToLocation(id) ? { ok: true, travelled: session.levelId } : { ok: false, reason: 'unavailable' };
+    },
     // End the run: 'won' when the bot reached its goal, or 'stopped'.
     stop(result = 'stopped') { outcome ??= result; },
     // The whole game as a save, to start other runs from (scenario.save).
