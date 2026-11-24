@@ -115,17 +115,17 @@ feature it needs. Work top to bottom; items inside a milestone can go in any ord
 *Needs M4 (serialisable state). Built before balancing, so loot, equipment and difficulty can be tuned against measurements rather than guesses.*
 
 **Engine**
-- [ ] A headless-capable control API: issue the same actions a player can (move, turn, attack a target, interact, use/equip/drop an item, cast, talk, travel) and read back state, view and message log
-- [ ] Deterministic mode: seedable RNG and a fixed time step, so a run can be replayed exactly
-- [ ] Fast-forward simulation without rendering, for thousands of runs
-- [ ] Observation API: state snapshot and events (damage dealt/taken, kills, drops, deaths, XP, gold) as plain data
-- [ ] Scenario setup: start from a saved state, place the hero, spawn monsters, grant items
-- [ ] Run reports: win/lose, time to kill, damage taken, potions used, progress curve, written as JSON/CSV
-- [ ] Documented bot interface and example bots (random walker, fighter, explorer), so a coding agent can write its own player and run it from the command line
+- [x] A headless-capable control API: issue the same actions a player can (move, turn, attack a target, interact, use/equip/drop an item, cast, talk, travel) and read back state, view and message log
+- [x] Deterministic mode: seedable RNG and a fixed time step, so a run can be replayed exactly
+- [x] Fast-forward simulation without rendering, for thousands of runs
+- [x] Observation API: state snapshot and events (damage dealt/taken, kills, drops, deaths, XP, gold) as plain data
+- [x] Scenario setup: start from a saved state, place the hero, spawn monsters, grant items
+- [x] Run reports: win/lose, time to kill, damage taken, potions used, progress curve, written as JSON/CSV
+- [x] Documented bot interface and example bots (random walker, fighter, explorer), so a coding agent can write its own player and run it from the command line
 
 **Game**
-- [ ] As a designer, I want to run a bot through the Undercrypt hundreds of times and see how often it survives.
-- [ ] As a designer, I want a balance report (kills, damage, loot value per level) I can compare after every tuning change.
+- [x] As a designer, I want to run a bot through the Undercrypt hundreds of times and see how often it survives.
+- [x] As a designer, I want a balance report (kills, damage, loot value per level) I can compare after every tuning change.
 
 ## M7 — Weapons, armour and equipment
 

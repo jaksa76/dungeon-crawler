@@ -9,22 +9,18 @@ import { engineContent } from '../content/index.js';
 import { mergeContent } from '../content/catalog.js';
 import { createTouch, viewportSize } from './touch.js';
 import { createMobileHUD } from '../ui/mobile-hud.js';
-import { createExploration, createExplorationStore } from './exploration.js';
-import { createMonsters, actorDirection } from '../rules/monsters.js';
+import { actorDirection } from '../rules/monsters.js';
 import { createGameOver } from '../ui/game-over.js';
-import { interact, interactTarget } from '../rules/interaction.js';
-import { createWorld, flat } from './world.js';
-import { itemUse } from '../rules/behaviours.js';
+import { interactTarget } from '../rules/interaction.js';
+import { flat } from './world.js';
 import { withIcons, panelOverlay } from '../ui/panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { HEAD_X } from '../ui/head.js';
-import { createEquipment } from '../rules/equipment.js';
-import { createCharacter, deriveStats, strike, createCooldown } from '../rules/combat.js';
-import { createInventory, addToStacks, checkItems, stacksPersistence } from '../rules/inventory.js';
-import { resolveContents } from '../rules/loot.js';
+import { deriveStats } from '../rules/combat.js';
 import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
-import { createPersistence, createSaveStore, peek } from './persistence.js';
-import { createFlags } from './flags.js';
+import { createSaveStore, peek } from './persistence.js';
+import { createSession, DIR_KEYS } from './session.js';
+import { createRng } from './rng.js';
 import { startAutosave, defaultAutosave } from './autosave.js';
 import { createTitleScreen } from '../ui/title-screen.js';
 import { drawText } from '../ui/bitmapfont.js';
@@ -33,32 +29,8 @@ import { font5x8 as FONT } from '../ui/font-5x8.js';
 // Grid crawler drawn by 2D compositing: every step and turn shows a new
 // composite of pre-painted slot images (see view.js). Movement is instant, softened by a very short, subtle
 // motion between the old and the new picture (transition.js); a swipe starts it before the finger lifts.
-
-const DIRS = [[0, -1], [1, 0], [0, 1], [-1, 0]]; // N E S W
-const DIR_KEYS = 'NESW';
-
-// Props and NPCs stand against a side of their tile (`side: 'N'|'E'|'S'|'W'`), at
-// most one per side, and never block the tile. Seen from a player facing `dir`, a
-// side is the far, right, near or left side of the tile.
-const ANCHOR_BY_TURN = ['far', 'right', 'near', 'left'];
-const anchorOf = (side, dir) => ANCHOR_BY_TURN[(DIR_KEYS.indexOf(side) - dir + 4) % 4];
-
-// A level's cells, as the renderer, movement, the map and the creatures see them: { wall, door? } | { entities?, door? }
-// | {} | null. The map is fixed; what stands on it comes from the world, so doors and spawned things count at once.
-export function cellLookup(world, id, { level, tileTypes }) {
-  const rows = level.tiles;
-  return (x, z) => {
-    if (z < 0 || z >= rows.length || x < 0 || x >= rows[0].length) return null;
-    const t = tileTypes[rows[z][x]];
-    if (!t) return null;
-    if (t.wall) return { wall: t.art };
-    const things = world.at(id, x, z);
-    const door = things.find(i => i.category === 'door') ?? null;
-    if (door && !(door.isOpen?.() ?? door.state.open)) return { wall: door.art, door };
-    const entities = things.filter(i => i.category === 'prop' || i.category === 'npc');
-    return entities.length ? { entities, door } : door ? { door } : {};
-  };
-}
+// The rules (the hero, the world, fights, items, saving) are a session (session.js); this file draws it, loads its
+// art and turns input into session calls. The simulation (engine/sim/) drives the same session without a screen.
 
 // Start a campaign. `levels` maps level ids to level definitions (see levels.js) and `start` is the id of the first one;
 // `content` is the campaign's own content book (or a list of them), added to the engine's (see content/catalog.js).
@@ -91,11 +63,9 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   if (!Object.hasOwn(levels, start)) throw new Error(`The start level "${start}" is not one of the levels`);
   if (!Object.hasOwn(levels, respawn.level)) throw new Error(`The respawn level "${respawn.level}" is not one of the levels`);
   const definitions = Object.fromEntries(Object.entries(levels).map(([id, def]) => [id, resolveLevel(id, def, books)]));
-  // Every placed and spawned thing, as instances with saved state (world.js). Levels are created when first needed.
-  const world = createWorld({ levels: definitions, books });
-  for (const def of Object.values(itemDefs)) { const use = itemUse(def); if (use) def.use = use; } // data { hp, mp } -> restore()
   // Saves. The URL can ask for a fresh start in a slot (?new, ?slot=name) or a particular level (?level=, which plays
-  // without saving so a debugging jump never overwrites a real save).
+  // without saving so a debugging jump never overwrites a real save). ?seed=<n> makes chance repeatable (combat, loot,
+  // creatures' wandering), for reproducing what a bot found.
   const params = new URLSearchParams(location.search);
   const policy = { ...defaultAutosave, ...autosave };
   let store = storage;
@@ -135,15 +105,27 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const savedLevel = peek(saved, 'engine.player')?.levelId;
   if (saved && !Object.hasOwn(definitions, savedLevel)) saved = null; // that level no longer exists: start over in this slot
   const asked = params.get('level');
-  let levelId = saved ? savedLevel : asked && Object.hasOwn(definitions, asked) ? asked : start;
-  const explorations = createExplorationStore();
+  const firstLevel = saved ? savedLevel : asked && Object.hasOwn(definitions, asked) ? asked : start;
+  const random = params.has('seed') ? createRng(params.get('seed')) : () => Math.random();
+  // The rules. Its hooks are where the screen takes part: a level's art loads before the player arrives there.
+  const session = createSession({ levels: definitions, start, books, startingItems, respawn, inventorySize, heroAttributes,
+    heroAttackMs, creation, persist, level: firstLevel, random, clock: () => performance.now(),
+    hooks: {
+      travel: (exit, options) => travel(exit, options),
+      ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
+      openContainer: box => bars.openContainer(box),
+      canTarget: target => !!comp.target(target.id),
+    } });
+  const { world, hero, inventory, equipment, flags, persistence, messages, api, player: p } = session;
+  let levelId = session.levelId;
+  const say = text => session.say(text);
   const cache = new Map();
   async function prepare(id) {
     if (!Object.hasOwn(definitions, id)) throw new Error(`Unknown level: ${id}`);
     if (!cache.has(id)) {
       const job = (async () => {
         const def = definitions[id], view = createView(def.level.view);
-        world.level(id);
+        const rules = session.contextOf(id);
         const art = artOf(id), loaded = new Set();
         const images = await loadSlotImages(view, { environment: def.environment, ...art });
         for (const thing of [...art.walls, ...art.props, ...art.actors]) loaded.add(thing.art);
@@ -152,11 +134,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
           view.wallSlots.some(slot => !images.has(`walls:${art}:${slot.id}`))))) {
           throw new Error('The dungeon artwork could not be loaded. Please try again.');
         }
-        const cell = cellLookup(world, id, def);
-        const exploration = createExploration(def.level, cell);
-        explorations.attach(id, exploration);
-        const sim = createMonsters(def.level, cell, Math.random, { list: () => world.all(id, 'monster'), move: world.move });
-        return { ...def, id, view, images, loaded, cell, comp: createCompositor(view, images), exploration, monsters: sim };
+        return { ...rules, view, images, loaded, comp: createCompositor(view, images) };
       })();
       cache.set(id, job);
       job.catch(() => cache.delete(id));
@@ -187,8 +165,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   let { view, images, cell, comp, exploration, monsters } = active;
   const { W, H } = view.V;
   const SHOWN = view.V.pixel ?? 1;
-  let transitioning = false, dead = false, loading = false, drawnVersion = world.version;
-  let monsterDue = performance.now() + monsters.graceMs;
+  let transitioning = false, loading = false;
+  const isDead = () => session.dead;
 
   // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
   // (320x180 for the default 640x360 view), and shown scaled up with nearest-neighbour sampling (the canvas
@@ -223,88 +201,21 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     'ui/portrait-hero': { image: portraitWindow(uiLayout) },
   }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
 
-  const p = { ...level.start, steps: 0 };
   let sceneInput = null;
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
-  const messages = []; // every message said, kept for the journal's message log
 
-  // Items: the pack, containers (made the first time they are opened, so what is in them is rolled once) and
-  // piles of things the player dropped, keyed by level and tile.
-  checkItems(itemDefs);
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the icon atlas or the campaign's icon sheets`);
-  const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
-  const equipment = createEquipment(itemDefs);
-  const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs, name: creation?.name });
-  if (creation) { hero.build(creation.spent); hero.restore(); }
-  const containers = new Map(); // `level:x,z,side` -> stacks of opened containers
-  const piles = new Map(); // `level:x,z` -> stacks the player dropped
-  const flags = createFlags(); // the game's own facts (dialogue, quests): saved with the game
-  // A container is named in saves by its `id` (stable when the level is edited), or else by where it stands.
-  const containerKey = entity => `${levelId}:${entity.id ?? `${entity.x},${entity.z},${entity.side}`}`;
-  const pileKey = () => `${levelId}:${p.x},${p.z}`;
-  function openContainer(entity, behavior = {}) {
-    const key = containerKey(entity);
-    if (!containers.has(key)) containers.set(key, resolveContents(behavior, (list, id, qty) => addToStacks(itemDefs, list, id, qty)));
-    bars.openContainer({ title: behavior.title ?? entity.name ?? 'Container', text: behavior.text, stacks: containers.get(key) });
-  }
-  function openPile() {
-    const stacks = piles.get(pileKey());
-    if (!stacks?.length) return false;
-    bars.openContainer({ title: 'On the floor', text: 'Things lie here where they were dropped.', stacks });
-    return true;
-  }
-  // Using an item from the pack: its definition's use(game, stack) (see rules/behaviours.js). It returns
-  // { consumed, message }: a consumed item is used up, the message is shown in the satchel.
-  function useItem(index) {
-    const stack = inventory.slots[index], def = stack && itemDefs[stack.id];
-    if (!def?.use) return { message: 'Nothing happens.' };
-    const result = def.use.call(def, api, stack) ?? {};
-    if (result.consumed && inventory.slots[index]?.id === stack.id) inventory.remove(index, 1);
-    drawHud();
-    return { message: result.message ?? '' };
-  }
-  // Drink the first potion in the pack that restores `kind` ('hp' or 'mp'), without opening the satchel.
-  function quickUse(kind) {
-    const index = inventory.slots.findIndex(stack => stack && itemDefs[stack.id].use?.restores?.[kind]);
-    if (index < 0) { say(`You have no ${kind === 'hp' ? 'health' : 'mana'} potion.`); return; }
-    useItem(index);
-  }
-  function drop(index, qty) {
-    const gone = inventory.remove(index, qty);
-    if (!gone) return;
-    const pile = piles.get(pileKey()) ?? [];
-    piles.set(pileKey(), pile);
-    addToStacks(itemDefs, pile, gone.id, gone.qty);
-  }
-  // Saving. Every component that has state to keep registers a section with the persistence registry (persistence.js);
-  // the game adds its own. The player saves from the settings panel; a game may also set an `autosave` policy. Never while dead or between levels.
-  const persistence = createPersistence();
-  persistence.engine.register(world.persistence); // first: the player's level opens with its things already restored
-  persistence.engine.register({
-    id: 'player', // where the hero stands. The level itself was chosen above, from this same data.
-    save: () => ({ levelId, x: p.x, z: p.z, dir: p.dir }),
-    async load(at, ctx) {
-      // Loading while playing may mean another level: go there first (the same way an exit does).
-      if (at && at.levelId !== levelId && Object.hasOwn(definitions, at.levelId) && !(await travel({ to: at.levelId, spawn: { x: at.x, z: at.z, dir: at.dir } }))) throw new Error('the saved level could not be opened');
-      const floor = at && at.levelId === levelId && cell(at.x, at.z);
-      if (floor && !floor.wall && Number.isInteger(at.dir)) Object.assign(p, { x: at.x, z: at.z, dir: ((at.dir % 4) + 4) % 4 });
-      else ctx.issue('the saved position is not on this level');
-    },
-  });
-  for (const part of [inventory, equipment, hero, explorations]) persistence.engine.register(part.persistence);
-  persistence.engine.register(stacksPersistence('containers', itemDefs, containers));
-  persistence.engine.register(stacksPersistence('piles', itemDefs, piles));
-  persistence.game.register(flags.persistence);
-  for (const section of typeof persist === 'function' ? persist({ flags, hero, inventory, equipment, itemDefs, say: text => say(text) }) : persist) persistence.game.register(section);
+  const { useItem: use, quickUse: quick, drop } = session;
+  const useItem = index => { const result = use(index); drawHud(); return result; };
+  const quickUse = kind => { quick(kind); drawHud(); };
   if (saved) {
-    const { issues } = await persistence.restore(saved);
+    const { issues } = await session.load(saved); // the level's things, as saved
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
-    await ensureArt(active); monsters.reset(); // the level's things, as saved
   }
   let lastSaved = saved ? persistence.digest(persistence.snapshot()) : '', saveWarned = false;
   function save() {
-    if (!persistent || dead || transitioning || loading) return true;
+    if (!persistent || isDead() || transitioning || loading) return true;
     try {
       const snapshot = persistence.snapshot({ label: `${hero.name} · ${level.shortName ?? level.name}` });
       if (persistence.digest(snapshot) === lastSaved) return true;
@@ -332,7 +243,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -348,44 +259,14 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     const x = (ev.clientX - r.left) * panelImage.width / r.width, y = (ev.clientY - r.top) * panelImage.height / r.height;
     return hotspots.find(({ rect: [rx, ry, rw, rh] }) => x >= rx && x < rx + rw && y >= ry && y < ry + rh);
   };
-  uiCanvas.addEventListener('click', ev => { if (!dead && !transitioning) hotspotAt(ev)?.run(); });
+  uiCanvas.addEventListener('click', ev => { if (!isDead() && !transitioning) hotspotAt(ev)?.run(); });
   uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
   const gameOver = createGameOver(frame, { place: respawn.place });
 
-  // The game API: what content methods get as `game` (see rules/behaviours.js and docs/engine/behaviour.md). Instances
-  // are found by level and key; spawn and respawn resolve once the thing's art is loaded, if its level is being played.
-  const liveMonster = inst => inst.category === 'monster' && !inst.state.dead;
-  async function arrive(inst) {
-    world.changed();
-    const context = cache.has(inst.level) ? await cache.get(inst.level).catch(() => null) : null;
-    if (context) await ensureArt(context);
-    if (inst.level === levelId && liveMonster(inst)) monsters.add(inst);
-    world.changed();
-  }
-  const api = {
-    say: text => say(text), flags, hero, inventory, equipment, items: itemDefs,
-    get level() { return levelId; },
-    get player() { return { x: p.x, z: p.z, dir: p.dir }; },
-    find: (level, key) => world.find(level, key),
-    all: (level = levelId, category) => world.all(level, category),
-    at: (level, x, z) => world.at(level, x, z),
-    async spawn(kind, at) { const inst = world.spawn(kind, { level: levelId, ...at }); await arrive(inst); return inst; },
-    remove(inst) {
-      if (inst.category === 'monster' && inst.level === levelId) monsters.drop(inst);
-      return world.remove(inst);
-    },
-    async respawn(inst, key) { const it = world.respawn(inst, key); if (it) await arrive(it); return it; },
-    openContainer: (entity, spec) => openContainer(entity, spec),
-    changed: () => world.changed(),
-    isHere: inst => inst.level === levelId,
-    // Is the player or a living creature on this instance's tile (a door must not shut on them)?
-    blocked: inst => (inst.level === levelId && p.x === inst.x && p.z === inst.z) || world.at(inst.level, inst.x, inst.z).some(liveMonster),
-    travel: (to, spawn) => travel({ to, spawn }),
-  };
-  window.__game2d = { view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame,
+  window.__game2d = { view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session,
     get targets() { return comp.targets(); },
-    get phase() { return dead ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
-  document.addEventListener('visibilitychange', () => { monsterDue = performance.now() + monsters.stepMs; });
+    get phase() { return isDead() ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
+  document.addEventListener('visibilitychange', () => session.delayMonsters(monsters.stepMs));
 
   // Log: messages over the bottom-left of the view, fading out.
   const LOG_LINES = 4, LOG_PITCH = FONT.h + 1, LOG_PAD = 2;
@@ -406,44 +287,25 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     }
     return line ? [...lines, line] : lines;
   }
-  function say(text) {
+  session.on('message', ({ text }) => {
     bars.notice(text);
-    messages.push(text);
-    if (messages.length > 100) messages.shift();
     const t = performance.now();
     for (const line of wrap(text)) log.push({ text: line, t });
     while (log.length > LOG_LINES) log.shift();
-  }
+  });
+  const look = () => session.look();
 
-  // The cell `d` ahead and `l` to the right of the player, with its props placed
-  // relative to the player's facing (what view.compose expects).
+  // The cell `d` ahead and `l` to the right of the player as view.compose expects it: the session's, with its creatures
+  // laid out to be drawn.
   const relCell = (l, d) => {
-    const [fx, fz] = DIRS[p.dir], [rx, rz] = DIRS[(p.dir + 1) % 4];
-    const c = cell(p.x + fx * d + rx * l, p.z + fz * d + rz * l);
+    const c = session.relCell(l, d);
     if (!c || c.wall) return c;
-    const x = p.x + fx * d + rx * l, z = p.z + fz * d + rz * l;
     return {
-      props: (c.entities ?? []).map(e => ({ ...flat(e), type: e.prop, anchor: anchorOf(e.side, p.dir), entity: e })),
-      actors: arrangeActors(monsters.at(x, z).map(actor => ({ ...flat(actor), direction: actorDirection(actor.dir, p.dir),
+      props: c.props,
+      actors: arrangeActors(c.monsters.map(actor => ({ ...flat(actor), direction: actorDirection(actor.dir, p.dir),
         animation: monsters.animation(actor, performance.now()) }))),
     };
   };
-
-  // Say what the player is looking at: whatever stands against the far side of this
-  // tile, or against the near or far side of the tile ahead.
-  const exitAhead = () => levels && level.exits?.find(exit => exit.x === p.x && exit.z === p.z && exit.dir === p.dir);
-
-  function look() {
-    const exit = exitAhead();
-    if (exit?.message) { say(exit.message); return; }
-    if (piles.get(pileKey())?.length) say('Something lies on the floor here.');
-    for (const d of [0, 1]) for (const pr of relCell(0, d)?.props ?? []) {
-      const name = pr.entity.name;
-      if (!name) continue;
-      if (d === 0 && pr.anchor === 'far') say(`You stand before ${name}.`);
-      if (d === 1 && (pr.anchor === 'far' || pr.anchor === 'near')) say(`You see ${name}.`);
-    }
-  }
 
   function render(target) {
     const tg = target.getContext('2d');
@@ -475,15 +337,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   // A swipe let go of early settles back in `release`. At most one of the three is set.
   let anim = null, drag = null, release = null;
 
-  // The state a command would lead to, or null when a wall is in the way.
-  function plan(cmd) {
-    if (cmd === 'left' || cmd === 'right') return { ...p, dir: (p.dir + (cmd === 'left' ? 3 : 1)) % 4 };
-    const off = { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd];
-    const [dx, dz] = DIRS[(p.dir + off) % 4];
-    const c = cell(p.x + dx, p.z + dz);
-    if (!c || c.wall || monsters.occupied(p.x + dx, p.z + dz)) return null;
-    return { ...p, x: p.x + dx, z: p.z + dz, steps: p.steps + 1 };
-  }
+  const plan = cmd => session.plan(cmd);
 
   // The view the player would see in `st`, drawn without moving them. Kept per command while a swipe lasts.
   const peeks = new Map();
@@ -504,7 +358,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   }
 
   function onSwipe(phase, cmd, amount) {
-    if (phase !== 'move' || bars.isOpen() || transitioning || loading || dead) { settleDrag(); return; }
+    if (phase !== 'move' || bars.isOpen() || transitioning || loading || isDead()) { settleDrag(); return; }
     anim = null; release = null; // the picture in `next` is the settled one; start from it
     if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
     else drag.amount = amount;
@@ -569,24 +423,10 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
       const landing = destination.cell(spawn.x, spawn.z);
       if (!landing || landing.wall) throw new Error('The destination has no safe landing.');
       await ensureArt(destination);
-      level.onExit?.(api);
-      active = destination; levelId = exit.to;
-      ({ level, props, view, images, cell, comp, exploration, monsters } = active);
-      // The living creatures go back to their places, whole; the dead stay dead.
-      if (respawn) {
-        await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
-        hero.restore();
-      } else monsters.reset();
-      monsterDue = performance.now() + monsters.graceMs;
-      Object.assign(p, spawn, { steps: 0 });
-      Object.assign(window.__game2d, { levelId, level, view, images, monsters });
-      peeks.clear(); peekKey = '';
-      bars.setLevel(level);
-      document.title = `${level.shortName ?? level.name} · ${title}`;
-      log.length = 0; logKey = '';
-      show(); say(`You enter ${level.shortName ?? level.name}.`); look();
+      // The session moves the player; the 'level' event (below) switches what is drawn before the arrival is said.
+      arriving = destination;
+      session.enter(exit.to, spawn, { respawn });
       transitioning = false;
-      level.onEnter?.(api);
       if (policy.onLevelChange) save();
       return true;
     } catch (error) {
@@ -598,6 +438,19 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     }
   }
 
+  // The player is on another level: draw it.
+  let arriving = null;
+  session.on('level', () => {
+    active = arriving ?? active; arriving = null; levelId = session.levelId;
+    ({ level, props, view, images, cell, comp, exploration, monsters } = active);
+    Object.assign(window.__game2d, { levelId, level, view, images, monsters });
+    peeks.clear(); peekKey = '';
+    bars.setLevel(level);
+    document.title = `${level.shortName ?? level.name} · ${title}`;
+    log.length = 0; logKey = '';
+    show();
+  });
+
   // Load a snapshot while playing: the saved level opens, every component is restored, creatures start over.
   // `respawn` also heals the hero (coming back from death). Returns false, and plays on, when it cannot.
   async function loadGame(snapshot, { respawn = false } = {}) {
@@ -607,13 +460,9 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     sceneInput?.cancel(); touch.cancel();
     anim = drag = release = null;
     try {
-      const { issues } = await persistence.restore(snapshot);
+      const { issues } = await session.load(snapshot, { respawn });
       for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
       if (issues.some(issue => issue.section === 'engine.player' && issue.problem === 'failed')) return false;
-      await ensureArt(active);
-      await Promise.all([...cache.values()].map(job => job.then(context => context.monsters.reset()).catch(() => {})));
-      if (respawn) hero.restore();
-      monsterDue = performance.now() + monsters.graceMs; swing.reset();
       peeks.clear(); peekKey = ''; log.length = 0; logKey = '';
       bars.setLevel(level); show(); look();
       return true;
@@ -621,60 +470,44 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     finally { loading = false; }
   }
 
+  // Death (the session says when): the defeat screen, then the hero wakes, healed, at the respawn point (by default the
+  // start of the first level); the creatures start over. Nothing is saved.
   async function die() {
-    if (dead || transitioning) return;
-    dead = true; anim = drag = release = null;
+    anim = drag = release = null;
     sceneInput?.cancel(); touch.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
-    hero.hp = 0; swing.reset(); peeks.clear(); peekKey = ''; show();
-    // Death returns the hero, healed, to the respawn point (by default the start of the first level); the creatures start over. Nothing is saved.
+    peeks.clear(); peekKey = ''; show();
     let retry = false;
-    while (dead) {
+    while (session.dead) {
       await gameOver.wait(retry);
-      if (await travel({ to: respawn.level, spawn: respawn.spawn ?? definitions[respawn.level].level.start }, { respawn: true })) {
-        dead = false; gameOver.close(); say(respawn.message ?? 'You awaken, safe once more.');
-        return;
-      }
+      if (await session.revive()) { gameOver.close(); return; }
       retry = true;
     }
   }
+  session.on('death', () => { void die(); });
 
-  // Fighting. The hero swings at the creature on the tile they face (or share), then waits out a cooldown. Hits and
-  // misses show as floating text; creatures play data-driven combat clips (see monsters.js).
-  const swing = createCooldown(hero.attackMs), floaters = [];
+  // Fighting (the rules are the session's). Hits and misses show as floating text; creatures play data-driven combat
+  // clips (see monsters.js).
+  const floaters = [];
   let hurtFlash = 0;
   const float = (text, color, x = cw / 2, y = ch * .42) => floaters.push({ text, color, x, y, t0: performance.now() });
   function attack(targetId = null) {
-    if (dead || transitioning || loading || bars.isOpen() || document.hidden) return false;
-    const now = performance.now(), [dx, dz] = DIRS[p.dir];
-    const target = targetId ? monsters.actors.find(a => a.id === targetId && a.hp > 0 && !a.dyingUntil)
-      : monsters.adjacent(p).find(a => (a.x === p.x && a.z === p.z) || (a.x === p.x + dx && a.z === p.z + dz));
-    if (targetId && (!target || !comp.target(targetId))) return false;
-    if (targetId && Math.abs(target.x - p.x) + Math.abs(target.z - p.z) > 1) { say('Step closer to attack.'); return false; }
-    if (!swing.ready(now)) return true;
-    swing.use(now);
-    if (!target) { say('You swing at the empty air.'); return false; }
-    const rect = comp.target(target.id)?.rect;
+    if (isDead() || transitioning || loading || bars.isOpen() || document.hidden) return false;
+    const result = session.attack(targetId);
+    if (result.waiting) return true;
+    if (!result.ok) return false;
+    const { target } = result, rect = comp.target(target.id)?.rect;
     const fx = rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2;
     const fy = rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42;
-    monsters.face(target, p);
-    const result = strike(hero, target);
-    if (!result.hit) { say(`You miss the ${target.name}.`); float('Miss', '#d8d0c0', fx, fy); }
-    else {
-      say(`You hit the ${target.name} for ${result.damage}.`); float(`-${result.damage}`, '#ffe08a', fx, fy);
-      if (monsters.damage(target, result.damage, now)) { say(`The ${target.name} dies.`); target.onDeath?.(api); }
-    }
+    if (!result.hit) float('Miss', '#d8d0c0', fx, fy); else float(`-${result.damage}`, '#ffe08a', fx, fy);
     peeks.clear(); peekKey = ''; render(next);
     return target.hp > 0;
   }
-
-  function struckBy(actor, now) {
-    const result = strike(actor, hero);
-    if (!result.hit) { say(`The ${actor.name} misses you.`); float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
-    hero.hp = Math.max(0, hero.hp - result.damage); hurtFlash = now + 300;
-    say(`The ${actor.name} ${actor.verb ?? 'hits'} you for ${result.damage}.`); float(`-${result.damage}`, '#ff6a5a', cw / 2, ch * .8);
+  // A creature's blow, as the session dealt it.
+  function struckBy({ hit, damage }, now) {
+    if (!hit) { float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
+    hurtFlash = now + 300; float(`-${damage}`, '#ff6a5a', cw / 2, ch * .8);
     drawHud();
-    if (hero.hp <= 0) void die();
   }
   function drawEffects(now) {
     if (hurtFlash > now) { g.fillStyle = `rgba(190,20,20,${.4 * (hurtFlash - now) / 300})`; g.fillRect(0, 0, cw, ch); }
@@ -686,26 +519,14 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   }
 
   function act(cmd) {
-    if (bars.isOpen() || transitioning || loading || dead) return;
+    if (bars.isOpen() || transitioning || loading || isDead()) return;
     if (cmd === 'attack') { attack(); return; }
-    if (cmd === 'interact') {
-      const [dx, dz] = DIRS[p.dir];
-      interact(relCell, { say, game: api, exit: exitAhead(), door: cell(p.x + dx, p.z + dz)?.door ?? null, pile: openPile });
-      return;
-    }
+    if (cmd === 'interact') { session.interact(); return; }
     sceneInput?.cancel();
-    const exit = cmd === 'forward' && exitAhead();
-    if (exit) { void travel(exit); return; }
-    const st = plan(cmd);
-    if (!st) {
-      const [dx, dz] = DIRS[(p.dir + { forward: 0, strafeRight: 1, back: 2, strafeLeft: 3 }[cmd]) % 4];
-      const door = cell(p.x + dx, p.z + dz)?.door;
-      say(monsters.occupied(p.x + dx, p.z + dz) ? 'A creature blocks your way.' : door ? (door.state.locked ? 'The door is locked.' : 'The door is shut.') : 'You bump into a wall.');
-      settleDrag(); return;
-    }
-    Object.assign(p, st);
-    show(cmd);
-    look();
+    // The session moves the player and says what they see; the picture is shown before that is said.
+    const result = session.move(cmd, { before: () => show(cmd) });
+    if (result.exit) { void travel(result.exit); return; }
+    if (result.blocked) settleDrag();
   }
 
   const keymap = {
@@ -721,7 +542,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   sceneInput = createSceneInput(viewCanvas, {
     hit: (x, y) => { const r = viewCanvas.getBoundingClientRect(); return comp.hitAt((x - r.left) * W / r.width, (y - r.top) * H / r.height); },
     getTarget: id => comp.target(id),
-    blocked: () => dead || transitioning || loading || bars.isOpen() || document.hidden || !!(anim || drag || release),
+    blocked: () => isDead() || transitioning || loading || bars.isOpen() || document.hidden || !!(anim || drag || release),
     attack, interact: target => interactTarget(target, { say, game: api }),
     changed: () => render(next), cancelGesture: () => touch.cancel(),
   });
@@ -732,9 +553,9 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     }
     if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
     if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void bars.menu.fullscreen(); return; }
-    if (ev.code === 'KeyJ' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.journal(); return; } // the journal, like I for the satchel
-    if (ev.code === 'KeyI' && !ev.repeat && !dead && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
-    if (dead || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (ev.code === 'KeyJ' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.journal(); return; } // the journal, like I for the satchel
+    if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
+    if (isDead() || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }
     if (ev.code === 'Digit1') { ev.preventDefault(); if (!ev.repeat) quickUse('hp'); return; }
@@ -789,35 +610,15 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   resize();
 
   document.title = `${level.shortName ?? level.name} · ${title}`;
-  monsterDue = performance.now() + monsters.graceMs;
-  say(saved ? `Welcome back, ${hero.name}.` : `Welcome to ${level.name}, ${hero.name}.`);
-  world.setApi(api); // instances made so far get their onCreate (a new game's first level)
-  level.onEnter?.(api);
+  session.begin({ loaded: !!saved }); // instances made so far get their onCreate (a new game's first level), the level its onEnter
   if (!saved && (policy.intervalMs || policy.onHidden || policy.onLevelChange)) save(); // with autosave on, a new game is written at once
   show();
   look();
 
   function updateMonsters(now) {
-    if (dead || transitioning || loading || bars.isOpen() || document.hidden) {
-      monsterDue = now + monsters.stepMs; monsters.freeze(now); return;
-    }
-    monsters.resume(now);
-    const gone = monsters.reap(now);
-    for (const actor of gone) if (actor.spawned) world.remove(actor); // a spawned creature that died is gone for good
-    let changed = gone.length > 0 || world.version !== drawnVersion;
-    drawnVersion = world.version;
-    if (monsters.actors.length && now >= monsterDue) {
-      monsterDue = now + monsters.stepMs;
-      const version = monsters.version;
-      monsters.step(p, now);
-      changed ||= version !== monsters.version;
-    }
-    if (monsters.actors.length && now >= monsterDue - monsters.stepMs) {
-      const version = monsters.version;
-      for (const actor of monsters.engage(p, now)) struckBy(actor, now);
-      changed ||= version !== monsters.version;
-    }
-    changed = monsters.updateAnimations(now) || changed;
+    const paused = isDead() || transitioning || loading || bars.isOpen() || document.hidden;
+    const { changed, struck } = session.update(now, { paused });
+    for (const blow of struck) struckBy(blow, now);
     if (changed) {
       // Update moving creatures without interrupting a player's current motion.
       peeks.clear(); peekKey = ''; render(next);
