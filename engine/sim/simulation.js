@@ -187,6 +187,12 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     },
     // Drink the first potion that restores 'hp' or 'mp'.
     quaff(kind = 'hp') { return act(speed.use, () => { const r = session.quickUse(kind); return r ? { ok: true, ...r } : { ok: false, reason: 'no-potion' }; }); },
+    // The quick bar (rules/quickbar.js): what is in each slot (null for an empty one), put something in a slot
+    // ({ kind: 'item' | 'spell', id }), empty one, and press one: use the item, wear the weapon, cast the spell at what is ahead.
+    quickbar: () => session.quickView(),
+    setQuick: (slot, ref) => ({ ok: session.quickSet(slot, ref) }),
+    clearQuick: slot => ({ ok: session.quickClear(slot) }),
+    quick: slot => act(speed.use, () => session.quickActivate(slot)),
     equip(item, slot = null) {
       const index = stackIndex(item);
       if (index < 0 || !inventory.slots[index]) return { ok: false, reason: 'no-item' };

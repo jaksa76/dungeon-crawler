@@ -13,7 +13,7 @@ import { actorDirection } from '../rules/monsters.js';
 import { createGameOver } from '../ui/game-over.js';
 import { interactTarget } from '../rules/interaction.js';
 import { flat } from './world.js';
-import { withIcons, panelOverlay } from '../ui/panel-icons.js';
+import { withIcons, panelOverlay, quickSlotAt } from '../ui/panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { HEAD_X } from '../ui/head.js';
 import { deriveStats, FISTS } from '../rules/combat.js';
@@ -205,16 +205,16 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const ui = createUI(uiCanvas, {
     'ui/panel': { image: panelImage },
     'ui/portrait-hero': { image: portraitWindow(uiLayout) },
-  }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons) });
+  }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons, { quick: () => session.quickView(), hot: () => quickHot, colourOf: type => books.damageTypes[type]?.colour ?? '#ffffff', font: FONT }) });
+  let quickHot = -1; // the quick slot a drag is over, lit on the desktop panel
 
   let sceneInput = null;
   const opts = { outlines: false };
   const heldKeys = new Set(), blockedKeys = new Set();
 
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the icon atlas or the campaign's icon sheets`);
-  const { useItem: use, quickUse: quick, drop } = session;
+  const { useItem: use, drop } = session;
   const useItem = index => { const result = use(index); drawHud(); return result; };
-  const quickUse = kind => { quick(kind); drawHud(); };
   if (saved) {
     const { issues } = await session.load(saved); // the level's things, as saved
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
@@ -249,7 +249,25 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
+  // The quick bar as the screens use it (ui/quickbar-hud.js). Pressing a spell casts it the way the Cast button does.
+  const uiPoint = ev => { const r = uiCanvas.getBoundingClientRect(); return [(ev.clientX - r.left) * panelImage.width / r.width, (ev.clientY - r.top) * panelImage.height / r.height]; };
+  const quickBar = {
+    size: session.quickbar.size, view: () => session.quickView(),
+    set: (i, ref) => { const ok = session.quickSet(i, ref); drawHud(); return ok; },
+    clear: i => { const ok = session.quickClear(i); drawHud(); return ok; },
+    swap: (a, b) => { const ok = session.quickSwap(a, b); drawHud(); return ok; },
+    activate(i) {
+      if (isDead() || transitioning || loading || bars.isOpen() || document.hidden) return null;
+      const result = session.quickActivate(i, id => castSpell(id));
+      if (!result.ok && result.reason === 'empty') say('An empty slot. Drag an item or a spell here.');
+      drawHud(); return result;
+    },
+    describe: i => session.quickDescribe(i),
+    // the desktop panel: which slot a client point is over, and lighting one
+    canvasSlotAt: (x, y) => { const r = uiCanvas.getBoundingClientRect(); if (x < r.left || x > r.right || y < r.top || y > r.bottom) return -1; return quickSlotAt(...uiPoint({ clientX: x, clientY: y })); },
+    setHot: i => { if (i !== quickHot) { quickHot = i; drawHud(); } },
+  };
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
     onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, help,
     magic: Object.keys(books.spells).length ? {
       available: true, spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
@@ -266,7 +284,6 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     { label: 'Character', rect: uiLayout.portrait, run: () => bars.menu.character() },
     ...[['Journal', 2, 'journal'], ['Inventory', 3, 'inventory'], ['Full screen', 4, 'fullscreen'], ['Settings', 5, 'settings']]
       .map(([label, i, name]) => ({ label, rect: [545 + i * 99, 20, 99, 92], run: () => bars.menu[name]() })),
-    ...bars.items.map(([label, text, , use], i) => ({ label, rect: [545 + i * 76, 130, 76, 76], run: () => (use ? quickUse(use) : bars.open(label, text)) })),
   ];
   const hotspotAt = ev => {
     const r = uiCanvas.getBoundingClientRect();
@@ -274,7 +291,15 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     return hotspots.find(({ rect: [rx, ry, rw, rh] }) => x >= rx && x < rx + rw && y >= ry && y < ry + rh);
   };
   uiCanvas.addEventListener('click', ev => { if (!isDead() && !transitioning) hotspotAt(ev)?.run(); });
-  uiCanvas.addEventListener('mousemove', ev => { const h = hotspotAt(ev); uiCanvas.style.cursor = h ? 'pointer' : ''; uiCanvas.title = h?.label ?? ''; });
+  // The quick slots of the painted panel: press, hold and drag like the phone's buttons (ui/quickbar-hud.js).
+  const slotUnder = ev => quickSlotAt(...uiPoint(ev));
+  uiCanvas.addEventListener('pointerdown', ev => { const i = slotUnder(ev); if (i >= 0 && !isDead() && !transitioning) bars.quick.press(ev, i); });
+  uiCanvas.addEventListener('contextmenu', ev => { const i = slotUnder(ev); if (i >= 0) { ev.preventDefault(); const d = session.quickDescribe(i); if (d) say(`${d.name}: ${d.text}`); } });
+  uiCanvas.addEventListener('mousemove', ev => {
+    const h = hotspotAt(ev), i = slotUnder(ev), v = i >= 0 ? session.quickView()[i] : null;
+    uiCanvas.style.cursor = h || i >= 0 ? 'pointer' : '';
+    uiCanvas.title = i >= 0 ? `${i + 1}${v ? `: ${v.name}` : ': empty slot'}` : h?.label ?? '';
+  });
   const gameOver = createGameOver(frame, { place: respawn.place });
 
   window.__game2d = { view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session,
@@ -594,8 +619,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     if (ev.code === 'KeyC' && !ev.repeat && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); act('cast'); return; } // the ready spell
     if (ev.code === 'KeyB' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && Object.keys(books.spells).length) { ev.preventDefault(); bars.menu.spells(); return; } // the spell book
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }
-    if (ev.code === 'Digit1') { ev.preventDefault(); if (!ev.repeat) quickUse('hp'); return; }
-    if (ev.code === 'Digit2') { ev.preventDefault(); if (!ev.repeat) quickUse('mp'); return; }
+    if (/^Digit[1-9]$/.test(ev.code) && +ev.code.slice(5) <= quickBar.size) { ev.preventDefault(); if (!ev.repeat) quickBar.activate(+ev.code.slice(5) - 1); return; } // the quick bar
     if (ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
     if (ev.code === 'KeyL') { ev.preventDefault(); bars.openLog(); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
@@ -663,8 +687,13 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     }
   }
 
+  // The quick bar changes with the pack, the mana and the spells' cooldowns, so the panel is redrawn when it does.
+  let quickSig = '';
+  const quickSignature = () => session.quickView().map(v => (v ? `${v.id}|${v.count ?? ''}|${v.reason ?? ''}|${Math.round(v.cooldown * 20) || ''}|${v.worn ? 1 : 0}` : '')).join(',') + quickHot;
   function loop(now) {
     updateMonsters(now);
+    const sig = quickSignature();
+    if (sig !== quickSig) { quickSig = sig; drawHud(now); }
     sceneInput.update(now);
     if (mapFrom) drawHud(now);
     if (drag) {

@@ -97,4 +97,4 @@ creatures still win.
 ## Not yet
 
 Effects shown on the targeted creature, the spell list showing what a spell would do to the creature in front, spells
-that creatures cast, and spells on the quick bar (M8.2).
+that creatures cast. (Spells on the quick bar: see [quickbar.md](quickbar.md).)

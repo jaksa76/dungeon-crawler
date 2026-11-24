@@ -1,7 +1,7 @@
 # Demo two mobile interface
 
 The 2D demo keeps its original canvas HUD on desktop. On phones it uses a
-separate DOM dashboard: character and quick items on the left, map and menus
+separate DOM dashboard: character and the quick bar on the left, map and menus
 on the right, with movement and turning controls within thumb reach. Portrait
 stacks these panels below the scene. The scene retains its original aspect ratio.
 
@@ -30,11 +30,11 @@ fractional scale (needs Playwright and Chromium).
 - Step/strafe with the movement pad; turn with the curved arrows. Hold a
   movement button to repeat, or drag the scene: down moves forward, up moves
   backward, left turns right, and right turns left.
-- The four quick items show descriptions only. The Bag opens the real pack (a grid of stacks you can
+- The quick bar has six slots here (eight on the desktop panel): tap to use, press and hold to read about one, drag to move it, swap it or take it off. See [quickbar.md](quickbar.md). The Bag opens the real pack (a grid of stacks you can
   drop); see [inventory.md](inventory.md).
 - Journal describes the current exploration demo and has a Message log button. The minimap is always on screen.
 - **Use** (above the turn buttons; **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
-- On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the first four quick items are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine/ui/panel-icons.js`).
+- On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the eight quick slots (drawn over the panel, see [quickbar.md](quickbar.md)) are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine/ui/panel-icons.js`).
 - On desktop, full screen (the panel's full screen icon, **F**, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
 - Settings has buttons for the Save, Load and Help screens, a cache-free reload, and slot outlines. Full screen has its own button. The portrait (on the rail, or in the painted panel) and **P** open the character screen; **H** opens help. See [screens.md](screens.md).
 - Ravensmoor's eastern village door connects to the Undercrypt; see

@@ -204,6 +204,18 @@ html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) .rpg-locatio
 .rpg-slots, .rpg-menus { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
 .rpg-slots button, .rpg-menus button { min-width: 44px; min-height: 44px; padding: 0; border: calc(var(--rpg-px, 2) * 1px) solid #5e4538; background: #100e10; }
 .rpg-slots canvas, .rpg-menus canvas { display: block; margin: 0 auto; image-rendering: pixelated; pointer-events: none; }
+/* The quick bar: six slots on a phone. A slot is a button holding a picture, a count or mana cost (b) and a shade (i)
+   that drains upwards while a spell cools down. Press, hold and drag are handled in ui/quickbar-hud.js. */
+.rpg-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2px; } /* six slots, two rows of three: a rail is narrow and the screen short */
+.rpg-slots button { position: relative; overflow: hidden; touch-action: none; user-select: none; -webkit-touch-callout: none; aspect-ratio: 1; }
+.rpg-slots button.empty { border-style: dashed; border-color: #43332b; }
+.rpg-slots button.unusable canvas { opacity: .4; }
+.rpg-slots button.worn { border-color: #d8a840; }
+.rpg-slots button.drop-target { border-color: #ffe0a0; background: #4a3522; }
+.rpg-slots button b { position: absolute; right: calc(var(--rpg-px, 2) * 1px); bottom: 0; font: calc(8px * var(--rpg-px, 2)) / 1 'RPG Pixel', monospace; color: #fff3db; text-shadow: calc(var(--rpg-px, 2) * 1px) calc(var(--rpg-px, 2) * 1px) #000; pointer-events: none; }
+.rpg-slots button b.mana { color: #7ab0ff; }
+.rpg-slots button b.short { color: #e87a7a; }
+.rpg-slots button i.cd { position: absolute; left: 0; right: 0; top: 0; height: 0; background: rgba(8, 6, 12, .65); pointer-events: none; }
 .rpg-map { display: block; margin: 0 auto; image-rendering: pixelated; background: #100e10; border: calc(var(--rpg-px, 2) * 1px) solid #6d5139; }
 .rpg-ui .tp button, .rpg-ui .tp-fs { border-radius: 0; color: #efd7aa; }
 .rpg-ui .tp button.down { background-color: #664426; }
@@ -230,7 +242,7 @@ html.rpg-ui[data-layout="portrait"] .rpg-rail { border-width: 5px; padding: 10px
 html.rpg-ui[data-layout="portrait"] .rpg-character { flex-direction: column; gap: 10px; }
 html.rpg-ui[data-layout="portrait"] .rpg-rail-title { display: block; margin: 0 0 5px; text-align: center; font: 16px 'RPG Pixel', monospace; letter-spacing: 0; color: #d6b47f; }
 html.rpg-ui[data-layout="portrait"] .rpg-icon-label { display: block; padding: 4px 0; font: 12px/1.34 'RPG Pixel', monospace; color: #dbc29b; }
-html.rpg-ui[data-layout="portrait"] .rpg-slots { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 5px; }
+html.rpg-ui[data-layout="portrait"] .rpg-slots { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
 html.rpg-ui[data-layout="portrait"] .rpg-slots button { min-width: 0; min-height: 44px; }
 html.rpg-ui[data-layout="portrait"] .rpg-controls { grid-column: 1 / -1; align-self: end; padding-bottom: env(safe-area-inset-bottom); }
 html.rpg-ui[data-layout="portrait"] .tp { --b: clamp(48px, 14vw, 64px); margin: 0; padding: 12px; border-top: 1px solid #715036; background: #181415; }

@@ -155,12 +155,12 @@ test('every icon is true 16x16 pixel art, stored enlarged 4x so the atlas tiles 
 });
 
 test('the atlas image is as large as its manifest says, and the panel and HUD use icons that exist', async () => {
-  const { MENU_ICONS, QUICK_ICONS } = await import('../../engine/ui/panel-icons.js').catch(() => ({}));
+  const { MENU_ICONS } = await import('../../engine/ui/panel-icons.js').catch(() => ({}));
   const header = fs.readFileSync(new URL('atlas.png', iconDir));
   const width = header.readUInt32BE(16), height = header.readUInt32BE(20);
   assert.equal(width, atlas.cols * atlas.size);
   assert.equal(height, Math.ceil(Object.keys(atlas.icons).length / atlas.cols) * atlas.size);
-  if (MENU_ICONS) for (const id of [...MENU_ICONS, ...QUICK_ICONS]) assert.ok(atlas.icons[id] !== undefined, id);
+  if (MENU_ICONS) for (const id of MENU_ICONS) assert.ok(atlas.icons[id] !== undefined, id);
 });
 
 test('the detailed icon set has the same 144 ids as the pixel set, none of them pixel art', () => {

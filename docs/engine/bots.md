@@ -70,6 +70,7 @@ an action the rules forbid returns `{ ok: false, reason }` and never throws.
 | `interact()`, `talk()` | 250 ms | Use on what is faced; `{ ok, container }` when a container opened |
 | `container()`, `take(i)`, `takeAll()` | 200 ms | the open container's stacks; take one stack or all |
 | `use(itemOrSlot)`, `quaff('hp' \| 'mp')` | 400 ms | use an item; drink the first potion that restores hp or mp |
+| `quick(slot)` | 400 ms | press a quick bar slot: use, wear or cast what it names. `quickbar()` reads the slots, `setQuick(slot, { kind: 'item' \| 'spell', id })` and `clearQuick(slot)` change them (see [quickbar.md](quickbar.md)) |
 | `equip(itemOrSlot, slot?)`, `unequip(slot)` | 600 ms | |
 | `drop(itemOrSlot, qty?)` | 200 ms | onto the floor here |
 | `wait(ms)` | `ms` | |

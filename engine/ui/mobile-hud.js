@@ -4,7 +4,7 @@ import { pixelSkin } from './pixel-skin.js';
 import { reloadFresh } from '../core/reload.js';
 import { takeStack, takeAll } from '../rules/inventory.js';
 import { HEAD_X } from './head.js';
-import { QUICK_ICONS } from './panel-icons.js';
+import { createQuickHud, dragGesture, SHOWN_SMALL } from './quickbar-hud.js';
 import { TIER_NAMES } from './icons.js';
 import { renderCharacter } from './character-screen.js';
 import { renderHelp } from './help-screen.js';
@@ -19,7 +19,7 @@ const BAG_BACKGROUND = '../assets/ui/inventory-bg.png';
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
 // and returns { message } (or null). saves: the settings panel's save and load (null hides them):
 // { max, current(), list() -> [{ slot, savedAt, label }], save(slot) -> bool, load(slot) -> Promise<bool> }.
-export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {}, saves = null,
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, saves = null,
   // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing
   // a pack item would change (session.wouldChange), and `damageTypes` names the damage types.
   onEquip = (index, slot) => equipment.equip(inventory, index, slot), onUnequip = (slot, toIndex) => equipment.unequip(inventory, slot, toIndex),
@@ -29,6 +29,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   // Magic (null when the game has no spells): { spells() -> [{ id, name, icon, cost, magicType, ready, description }], cast(id), setReady(id),
   // ready() -> id, effects() -> [{ id, name, tier, left, harmful, magicType }] }.
   magic = null,
+  // The quick bar (null: none): { size, view(), set(i, ref), clear(i), swap(a, b), activate(i), describe(i), canvasSlotAt(x, y), setHot(i) }
+  // (see ui/quickbar-hud.js). `canvasSlotAt` and `setHot` are for the desktop panel, which draws its own slots.
+  quick = null,
   // The game's own sections of the help screen: [{ title, text }] (ui/help-screen.js).
   help = [] }) {
   const sheet = document.createElement('link');
@@ -124,23 +127,12 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     button.append(c); button.addEventListener('click', handler); target.append(button);
     return button;
   }
-  const items = [
-    ['Sword', 'A trusty steel blade, ready for the road.', QUICK_ICONS[0]],
-    ['Shield', 'A round shield with a worn wooden face.', QUICK_ICONS[1]],
-    ['Health potion', 'A small vial of red tonic. Your health is already full.', QUICK_ICONS[2], 'hp'],
-    ['Mana potion', 'A small vial of blue tonic. Your mana is already full.', QUICK_ICONS[3], 'mp'],
-  ];
   const slots = document.createElement('div'); slots.className = 'rpg-slots';
-  slots.setAttribute('aria-label', 'Quick items');
+  slots.setAttribute('aria-label', 'Quick bar');
   function caption(button, text) {
     const label = document.createElement('span'); label.className = 'rpg-icon-label'; label.textContent = text; button.append(label);
   }
-  // The potions drink straight away (without opening a menu, so they work in a fight); the rest read a line.
-  for (const [label, text, icon, use] of items) {
-    const button = iconButton(label, icon, slots, () => (use ? onQuick(use) : open(label, text)));
-    caption(button, label.replace(' potion', ''));
-  }
-  left.append(slots);
+  if (quick) left.append(slots);
   const mapTitle = document.createElement('h2'); mapTitle.className = 'rpg-rail-title'; mapTitle.textContent = ''; right.append(mapTitle);
   const map = document.createElement('canvas'); map.className = 'rpg-map';
   let lastState = null; // the minimap is redrawn from it whenever its resolution changes
@@ -160,6 +152,8 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     return c;
   }
   const itemIcon = (id, size) => itemIconCanvas(itemDefs[id].icon, size, outlineOf(itemDefs[id]));
+  // The quick bar's buttons (on a phone; the desktop panel draws its own, in game.js).
+  const quickHud = quick ? createQuickHud({ quick, container: slots, iconCanvas: itemIconCanvas, say, colourOf: type => damageTypes[type]?.colour ?? '#ffffff' }) : null;
   const stackLabel = ({ id, qty }) => `${itemDefs[id].name}${qty > 1 ? ` x${qty}` : ''}`;
   const paragraph = (text, className = '') => { const p = document.createElement('p'); p.className = className; p.textContent = text; return p; };
   const textButton = (label, handler) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', handler); return b; };
@@ -256,7 +250,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const def = stack ? itemDefs[stack.id] : worn ? itemDefs[worn] : null;
     const text = make('div', 'rpg-detail-text');
     if (!def) {
-      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, or onto the figure to wear them.'),
+      text.append(make('h3', '', 'Nothing selected'), make('p', '', 'Select an item to read about it. Drag items to rearrange them, onto the figure to wear them, or onto the quick bar.'),
         make('p', '', `Damage ${hero.damage[0]}–${hero.damage[1]}${hero.damageType ? ` ${typeName(hero.damageType)}` : ''}, defence ${hero.defence}.`));
       if (hero.progress) text.append(...characterSheet());
     } else {
@@ -270,9 +264,16 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     }
     if (note) text.append(make('p', 'rpg-note', note));
     detail.append(text);
+    // A button to put the item on the quick bar (or take it off): only for what is used or worn.
+    const quickButton = () => {
+      if (!quickHud || !def || !(def.use || def.slot)) return null;
+      const ref = { kind: 'item', id: stack?.id ?? worn };
+      return textButton(quickHud.has(ref) ? 'Off quick bar' : 'Quick bar', () => { const line = quickHud.toggle(ref, def.name); say(line); openInventory(line); });
+    };
     if (worn) {
       const actions = make('div', 'rpg-actions');
       actions.append(textButton('Take off', () => { const r = onUnequip(selectedGear); if (r.ok) { selectedGear = null; say(r.message); } openInventory(r.message); }));
+      const qb = quickButton(); if (qb) actions.append(qb);
       detail.append(actions);
     } else if (stack) {
       const actions = make('div', 'rpg-actions');
@@ -285,6 +286,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       if (def.use || !def.slot) actions.append(use);
       actions.append(textButton(stack.qty > 1 ? 'Drop one' : 'Drop', () => dropIt(1)));
       if (stack.qty > 1) actions.append(textButton('Drop all', () => dropIt(stack.qty)));
+      const qb = quickButton(); if (qb) actions.append(qb);
       detail.append(actions);
     }
   }
@@ -315,6 +317,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       drag.ghost.style.transform = `translate(${e.clientX - drag.ghost.clientWidth / 2}px, ${e.clientY - drag.ghost.clientHeight / 2}px)`;
       const over = cellAt(e.clientX, e.clientY);
       if (over !== drag.over) { drag.over?.classList.remove('drop-target'); over?.classList.add('drop-target'); drag.over = over; }
+      quickHud?.hover(quickHud.slotAt(e.clientX, e.clientY)); // the quick bar takes items that can be used or worn
     });
     const finish = (e, cancelled) => {
       if (!drag || e.pointerId !== drag.id) return;
@@ -323,7 +326,13 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       ghost.remove(); ignoreClick = true;
       const target = cancelled ? null : cellAt(e.clientX, e.clientY);
       let note = '';
-      if (target && target !== cell) {
+      const quickSlot = cancelled || !quickHud ? null : quickHud.slotAt(e.clientX, e.clientY);
+      quickHud?.hover(null);
+      if (quickSlot !== null) { // dropped on a quick slot: it stands for the item; nothing moves
+        const id = held(cell)?.id ?? held(cell), name = itemDefs[id]?.name ?? 'That';
+        note = quick.set(quickSlot, { kind: 'item', id }) ? `${name} is on the quick bar, slot ${quickSlot + 1}.` : `${name} cannot go on the quick bar.`;
+        say(note);
+      } else if (target && target !== cell) {
         if (cell.dataset.slot && target.dataset.slot) { if (inventory.move(+cell.dataset.slot, +target.dataset.slot)) { selected = +target.dataset.slot; selectedGear = null; } }
         else if (cell.dataset.slot) { // pack -> equipment slot
           const r = onEquip(+cell.dataset.slot, target.dataset.equip);
@@ -407,6 +416,20 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       const readyIt = textButton(spell.id === magic.ready() ? 'Ready' : 'Make ready', () => { magic.setReady(spell.id); openSpells(); });
       readyIt.disabled = spell.id === magic.ready();
       actions.append(castIt, readyIt);
+      if (quickHud) {
+        const ref = { kind: 'spell', id: spell.id };
+        actions.append(textButton(quickHud.has(ref) ? 'Off quick bar' : 'Quick bar', () => { const line = quickHud.toggle(ref, spell.name); say(line); openSpells(line); }));
+        // The picture can be dragged onto a quick slot.
+        icon.style.touchAction = 'none'; icon.style.cursor = 'grab';
+        icon.addEventListener('pointerdown', e => {
+          if (e.button > 0) return;
+          dragGesture(e, {
+            makeGhost: () => quickHud.ghostFor({ kind: 'spell', icon: spell.icon ?? 'spell', magicType: spell.magicType }),
+            over: quickHud.slotAt, onHover: now => quickHud.hover(now),
+            onDrop: slot => { if (slot === null) return; const line = quick.set(slot, ref) ? `${spell.name} is on the quick bar, slot ${slot + 1}.` : `${spell.name} cannot go on the quick bar.`; say(line); openSpells(line); },
+          });
+        });
+      }
       li.append(icon, text, actions); list.append(li);
     }
     body.append(list);
@@ -511,6 +534,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       }
     }
     lastState = state;
+    quickHud?.refresh();
     // The minimap's resolution follows its on-screen size (see addArt): 56 logical pixels when large.
     const n = map.width, g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, n, n);
     // Zoomed in: about 6 cells across. tileX/tileZ may be fractional while the map slides to a new position.
@@ -537,7 +561,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
   const menu = { character: toggle('character', openCharacter), help: toggle('help', openHelp), saves: () => openSaves('save'), spells: magic ? toggle('spells', openSpells) : () => {}, journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
-  return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
+  return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, quick: quickHud, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
     setView(height, pixel) {
       frame.style.setProperty('--rpg-view-h', height);
@@ -550,6 +574,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     openSpells, openCharacter, openHelp, notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
     isOpen: () => !menuPanel.hidden,
     setLayout(mode, width) {
+      quickHud?.setShown(mode === 'desktop' ? Infinity : SHOWN_SMALL);
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));
       document.documentElement.style.setProperty('--rpg-rail', `${rail}px`);
       return mode === 'landscape' ? left.getBoundingClientRect().width : 0;

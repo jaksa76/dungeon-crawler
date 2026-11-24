@@ -1,34 +1,60 @@
-// The painted bottom panel has six menu icons, each in a bronze-framed cell, and a row of eight quick-item slots,
-// with their pictures baked in. This returns a copy of the panel image with those cells and slots painted over
+// The painted bottom panel has six menu icons, each in a bronze-framed cell, and a strip for the quick bar (eight slots),
+// with their pictures baked in. This returns a copy of the panel image with those cells and the strip painted over
 // (frames and all, so the icons sit directly on the panel's stone), and `panelOverlay` draws the pixel-art icons
-// on top, crisply, at the desktop panel's own resolution. (The phone buttons draw their icons from the atlas.)
+// and the quick bar on top, crisply, at the desktop panel's own resolution. (The phone buttons draw their icons from the atlas.)
+import { drawText } from './bitmapfont.js';
 
 // Icon ids, by position on the panel: attack, spell, journal, bag, full screen, settings.
 export const MENU_ICONS = ['attack', 'spell', 'journal', 'bag', 'fullscreen', 'settings'];
-// The quick-item row: sword, shield, red potion, blue potion, torch, scroll, crystal, key.
-export const QUICK_ICONS = ['short-sword', 'round-shield', 'health-potion', 'mana-potion', 'torch', 'scroll', 'violet-crystal', 'iron-key'];
 
 // Where things are in the painting, in panel-image pixels, measured from it (the menu cells are not quite evenly
 // spaced). Menu cells: [left, right] of each frame's outer rim; their frames run from y 27 to 101.
 const MENU_CELLS = [[547, 631], [646, 730], [744, 830], [846, 931], [946, 1037], [1051, 1137]];
 const MENU_TOP = 23, MENU_BOTTOM = 105, MENU_CENTRE_Y = 64;
-// The quick row is a strip with slot dividers; its inside runs x 545 to 1149, y 126 to 209, centred on x 847.
-const QUICK_LEFT = 545, QUICK_RIGHT = 1150, QUICK_TOP = 126, QUICK_BOTTOM = 210, QUICK_CENTRE = [847, 167.5];
-const QUICK_PITCH = 17; // canvas pixels between icons: eight 16-pixel icons with a 1-pixel gap fit the strip
+// The quick row is a strip; its inside runs x 545 to 1149, y 126 to 209. It is repainted bare and the slots are drawn
+// over it, eight to the strip.
+const QUICK_LEFT = 545, QUICK_RIGHT = 1150, QUICK_TOP = 126, QUICK_BOTTOM = 210, QUICK_CENTRE_Y = 167.5;
+const QUICK_COUNT = 8, QUICK_CELL = (QUICK_RIGHT - QUICK_LEFT) / QUICK_COUNT; // a slot's width in the panel image's pixels
+
+// The quick slot under a point given in panel-image pixels, or -1.
+export function quickSlotAt(x, y) {
+  if (x < QUICK_LEFT || x >= QUICK_RIGHT || y < QUICK_TOP || y >= QUICK_BOTTOM) return -1;
+  return Math.floor((x - QUICK_LEFT) / QUICK_CELL);
+}
 const STONE = [25, 18, 29]; // the panel's dark stone: its mean colour
 
 const cellCentre = i => (MENU_CELLS[i][0] + MENU_CELLS[i][1]) / 2;
 
-// Draws the pixel-art icons. Pass it to createUI as `overlay`; `s` is canvas pixels per panel-image pixel.
-export function panelOverlay(icons) {
+// Draws the pixel-art icons and the quick bar. Pass it to createUI as `overlay`; `s` is canvas pixels per panel-image pixel.
+// `quick()` returns the bar as the session sees it (session.quickView(): null or { icon, count, usable, worn, cost, cooldown,
+// enchant, magicType, kind } for each slot), `hot()` the slot a drag is over (or -1), `colourOf(type)` a magic type's colour,
+// and `font` is the bitmap font for the numbers.
+export function panelOverlay(icons, { quick = () => [], hot = () => -1, colourOf = () => '#ffffff', font = null } = {}) {
   return (g, s) => {
     MENU_ICONS.forEach((id, i) => {
       const n = icons.native(id);
       if (!n) return;
       icons.draw(g, id, Math.round(cellCentre(i) * s - n / 2), Math.round(MENU_CENTRE_Y * s - n / 2), n, n);
     });
-    const first = Math.round(QUICK_CENTRE[0] * s - (QUICK_ICONS.length * QUICK_PITCH - 1) / 2), top = Math.round(QUICK_CENTRE[1] * s - 8);
-    QUICK_ICONS.forEach((id, i) => { if (icons.native(id)) icons.draw(g, id, first + i * QUICK_PITCH, top, icons.native(id), icons.native(id)); });
+    const slots = quick(), over = hot();
+    const size = 16, top = Math.round(QUICK_CENTRE_Y * s - size / 2);
+    for (let i = 0; i < QUICK_COUNT; i++) {
+      const left = Math.round((QUICK_LEFT + (i + 0.5) * QUICK_CELL) * s - size / 2), v = slots[i] ?? null;
+      g.fillStyle = '#0e0b10'; g.fillRect(left, top, size, size); // the slot's well
+      g.fillStyle = over === i ? '#ffe0a0' : v?.worn ? '#d8a840' : '#43332b'; // its rim: lit while a drag is over it, gold for what is worn
+      g.fillRect(left, top, size, 1); g.fillRect(left, top + size - 1, size, 1); g.fillRect(left, top, 1, size); g.fillRect(left + size - 1, top, 1, size);
+      if (!v) continue;
+      const outline = v.kind === 'spell' ? { colour: colourOf(v.magicType), tier: 2 } : v.enchant ? { colour: colourOf(v.enchant.type), tier: v.enchant.tier ?? 1 } : null;
+      g.save();
+      g.beginPath(); g.rect(left + 1, top + 1, size - 2, size - 2); g.clip();
+      if (!v.usable && !v.worn) g.globalAlpha = 0.4;
+      icons.draw(g, v.icon, left, top, size, size, outline);
+      g.restore();
+      if (v.cooldown > 0) { g.fillStyle = 'rgba(8,6,12,0.65)'; g.fillRect(left + 1, top + 1, size - 2, Math.ceil((size - 2) * v.cooldown)); } // a spell cooling down: the shade drains upwards
+      if (!font) continue;
+      const number = v.kind === 'spell' ? String(v.cost) : v.count > 1 || (v.count === 0 && !v.worn) ? String(v.count) : '';
+      if (number) drawText(g, font, number, left + size - 1, top + size - font.h, v.kind === 'spell' ? (v.reason === 'mana' ? '#d86a6a' : '#7ab0ff') : v.count === 0 ? '#d86a6a' : '#fff3db', { outline: '#140c10', align: 'right' });
+    }
   };
 }
 
@@ -56,6 +82,5 @@ export function withIcons(image, icons) {
 
   // Painted (not pixel-art) icons are drawn here, smoothly; pixel-art icons are drawn crisply by panelOverlay.
   MENU_ICONS.forEach((id, i) => { if (!icons.native(id)) icons.draw(g, id, cellCentre(i) - 29, MENU_CENTRE_Y - 29, 58, 58); });
-  QUICK_ICONS.forEach((id, i) => { if (!icons.native(id)) icons.draw(g, id, QUICK_LEFT + 8 + i * 76, QUICK_CENTRE[1] - 30, 60, 60); });
   return c;
 }

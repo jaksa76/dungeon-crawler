@@ -46,7 +46,7 @@ Rules are in `engine/rules/combat.js` (pure numbers), wiring in `engine/core/gam
   every `attackMs`. Out of reach it starts over. It can attack from behind: turn to face it.
 - **Feedback.** Each creature plays idle, move, attack, hurt and dead clips. Corpses remain briefly after collapsing. Hovering or tapping outlines a target and shows its health; the screen flashes red when the hero is hit. See [animation and targeting](../engine/monster-animation.md).
 - **Pausing.** A menu, loading or a hidden tab pause the fight and restart every wind-up. Press **1** or **2**
-  (or tap a potion in the quick slots) to drink a health or mana potion without opening the satchel.
+  (or tap a potion on the quick bar) to drink a health or mana potion without opening the satchel.
 - A fight with the snake: unarmed it takes about six hits (its coils soften blunt blows), with the rusty sword four,
   with an iron one three; its bite does about 10, so a
   hero who never heals is beaten in about six bites and a potion is worth drinking.

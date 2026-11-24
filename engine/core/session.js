@@ -26,7 +26,8 @@ import { createEffects, tierValue } from '../rules/effects.js';
 import { spellDamage, spellHeal, spellRange, canLearn, isImmune, describeSpell } from '../rules/magic.js';
 import { createEquipment } from '../rules/equipment.js';
 import { createCharacter, strike, createCooldown, compareStats, statDelta, FISTS } from '../rules/combat.js';
-import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll } from '../rules/inventory.js';
+import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll, canonicalId } from '../rules/inventory.js';
+import { createQuickBar, QUICK_SLOTS } from '../rules/quickbar.js';
 import { resolveContents } from '../rules/loot.js';
 import { resolveLootRules, lootBudget, lootPool, generateLoot } from '../rules/generate-loot.js';
 import { createPersistence } from './persistence.js';
@@ -61,6 +62,7 @@ export const EVENTS = {
   pickup: '{ item, qty, from }: items went into the pack (from a container or pile)',
   drop: '{ item, qty }: items left the pack for the floor',
   use: '{ item, consumed, message }: an item was used from the pack',
+  quickbar: '{ slots }: the quick bar changed (slots: [null or { kind: "item" or "spell", id }])',
   equip: '{ item, slot, changes }: changes are words (rules/combat.js compareStats)', unequip: '{ item, slot, changes }',
   level: '{ from, to }: the player is on another level',
 };
@@ -91,7 +93,7 @@ export function cellLookup(world, id, { level, tileTypes }) {
 
 export function createSession({ levels: definitions, start, books, startingItems = [], respawn = { level: start },
   inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, unarmed = FISTS,
-  creation = null, persist = [], progression, loot: lootOptions, startingSpells = [], level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
+  creation = null, persist = [], progression, loot: lootOptions, startingSpells = [], quickSlots = QUICK_SLOTS, level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
   hooks = {} }) {
   const itemDefs = books.items;
   if (!Object.hasOwn(definitions, start)) throw new Error(`The start level "${start}" is not one of the levels`);
@@ -314,13 +316,13 @@ export function createSession({ levels: definitions, start, books, startingItems
     const stack = openBox.stacks[index];
     if (!stack) return 0;
     const id = stack.id, n = takeStack(inventory, openBox.stacks, index);
-    if (n) emit('pickup', { item: id, qty: n, from: openBox.from });
+    if (n) { emit('pickup', { item: id, qty: n, from: openBox.from }); quickFill({ kind: 'item', id }); }
     return n;
   }
   function takeEverything() {
     if (!openBox) return [];
     const taken = takeAll(inventory, openBox.stacks);
-    for (const { id, qty } of taken) emit('pickup', { item: id, qty, from: openBox.from });
+    for (const { id, qty } of taken) { emit('pickup', { item: id, qty, from: openBox.from }); quickFill({ kind: 'item', id }); }
     return taken;
   }
   // Wearing and taking off. The message says what that changes in a fight: "You equip the iron mace: damage 7–11
@@ -457,6 +459,58 @@ export function createSession({ levels: definitions, start, books, startingItems
     }
     return found;
   }
+  // The quick bar (rules/quickbar.js): slots that name an item or a spell. This is what each one stands for right now.
+  const quickbar = createQuickBar({ size: quickSlots, itemDefs, spells: books.spells, canonical: id => canonicalId(itemDefs, id) });
+  const quickChanged = () => emit('quickbar', { slots: quickbar.slots });
+  // A potion picked up, or a spell learned, takes the first free slot (once: see quickbar.js).
+  function quickFill(ref) {
+    if (ref.kind === 'item' && !itemDefs[ref.id]?.use?.restores) return;
+    if (quickbar.autoFill(ref) >= 0) quickChanged();
+  }
+  // Fill an empty bar from what the hero has: health potions, then mana potions, then the other potions, then the spells.
+  // A new game, and a save from before the bar existed, start this way.
+  function quickSeed() {
+    const potions = [...new Set(inventory.slots.filter(Boolean).map(s => s.id))].filter(id => itemDefs[id].use?.restores);
+    const rank = id => (itemDefs[id].use.restores.hp ? 0 : itemDefs[id].use.restores.mp ? 1 : 2);
+    for (const id of potions.sort((a, b) => rank(a) - rank(b))) quickbar.autoFill({ kind: 'item', id });
+    for (const id of known) quickbar.autoFill({ kind: 'spell', id });
+  }
+  // One slot as the screen draws it: what it is, how many there are, and whether it can be used now. null for an empty slot.
+  // (Cheap: the screen asks every frame. `quickDescribe` has the long text.)
+  function quickSlotView(i) {
+    const ref = quickbar.get(i);
+    if (!ref) return null;
+    if (ref.kind === 'spell') {
+      const spell = books.spells[ref.id], isKnown = known.has(ref.id), total = spell.cooldown ?? 0, left = Math.max(0, (spellReadyAt.get(ref.id) ?? 0) - clock());
+      const reason = !isKnown ? 'unknown' : left > 0 ? 'cooldown' : hero.mp < spell.cost ? 'mana' : null;
+      return { ...ref, name: spell.name, icon: spell.icon ?? 'spell', magicType: spell.magicType, cost: spell.cost, cooldown: total ? Math.min(1, left / total) : 0, usable: !reason, reason };
+    }
+    const def = itemDefs[ref.id], count = inventory.count(ref.id), worn = Object.values(equipment.worn).includes(ref.id);
+    return { ...ref, name: def.name, icon: def.icon, enchant: def.enchant ?? null, count, worn, usable: count > 0, reason: count > 0 ? null : worn ? 'worn' : 'none' };
+  }
+  // A slot's name and what it does, in words: { name, text } (null for an empty slot).
+  function quickDescribe(i) {
+    const view = quickSlotView(i);
+    if (!view) return null;
+    if (view.kind === 'item') return { name: view.name, text: itemDefs[view.id].description };
+    return { name: view.name, text: known.has(view.id) ? describeSpell(books.spells[view.id], { damageTypes: books.damageTypes, effects: books.effects, power: hero.spellPower }) : 'You no longer know this spell.' };
+  }
+  const quickView = () => Array.from({ length: quickbar.size }, (_, i) => quickSlotView(i));
+  // Press slot `i`: an item is used (or worn, if it is a weapon or armour), a spell is cast at what is ahead. { ok, ... } or { ok: false, reason }.
+  function quickActivate(i, cast = id => session.cast(id)) {
+    if (dead) return { ok: false, reason: 'dead' };
+    const view = quickSlotView(i);
+    if (!view) return { ok: false, reason: 'empty' };
+    if (view.kind === 'spell') return cast(view.id);
+    if (!view.count) {
+      say(view.worn ? `You are already using the ${view.name.toLowerCase()}.` : `You have no ${view.name.toLowerCase()}.`);
+      return { ok: false, reason: view.reason };
+    }
+    const index = inventory.slots.findIndex(s => s?.id === view.id);
+    if (itemDefs[view.id].use) return { ok: true, ...useItem(index) };
+    return equip(index);
+  }
+
   const spellList = () => [...known].map(id => ({ id, ...books.spells[id], ready: clock() >= (spellReadyAt.get(id) ?? 0), description: describeSpell(books.spells[id], { damageTypes: books.damageTypes, effects: books.effects, power: hero.spellPower }) }));
   // Learn a spell. Returns { ok, message, reason? } and says it.
   function learn(id) {
@@ -467,7 +521,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     if (!can.ok) { say(can.reason); return { ok: false, reason: 'requirements', message: can.reason }; }
     known.add(id); readySpell ??= id;
     const message = `You learn ${spell.name}.`;
-    say(message); emit('learn', { spell: id });
+    say(message); emit('learn', { spell: id }); quickFill({ kind: 'spell', id });
     return { ok: true, message };
   }
   // Cast a spell (by id; without one, the ready spell) at a creature in the line ahead (`targetId`, or the nearest). Returns
@@ -658,6 +712,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     },
     reset() { known.clear(); spellReadyAt.clear(); for (const id of startingSpells) known.add(id); readySpell = startingSpells[0] ?? null; heroFx.clear(); },
   });
+  persistence.engine.register({ ...quickbar.persistence, reset() { quickbar.persistence.reset(); quickSeed(); } }); // a save without a bar gets one from what the hero has
   persistence.engine.register(stacksPersistence('containers', itemDefs, containers));
   persistence.engine.register(stacksPersistence('piles', itemDefs, piles));
   persistence.game.register(flags.persistence);
@@ -687,6 +742,11 @@ export function createSession({ levels: definitions, start, books, startingItems
     books, itemDefs, definitions, world, hero, inventory, equipment, flags, persistence, containers, piles, messages, api,
     random, clock, swing, player: p, heroEffects: heroFx,
     get known() { return [...known]; },
+    quickbar, quickView, quickDescribe,
+    quickSet(i, ref) { const ok = quickbar.set(i, ref); if (ok) quickChanged(); return ok; },
+    quickClear(i) { const ok = quickbar.clear(i); if (ok) quickChanged(); return ok; },
+    quickSwap(a, b) { const ok = quickbar.swap(a, b); if (ok) quickChanged(); return ok; },
+    quickActivate,
     get readySpell() { return readySpell; },
     setReadySpell(id) { if (known.has(id)) readySpell = id; return readySpell; },
     spells: spellList,
@@ -702,5 +762,6 @@ export function createSession({ levels: definitions, start, books, startingItems
     emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend, learn, cast, applyEffect,
     attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
   };
+  quickSeed(); // a new game's bar, from the starting items and spells
   return session;
 }

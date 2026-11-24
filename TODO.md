@@ -210,21 +210,26 @@ See docs/engine/magic.md.
 *Needs M2 (items, consumables) and M8.1 (spells). A row of slots for what the player uses most, usable by key, click and tap.*
 
 **Engine**
-- [ ] Quick bar with a fixed number of slots (game-set, e.g. 6), always visible in the painted panel
-- [ ] Slot contents are a reference to an item (a potion stack, or any usable item) or to a known spell (M8.1); slots hold no items themselves, so inventory and saves stay `{id, qty}`
-- [ ] Placing: drag an item from the satchel or a spell from the spell list onto a slot; drag between slots to move or swap; drag off or a Clear button to remove; "Use" on an item or spell can offer "Add to quick bar"
-- [ ] Activating a slot: number keys 1–6, click or tap. An item is used; a spell is cast (on the faced target); a weapon or shield is equipped
-- [ ] Slot shows the icon, the stack count for items, the mana cost and a cooldown sweep for spells, and is greyed when unusable (empty stack, not enough mana, cooling down)
-- [ ] When a stack runs out the slot stays and refills if the same item is picked up again; if the item is gone for good the slot is emptied
-- [ ] Quick bar saved with the game (M4) as what the player chose, with a migration for old saves
-- [ ] Bot API (M6): read and set the quick bar, activate a slot
-- [ ] Mobile: the quick bar is part of the touch layout, with slots big enough to tap (at least 44 px), not covering the view or the movement controls, in portrait and landscape; a press-and-hold on a slot shows its name and description
-- [ ] Desktop and mobile show the same bar and the same behaviour (extends the parity rule of M4)
+- [x] Quick bar of 8 slots on desktop and 6 on mobile, set per layout by the game. The saved bar always has 8 entries; mobile shows the first 6 and the last two keep working by key if a keyboard is attached, so a save moves between devices without losing anything. Slots 1–6 are the ones that matter most.
+- [x] Slot contents are a reference to an item (a potion stack, or any usable item) or to a known spell (M8.1); slots hold no items themselves, so inventory and saves stay `{id, qty}`
+- [x] Assigning, one model on both platforms (docs/engine/quickbar.md):
+  - **Drag** an item (or worn item) from the satchel or a spell from the spell list onto a slot; drag between slots to swap; drag off the bar to remove. The bar stays visible while the satchel or spell list is open.
+  - **Quick bar** button on an item or spell: first free slot; the button then reads "Off quick bar".
+  - **Auto-fill**: the first potion picked up and the first spell learned go into the first free slot, once, unless the player cleared it by hand. A new game and a save from before the bar start filled from the pack and spells.
+- [ ] Picker: tap an empty slot to choose from a list of what can go there (not built: drag and the button cover it for now)
+- [x] Activating a slot: number keys 1–8, click or tap. An item is used; a spell is cast (on the faced target); a weapon or shield is equipped
+- [x] Slot shows the icon, the stack count for items, the mana cost and a cooldown sweep for spells, and is greyed when unusable (empty stack, not enough mana, cooling down)
+- [x] When a stack runs out the slot stays and refills if the same item is picked up again; if the item is gone for good the slot is emptied
+- [x] Quick bar saved with the game (M4) as what the player chose, with a migration for old saves
+- [x] Bot API (M6): read and set the quick bar, activate a slot
+- [x] Mobile: the bar is part of the touch layout, 6 slots at least 44 px each, not covering the view or the movement controls, in portrait and landscape; a press-and-hold on a slot shows its name and description (and the picker, see above)
+- [x] Desktop and mobile show the same bar and the same behaviour apart from the slot count (extends the parity rule of M4)
 
 **Game**
-- [ ] As a player, I want to drink a health potion mid-fight with one key or one tap.
-- [ ] As a player, I want to put my fire bolt on the bar and cast it without opening a menu.
-- [ ] As a player on a phone, I want the quick bar within thumb reach and never in the way of the view.
+- [x] As a player, I want to drink a health potion mid-fight with one key or one tap.
+- [x] As a player, I want to put my fire bolt on the bar and cast it without opening a menu.
+- [x] As a player, I want my first potion and my first spell to land on the bar by themselves.
+- [x] As a player on a phone, I want the quick bar within thumb reach and never in the way of the view.
 
 ## M9 — World map and travel
 
