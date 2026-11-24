@@ -60,10 +60,12 @@ export function renderCharacter(body, { hero, damageTypes = {}, onSpend = key =>
     bar.append(el('b', '', `Level ${level}`), meter, el('span', '', to === null ? `${xp} xp, the highest level` : `${xp} / ${to} xp`));
     main.append(bar);
 
-    const points = el('p', 'rpg-cs-points');
-    points.setAttribute('aria-live', 'polite');
-    points.textContent = hero.unspent === 0 ? 'No skill points to spend. You earn more with each level.'
-      : `${free} of ${hero.unspent} skill point${hero.unspent === 1 ? '' : 's'} to spend`;
+    // The points to spend, as pips like the ones in character creation: one per point earned, lit while it is still free.
+    const points = el('div', 'rpg-cs-points');
+    const pips = el('span', 'rpg-cs-pips'); pips.setAttribute('aria-hidden', 'true');
+    pips.append(...Array.from({ length: hero.unspent }, (_, i) => el('i', i < free ? 'is-free' : '')));
+    const left = el('span', 'rpg-cs-left', `${free} left`); left.setAttribute('aria-live', 'polite');
+    points.append(el('span', 'rpg-cs-caption', 'Points'), pips, left);
     main.append(points);
     const actionsSlot = el('div', 'rpg-cs-actions');
     main.append(actionsSlot);
@@ -83,12 +85,12 @@ export function renderCharacter(body, { hero, damageTypes = {}, onSpend = key =>
       list.append(li);
     }
     main.append(list);
-    const about = el('p', 'rpg-cs-about', focus ? ATTRIBUTES[focus]?.about ?? '' : 'Strength hits harder, vitality toughens, intellect deepens mana and spells, agility defends and aims.');
+    const about = el('p', 'rpg-cs-about', focus ? ATTRIBUTES[focus]?.about ?? '' : ''); // what an attribute does shows when it is hovered or focused
     main.append(about);
 
     if (hero.unspent > 0) {
       const actions = actionsSlot;
-      const apply = button(used() ? `Apply ${used()} point${used() === 1 ? '' : 's'}` : 'Apply', () => {
+      const apply = button('Apply', () => {
         let spent = 0;
         for (const key of Object.keys(pending)) for (let i = 0; i < pending[key]; i++) if (onSpend(key).ok) spent++;
         for (const key of Object.keys(pending)) pending[key] = 0;

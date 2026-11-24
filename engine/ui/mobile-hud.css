@@ -44,12 +44,18 @@
 .rpg-help-keys dd { margin: 0; }
 .rpg-cs { display: flex; gap: 14px; align-items: flex-start; }
 .rpg-cs-figure { margin: 0; flex: none; text-align: center; }
-.rpg-cs-figure img { display: block; width: 96px; height: 192px; image-rendering: pixelated; background: #0d0b10; border: 2px solid #5a4031; }
+/* The 48 x 96 sprite at four screen pixels per art pixel, so its pixels are as chunky as the frames and text around it; three where the screen is short. */
+.rpg-cs-figure img { display: block; width: 192px; height: 384px; image-rendering: pixelated; background: #0d0b10; border: 2px solid #5a4031; }
 .rpg-cs-figure figcaption { margin-top: 4px; color: #f0d070; }
 .rpg-cs-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .rpg-cs-xp { display: flex; align-items: center; gap: 8px; }
 .rpg-cs-xp meter { flex: 1; height: 12px; }
-.rpg-cs-points { margin: 0; color: #f1dfbe; }
+.rpg-cs-points { display: flex; align-items: center; gap: 10px; margin: 0; }
+.rpg-cs-caption { color: #c9b896; }
+.rpg-cs-pips { display: flex; flex-wrap: wrap; gap: 3px; }
+.rpg-cs-pips i { width: 12px; height: 12px; background: #2a211b; border: 2px solid #5a4330; box-sizing: border-box; }
+.rpg-cs-pips i.is-free { background: #f0d070; border-color: #fff0c8; }
+.rpg-cs-left { margin-left: auto; color: #f0d070; }
 .rpg-cs-attrs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
 .rpg-cs-attr { display: flex; align-items: center; gap: 6px; padding: 2px 4px; border: 1px solid transparent; }
 .rpg-cs-attr.is-active { border-color: #5a4031; }
@@ -69,7 +75,8 @@
 .rpg-cs-resist { margin: 0; color: #c9dc9a; }
 html[data-layout="portrait"] .rpg-cs { flex-direction: column; align-items: center; }
 html[data-layout="portrait"] .rpg-cs-main, html[data-layout="portrait"] .rpg-cs-side { width: 100%; }
-html[data-layout="portrait"] .rpg-cs-figure img { width: 72px; height: 144px; }
+@media (max-height: 760px) { .rpg-cs-figure img { width: 144px; height: 288px; } }
+html[data-layout="portrait"] .rpg-cs-figure img { width: 96px; height: 192px; }
 .rpg-effects { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 3px; font: 14px/1 'RPG Pixel', monospace; }
 .rpg-effects li { padding: 1px 4px; border: 1px solid var(--magic, #888); background: #1a1216; color: #f1dfbe; }
 .rpg-effects li.bad { color: #ffb0a0; }
