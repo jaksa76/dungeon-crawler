@@ -89,6 +89,11 @@ export function createMonsters(level, cell, random = Math.random) {
   const occupied = (x, z) => actors.some(actor => alive(actor) && actor.x === x && actor.z === z);
   // The living creature beside the player (or, for the player's own swing, on the tile they face), if any.
   const adjacent = player => actors.filter(actor => alive(actor) && apart(actor, player) <= 1);
+  // Turn a creature beside the player toward them (it fights face to face, and turns when struck from behind).
+  function face(actor, player) {
+    const d = DIRS.findIndex(([dx, dz]) => actor.x + dx === player.x && actor.z + dz === player.z);
+    if (d >= 0 && d !== actor.dir && alive(actor)) { actor.dir = d; version++; }
+  }
   // Who strikes now. A creature that has just come into reach winds up for 60% of its attack time first;
   // after each blow it waits attackMs. Out of reach, it forgets its wind-up. Returns the actors that strike.
   function engage(player, now) {
@@ -100,6 +105,7 @@ export function createMonsters(level, cell, random = Math.random) {
         if (animator.sample(actor, now).state === 'attack') animator.play(actor, 'idle', now, { force: true });
         continue;
       }
+      face(actor, player); // fight face to face, even a creature that was walking away
       if (actor.readyAt === null) actor.readyAt = now + Math.round(actor.attackMs * .6);
       const attack = clipFor(actor, 'attack'), lead = (attack.impactFrame ?? 2) * attack.frameMs;
       if (now >= actor.readyAt - lead) animator.play(actor, 'attack', actor.readyAt - lead);
@@ -145,7 +151,7 @@ export function createMonsters(level, cell, random = Math.random) {
     return changed;
   }
   reset();
-  return { actors, step, occupied, adjacent, engage, freeze, resume, damage, reap, animating, updateAnimations, reset,
+  return { actors, step, occupied, adjacent, engage, face, freeze, resume, damage, reap, animating, updateAnimations, reset,
     animation: (actor, now = lastNow) => animator.sample(actor, now), get version() { return version; },
     at: (x, z) => actors.filter(actor => actor.x === x && actor.z === z),
     stepMs: level.monsterStepMs ?? 1100, graceMs: level.monsterGraceMs ?? 3500 };

@@ -111,6 +111,11 @@ html[data-layout="portrait"] .rpg-detail .rpg-actions { height: auto; flex-direc
 .rpg-log li:first-child { color: #f1dfbe; }
 .rpg-log li { padding: 3px 0; color: #cdb99a; }
 .rpg-log li:first-child { color: #f1dfbe; }
+.rpg-dialog-body h3 { margin: 0 0 8px; font-size: inherit; color: #e8c688; }
+.rpg-saves { display: grid; gap: 6px; margin-bottom: 12px; }
+.rpg-save-row { display: flex; align-items: center; gap: 8px; }
+.rpg-save-row span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rpg-save-row.current span { color: #e8c688; }
 .rpg-debug { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .rpg-debug input { width: 22px; height: 22px; accent-color: #b48952; }
 html.rpg-ui:is([data-layout="portrait"], [data-layout="landscape"]) body {

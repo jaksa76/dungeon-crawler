@@ -1,7 +1,8 @@
 // When to save: the policy a game can set (`autosave` in the game options). `save` does the work and decides
 // whether anything changed. Level changes are saved by the caller (`onLevelChange`), because only it knows when
 // a change is complete. Returns a function that stops it.
-export const defaultAutosave = { intervalMs: 5000, onHidden: true, onLevelChange: true };
+// Off by default: saving is by hand from the settings panel (autosaving made death cost nothing). A game can turn it on.
+export const defaultAutosave = { intervalMs: 0, onHidden: false, onLevelChange: false };
 
 export function startAutosave(save, { intervalMs, onHidden }) {
   const timer = intervalMs ? setInterval(save, intervalMs) : null;

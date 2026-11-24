@@ -224,7 +224,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     addToStacks(itemDefs, pile, gone.id, gone.qty);
   }
   // Saving. Every component that has state to keep registers a section with the persistence registry (persistence.js);
-  // the game adds its own. The engine decides when to write (the `autosave` policy), never while dead or between levels.
+  // the game adds its own. The player saves from the settings panel; a game may also set an `autosave` policy. Never while dead or between levels.
   const persistence = createPersistence();
   persistence.engine.register({
     id: 'player', // where the hero stands. The level itself was chosen above, from this same data.
@@ -246,7 +246,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const { issues } = await persistence.restore(saved);
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
   }
-  let lastSaved = saved ? persistence.digest(persistence.snapshot()) : '', saveWarned = false; // a new game is written at once
+  let lastSaved = saved ? persistence.digest(persistence.snapshot()) : '', saveWarned = false;
   function save() {
     if (!persistent || dead || transitioning || loading) return true;
     try {
@@ -257,7 +257,17 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     if (!saveWarned) { saveWarned = true; say('Your progress could not be saved.'); }
     return false;
   }
-  if (persistent) startAutosave(save, policy);
+  if (persistent && (policy.intervalMs || policy.onHidden)) startAutosave(save, policy);
+  // Saving by hand (the settings panel) into any slot, and loading one while playing.
+  const saveMenu = persistent ? {
+    max: maxSlots, current: () => slot, list: () => saves.list(),
+    save(id) { const previous = slot; slot = id; lastSaved = ''; if (save()) return true; slot = previous; return false; },
+    async load(id) {
+      const snapshot = saves.load(id);
+      if (!snapshot || !(await loadGame(snapshot))) return false;
+      slot = id; lastSaved = persistence.digest(persistence.snapshot()); return true;
+    },
+  } : null;
   const world = {
     get name() { return level.shortName ?? level.name; },
     get journal() { return level.journal ?? 'Explore the surrounding streets and passages.'; },
@@ -266,7 +276,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem, onQuick: quickUse,
+  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say: text => say(text), drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
@@ -524,16 +534,12 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     sceneInput?.cancel(); touch.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
     hero.hp = 0; swing.reset(); peeks.clear(); peekKey = ''; show();
-    // Death returns to the last save of this slot; with none (or if it cannot be loaded) to the village.
-    const checkpoint = persistent ? saves.load(slot) : null;
+    // Death returns the hero, healed, to the village's starting point; the creatures start over. Nothing is saved.
     let retry = false;
     while (dead) {
-      const toSave = !!checkpoint && !retry;
-      await gameOver.wait(retry, toSave);
-      const returned = toSave ? await loadGame(checkpoint, { respawn: true })
-        : await travel({ to: 'village', spawn: definitions.village.level.start }, { respawn: true });
-      if (returned) {
-        dead = false; gameOver.close(); say(toSave ? 'You awaken at your last save.' : 'You awaken safely in the village.'); save();
+      await gameOver.wait(retry);
+      if (await travel({ to: 'village', spawn: definitions.village.level.start }, { respawn: true })) {
+        dead = false; gameOver.close(); say('You awaken safely in the village.');
         return;
       }
       retry = true;
@@ -558,6 +564,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
     const rect = comp.target(target.id)?.rect;
     const fx = rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2;
     const fy = rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42;
+    monsters.face(target, p);
     const result = strike(hero, target);
     if (!result.hit) { say(`You miss the ${target.name}.`); float('Miss', '#d8d0c0', fx, fy); }
     else {
@@ -685,7 +692,7 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
   document.title = `${level.shortName ?? level.name} · ${title}`;
   monsterDue = performance.now() + monsters.graceMs;
   say(saved ? `Welcome back, ${hero.name}.` : `Welcome to ${level.name}, ${hero.name}.`);
-  if (!saved) save();
+  if (!saved && (policy.intervalMs || policy.onHidden || policy.onLevelChange)) save(); // with autosave on, a new game is written at once
   show();
   look();
 
@@ -701,7 +708,11 @@ export async function startGame2d({ level, tileTypes, props, uiLayout, assetPath
       monsters.step(p, now);
       changed ||= version !== monsters.version;
     }
-    if (monsters.actors.length && now >= monsterDue - monsters.stepMs) for (const actor of monsters.engage(p, now)) struckBy(actor, now);
+    if (monsters.actors.length && now >= monsterDue - monsters.stepMs) {
+      const version = monsters.version;
+      for (const actor of monsters.engage(p, now)) struckBy(actor, now);
+      changed ||= version !== monsters.version;
+    }
     changed = monsters.updateAnimations(now) || changed;
     if (changed) {
       // Update moving creatures without interrupting a player's current motion.

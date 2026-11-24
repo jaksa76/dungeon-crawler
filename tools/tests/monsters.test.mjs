@@ -141,3 +141,15 @@ test('the snake has all sixteen exported direction and distance frames', () => {
   assert.equal(frames.size, 16);
   for (const direction of ['front', 'back', 'left', 'right']) for (let d = 0; d <= 3; d++) assert(frames.has(`${direction}-d${d}`));
 });
+
+test('a creature beside the player turns to face them when it fights or is struck', () => {
+  const monsters = fixture(['#####', '#...#', '#####'], { x: 2, z: 1, dir: 3 }); // facing west, away from the player
+  const actor = monsters.actors[0], player = { x: 3, z: 1 };
+  monsters.engage(player, 0);
+  assert.equal(actor.dir, 1);
+  actor.dir = 3;
+  monsters.face(actor, player);
+  assert.equal(actor.dir, 1);
+  monsters.face(actor, { x: 0, z: 0 }); // not beside: no turn
+  assert.equal(actor.dir, 1);
+});

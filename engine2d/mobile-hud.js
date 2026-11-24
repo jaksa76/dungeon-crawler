@@ -14,8 +14,9 @@ const BAG_BACKGROUND = './assets/inventory-bg.png';
 
 // icons: the icon atlas (see icons.js); inventory: the player's pack; itemDefs: item id -> definition; say: writes to the message log;
 // drop(slot, qty): puts items from the pack on the floor where the player stands; onUse(slot) uses an item
-// and returns { message } (or null).
-export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {} }) {
+// and returns { message } (or null). saves: the settings panel's save and load (null hides them):
+// { max, current(), list() -> [{ slot, savedAt, label }], save(slot) -> bool, load(slot) -> Promise<bool> }.
+export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, world, hero, frame, debug, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, onQuick = () => {}, saves = null }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -344,7 +345,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   }
   iconButton('Full screen', 'fullscreen', menus, toggleFullscreen);
   function openSettings() {
-    open('Controls', 'Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Tap a creature to attack; hold to keep attacking. Tap an object to use it, or use the Use button for what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.', 'settings');
+    open('Settings', null, 'settings');
+    if (saves) appendSaves();
+    const controlsHeading = document.createElement('h3'); controlsHeading.textContent = 'Controls';
+    body.append(controlsHeading, paragraph('Use the left pad to step and strafe, and the curved arrows to turn. Swipe the scene to move or turn. Step forward into a passage door to travel between levels. Tap a creature to attack; hold to keep attacking. Tap an object to use it, or use the Use button for what you face. Keyboard: W/S move, A/D strafe, Q/E turn, X or Enter attack, Space use, 1 drink a health potion, 2 a mana potion, F full screen, I inventory, L message log.'));
     const reload = document.createElement('button'); reload.type = 'button';
     reload.className = 'rpg-reload'; reload.textContent = 'Reload without cache';
     reload.addEventListener('click', async () => {
@@ -361,6 +365,33 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     const detailed = icons.style === 'detailed';
     body.append(textButton(`Icons: ${detailed ? 'detailed' : 'pixel 16x16'} (tap to switch)`, () => setIconStyle(detailed ? 'pixel' : 'detailed')));
   }
+  // Saving is by hand only: one row per slot, Save writes the game there (overwriting takes two presses), Load returns to it.
+  function appendSaves() {
+    const heading = document.createElement('h3'); heading.textContent = 'Saved games';
+    const list = document.createElement('div'); list.className = 'rpg-saves';
+    const existing = new Map(saves.list().map(s => [s.slot, s]));
+    for (let n = 1; n <= saves.max; n++) {
+      const id = `slot-${n}`, entry = existing.get(id);
+      const row = document.createElement('div'); row.className = 'rpg-save-row';
+      const name = document.createElement('span');
+      name.textContent = entry ? `${n}. ${entry.label}  ${new Date(entry.savedAt).toLocaleString()}` : `${n}. Empty`;
+      const store = textButton('Save', () => {
+        if (entry && store.textContent === 'Save') { store.textContent = 'Overwrite?'; setTimeout(() => { store.textContent = 'Save'; }, 3000); return; }
+        const ok = saves.save(id), text = ok ? 'Game saved.' : 'Your progress could not be saved.';
+        say(text); refresh(text);
+      });
+      const restore = textButton('Load', async () => {
+        restore.disabled = true; restore.textContent = 'Loading...';
+        closePanel();
+        if (await saves.load(id)) say('Game loaded.');
+      });
+      restore.disabled = !entry;
+      if (id === saves.current()) row.classList.add('current');
+      row.append(name, store, restore); list.append(row);
+    }
+    body.append(heading, list);
+  }
+  const refresh = note => { openSettings(); if (note) body.querySelector('.rpg-saves')?.prepend(paragraph(note, 'rpg-note')); };
   iconButton('Settings and controls', 'settings', menus, toggle('settings', openSettings));
   for (const button of menus.children) caption(button, button.title === 'Settings and controls' ? 'Settings' : button.title === 'Inventory' ? 'Bag' : button.title === 'Full screen' ? 'Screen' : button.title);
   const controls = document.createElement('div'); controls.className = 'rpg-controls'; root.append(controls);

@@ -81,8 +81,12 @@ try {
               const w = Math.max(1, Math.round(p.w * k)), h = Math.max(1, Math.round(p.h * k * heightScale));
               g.drawImage(keys, p.x, p.y, p.w, p.h, Math.floor((cw - w) / 2) + dx, ch - pad - h, w, h);
             };
-            const authored = state !== 'idle' && (kind !== 'snake' || state !== 'move');
-            if (state === 'idle') drawBase(frame ? 1.015 : 1, frame ? 1.01 : 1);
+            // The base views (<direction>-d*.png) only size the cells, except for the snake: they are slimmer than
+            // the authored poses, so standing, recovering and breathing all use the walk pose instead.
+            const snake = kind === 'snake';
+            const stand = (scale = 1, dx = 0) => snake ? drawBase(scale, scale, dx) : drawPose('walk-a', scale, dx);
+            const authored = !snake || (state !== 'idle' && state !== 'move');
+            if (state === 'idle') snake ? drawBase(frame ? 1.015 : 1, frame ? 1.01 : 1) : drawPose('walk-a', frame ? 1.01 : 1);
             else if (state === 'move' && kind === 'snake') {
               for (let y = 0; y < bh; y++) {
                 const offset = Math.round(Math.sin(y / bh * Math.PI * 2 + frame * Math.PI / 2) * (depth > 1 ? 1 : 2));
@@ -90,9 +94,9 @@ try {
               }
             } else if (state === 'move') drawPose(frame % 2 ? 'walk-b' : 'walk-a', frame < 2 ? 1 : .98);
             else if (state === 'attack') {
-              if (frame === 3) drawBase(); else drawPose(frame < 2 ? 'windup' : 'impact', frame === 0 ? .96 : 1);
+              if (frame === 3) stand(); else drawPose(frame < 2 ? 'windup' : 'impact', frame === 0 ? .96 : 1);
             } else if (state === 'hurt') {
-              if (frame === 0) drawPose('hurt'); else drawBase(.98, .98, 1);
+              if (frame === 0) drawPose('hurt'); else stand(.98, 1);
             } else if (state === 'dead') {
               drawPose(frame < 2 ? 'hurt' : 'corpse', frame === 1 ? .55 : 1);
             }

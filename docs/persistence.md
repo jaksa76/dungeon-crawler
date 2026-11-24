@@ -37,7 +37,7 @@ Save identity (item ids, level ids, progression), not computed values, so retuni
 startGame2d({
   title: 'Ravensmoor', saveKey: 'ravensmoor',        // window title, start screen, and a key of its own in localStorage
   maxSlots: 3,
-  autosave: { intervalMs: 5000, onHidden: true, onLevelChange: true },
+  autosave: { intervalMs: 0, onHidden: false, onLevelChange: false }, // the default: off, the player saves by hand
   persist: ({ flags, hero, inventory }) => [          // or a plain array
     { id: 'reputation', save: () => rep, load: d => { rep = d; }, reset: () => { rep = {}; } },
   ],
@@ -51,13 +51,16 @@ For small things skip the section and use `flags`. The call returns `{ persisten
 ## Slots and the player
 
 Saves live in slots (`slot-1`, ...). With saves present the start screen lists them: continue, delete (two presses),
-or start a new game in a free slot. A failed write says "Your progress could not be saved." in the message log, once.
+or start a new game in a free slot. Autosave is off by default (it made death cost nothing): the player saves and loads
+from the settings panel, one row per slot (`maxSlots`); overwriting a save takes two presses. A new game is not written
+until the player saves it. A failed write says "Your progress could not be saved." in the message log, once.
 
 ## Loading while playing
 
 `loadState(snapshot)` (returned by `startGame2d`, also `window.__game2d.loadState`) opens the saved level, restores every
-section and starts the creatures over. Autosave is off while it runs, so half-loaded state is never written. Dying uses
-it: the hero returns to the last save of the slot with full health (the village if there is none).
+section and starts the creatures over. Autosave is off while it runs, so half-loaded state is never written. The
+settings panel's Load uses it. Dying does not: the hero returns to the village's starting point with full health,
+keeping what they carry, the creatures start over, and nothing is saved.
 
 ## Renames and edits
 
