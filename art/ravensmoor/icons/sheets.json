@@ -1,0 +1,13 @@
+{
+  "_": "Ravensmoor's own icons, painted by Codex like the engine's (docs/engine/icons.md, with --campaign ravensmoor). Each sheet is up to 6 x 4 icons, read left to right, top to bottom, as \"id|what to paint\". games/ravensmoor/content/icons.js lists the same ids in the same order.",
+  "sheets": [
+    {
+      "id": "ravensmoor",
+      "title": "Ravensmoor relics",
+      "native": 16,
+      "icons": [
+        "raven-amulet|an amulet: a small black iron raven with spread wings hanging from a thin silver chain loop, its eye a single bright violet pixel"
+      ]
+    }
+  ]
+}

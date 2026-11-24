@@ -164,7 +164,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
   // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
   // use a bitmap font: a scalable one is too blurry at this size.
   const PW = Math.max(cw, 320);
-  const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle());
+  const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle(), Object.values(books.icons));
   const panelImage = withIcons(await loadImage(new URL('../assets/ui/panel.png', import.meta.url).href), icons);
   // The portrait is the head of the full-body pixel sprite, cropped to its frame and never scaled: one art pixel is one
   // UI pixel. (The painted desktop panel draws its portrait cover-fitted, so it is given a picture that is exactly the
@@ -192,7 +192,7 @@ export async function startGame({ levels, start, content = [], startingItems = [
   // Items: the pack, containers (made the first time they are opened, so what is in them is rolled once) and
   // piles of things the player dropped, keyed by level and tile.
   checkItems(itemDefs);
-  for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the atlas`);
+  for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the icon atlas or the campaign's icon sheets`);
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
   const hero = createCharacter(heroAttributes, equipment, { attackMs: heroAttackMs, name: creation?.name });

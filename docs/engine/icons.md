@@ -4,7 +4,8 @@ The engine has 144 icons: 120 common items and 24 interface icons, in one atlas
 (`engine/assets/icons/atlas.png`, 12 × 12 tiles of 64 × 64 pixels, transparent background, with
 `atlas.json` mapping each id to its tile). `engine/ui/icons.js` loads it. Items refer to an icon
 by id (`icon: 'short-sword'` in `engine/content/items.js`); the HUD, the painted desktop panel and the
-satchel all draw from it.
+satchel all draw from it. A campaign can add icon spritesheets of its own for its items; see
+[content.md](content.md#custom-items-and-their-icons).
 
 ## What is in it
 
@@ -72,6 +73,9 @@ Everything goes through `tools/icon-sheets.mjs` (it needs only pngjs):
    transparency, finds each icon (even one that drifted out of its cell), trims it, and writes
    `art/engine/icons/png/<id>.png` (64 × 64, or 16 × 16 for a native sheet). It prints a warning for a missing icon, or an icon made of many pieces.
 5. `node tools/icon-sheets.mjs pack` rebuilds `atlas.png` and `atlas.json`. Commit the PNGs and the atlas.
+
+A campaign's own icons use the same steps with `--campaign <name>` added to each command; see
+[content.md](content.md#custom-items-and-their-icons).
 
 The keying removes pixels very close to pure magenta everywhere and softens the edge a few pixels in, so
 purple things (the violet crystal, the elixir) keep their colour. The painted sheets themselves are not kept

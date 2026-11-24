@@ -6,6 +6,11 @@
 //   node tools/icon-sheets.mjs slice <sheet> <file.png> cut a painted sheet into art/engine/icons/png/<id>.png
 //   node tools/icon-sheets.mjs pack                     build engine/assets/icons/atlas.png and atlas.json
 //
+// --campaign <name> works on a campaign's own icons instead: the list in art/<name>/icons/sheets.json, the cut icons in
+// art/<name>/icons/png/, and `pack` builds the campaign's icon spritesheet games/<name>/assets/icons/<name>.png (a
+// grid of 16-pixel tiles, in sheets.json order; with --hd, <name>-hd.png of 64-pixel tiles). The campaign's content
+// book lists the same ids in the same order (see docs/engine/content.md).
+//
 // A sheet is painted on a flat magenta background, 6 columns x 4 rows of 256px cells on a 1536x1024 canvas. `slice`
 // turns the magenta into real transparency, finds each icon (even if it drifted out of its cell), trims it and fits
 // it into a 64x64 tile. A sheet marked "native": 16 in sheets.json is true 16x16 pixel art, painted as 12x12-pixel
@@ -18,8 +23,9 @@ import { fileURLToPath } from 'node:url';
 const { PNG } = createRequire(import.meta.url)('pngjs');
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DIR = path.join(ROOT, 'art/engine/icons'); // the sheet list and the cut icons (source art)
-const ATLAS_DIR = path.join(ROOT, 'engine/assets/icons'); // the atlas the engine loads
+const CAMPAIGN = (i => i < 0 ? null : process.argv.splice(i, 2)[1])(process.argv.indexOf('--campaign'));
+const DIR = path.join(ROOT, CAMPAIGN ? `art/${CAMPAIGN}/icons` : 'art/engine/icons'); // the sheet list and the cut icons (source art)
+const ATLAS_DIR = path.join(ROOT, CAMPAIGN ? `games/${CAMPAIGN}/assets/icons` : 'engine/assets/icons'); // what the game loads
 const COLS = 6, ROWS = 4, CELL = 256, TILE = 64, INNER = 56, ATLAS_COLS = 12;
 // --hd: the detailed set. Its sheets are painted at high resolution (not pixel art) and shrunk smoothly into the tiles;
 // it is written to png-hd/ and atlas-hd.png/json instead, and the game can switch to it (see docs/engine/icons.md).
@@ -39,14 +45,19 @@ An icon sheet for a retro fantasy dungeon-crawler RPG: "${sheet.title}". Style: 
 
 Canvas 1536x1024. The whole background is one flat, solid, pure magenta (#FF00FF): no gradient, no texture, no vignette, no shadow or glow on the background, because it will be removed with a colour key. Never use magenta or hot pink inside an icon.
 
-Layout: exactly 6 columns by 4 rows = 24 equal cells of 256x256 pixels. NO visible grid lines, borders, frames, plates or labels. Exactly one icon per cell, centred in its cell, filling about 75-80% of the cell, wholly inside its cell with clear magenta margin all round, so icons never touch each other or the edges. Each icon is a single object (a pair or bundle counts as one object where the description says so), shown as a game inventory icon, with no hands, no characters, no text, no numbers and no letters.
+Layout: exactly 6 columns by 4 rows = 24 equal cells of 256x256 pixels. NO visible grid lines, borders, frames, plates or labels.${empty(sheet)} Exactly one icon per cell, centred in its cell, filling about 75-80% of the cell, wholly inside its cell with clear magenta margin all round, so icons never touch each other or the edges. Each icon is a single object (a pair or bundle counts as one object where the description says so), shown as a game inventory icon, with no hands, no characters, no text, no numbers and no letters.
 
-The 24 icons, in reading order (row 1 left to right, then row 2, and so on):
+${sheet.icons.length === 1 ? 'The icon, in the first cell:' : `The ${sheet.icons.length} icons, in reading order (row 1 left to right, then row 2, and so on):`}
 ${list}
 
 Do not add anything else to the image.
 `;
 }
+
+// A sheet with fewer than 24 icons leaves the remaining cells empty.
+const empty = sheet => sheet.icons.length >= COLS * ROWS ? ''
+  : sheet.icons.length === 1 ? ' Only the first cell (top left) holds an icon; the other cells stay plain magenta.'
+  : ` Only the first ${sheet.icons.length} cells in reading order hold an icon; the other cells stay plain magenta.`;
 
 function nativePrompt(sheet, refs) {
   const n = sheet.native, block = Math.round(192 / n);
@@ -60,9 +71,9 @@ Then the whole sheet is enlarged with nearest-neighbour scaling so that every ar
 
 Canvas 1536x1024. The whole background is one flat, solid, pure magenta (#FF00FF): no gradient, no texture, no shadow on the background, because it will be removed with a colour key. Never use magenta or hot pink inside an icon.
 
-Layout: exactly 6 columns by 4 rows = 24 equal cells of 256x256 pixels. NO visible grid lines, borders or labels. Exactly one icon per cell, centred in its cell (it fills about ${n * block} of the 256 pixels), with clear magenta margin all round, so icons never touch each other or the edges. No text, numbers or letters.
+Layout: exactly 6 columns by 4 rows = 24 equal cells of 256x256 pixels. NO visible grid lines, borders or labels.${empty(sheet)} Exactly one icon per cell, centred in its cell (it fills about ${n * block} of the 256 pixels), with clear magenta margin all round, so icons never touch each other or the edges. No text, numbers or letters.
 
-The 24 icons, in reading order (row 1 left to right, then row 2, and so on):
+${sheet.icons.length === 1 ? 'The icon, in the first cell:' : `The ${sheet.icons.length} icons, in reading order (row 1 left to right, then row 2, and so on):`}
 ${list}
 
 Do not add anything else to the image.
@@ -215,6 +226,23 @@ function writeNative(list, grid, problems) {
   console.log(`  painted pixel is ${block.toFixed(1)} px; icons sampled to ${grid}x${grid}`);
 }
 
+// ---------- a campaign's spritesheet: the cut icons as they are, in a grid of equal tiles
+function packCampaign() {
+  const all = sheets.flatMap(s => s.icons.map(parse)), tiles = all.map(({ id }) => {
+    const file = path.join(DIR, `png${SUFFIX}`, `${id}.png`);
+    if (!fs.existsSync(file)) throw new Error(`missing ${path.relative(ROOT, file)}: slice its sheet first`);
+    return PNG.sync.read(fs.readFileSync(file));
+  });
+  const tile = tiles[0].width;
+  if (tiles.some(t => t.width !== tile || t.height !== tile)) throw new Error('every icon of a campaign sheet must be the same square size');
+  const cols = Math.min(all.length, ATLAS_COLS), out = new PNG({ width: cols * tile, height: Math.ceil(all.length / cols) * tile });
+  tiles.forEach((t, i) => PNG.bitblt(t, out, 0, 0, tile, tile, (i % cols) * tile, Math.floor(i / cols) * tile));
+  fs.mkdirSync(ATLAS_DIR, { recursive: true });
+  const file = path.join(ATLAS_DIR, `${CAMPAIGN}${SUFFIX}.png`);
+  fs.writeFileSync(file, PNG.sync.write(out));
+  console.log(`${path.relative(ROOT, file)}: ${all.length} icons, ${tile}-pixel tiles, in this order: ${all.map(i => i.id).join(', ')}`);
+}
+
 // ---------- the atlas
 function pack() {
   const all = sheets.flatMap(s => s.icons.map(parse));
@@ -244,5 +272,5 @@ const [command, ...args] = process.argv.slice(2).filter(a => a !== '--hd');
 if (command === 'list') for (const s of sheets) console.log(`${s.id} (${s.icons.length}): ${s.icons.map(l => parse(l).id).join(', ')}`);
 else if (command === 'prompt') process.stdout.write(prompt(sheetNamed(args[0]), args.slice(1)));
 else if (command === 'slice') slice(sheetNamed(args[0]), args[1]);
-else if (command === 'pack') pack();
+else if (command === 'pack') CAMPAIGN ? packCampaign() : pack();
 else { console.error('usage: node tools/icon-sheets.mjs list | prompt <sheet> [refs..] | slice <sheet> <file.png> | pack'); process.exit(1); }

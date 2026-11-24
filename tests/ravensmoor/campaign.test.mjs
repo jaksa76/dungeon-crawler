@@ -103,3 +103,27 @@ test('every creature in the Undercrypt stands on floor and has its sixteen frame
     }
   }
 });
+
+test('every item has an icon, from the engine’s atlas or Ravensmoor’s own sheet, and the sheet holds all its icons', () => {
+  const atlas = JSON.parse(fs.readFileSync(new URL('../../engine/assets/icons/atlas.json', import.meta.url), 'utf8'));
+  const sheetIcons = new Set(Object.values(books.icons).flatMap(sheet => sheet.icons));
+  for (const [id, def] of Object.entries(itemDefs)) assert.ok(atlas.icons[def.icon] !== undefined || sheetIcons.has(def.icon), `${id}: no icon "${def.icon}"`);
+  for (const sheet of Object.values(books.icons)) for (const version of [sheet, sheet.detailed].filter(Boolean)) {
+    const png = fs.readFileSync(new URL(version.url));
+    assert.equal(png.toString('ascii', 1, 4), 'PNG');
+    const cols = Math.floor(png.readUInt32BE(16) / version.tile), rows = Math.floor(png.readUInt32BE(20) / version.tile);
+    assert.ok(cols * rows >= sheet.icons.length, `${sheet.id}: ${sheet.icons.length} icons in ${cols * rows} tiles`);
+    assert.equal(png[25], 6, `${sheet.id}: icons need an alpha channel`);
+  }
+});
+
+test('Ravensmoor’s icon sheet lists its icons in the order the icon tool packed them', () => {
+  const { sheets } = JSON.parse(fs.readFileSync(new URL('../../art/ravensmoor/icons/sheets.json', import.meta.url), 'utf8'));
+  assert.deepEqual(books.icons.ravensmoor.icons, sheets.flatMap(s => s.icons.map(line => line.split('|')[0])));
+});
+
+test('the raven amulet is Ravensmoor’s own item, worn as an amulet, and hidden in the village well', () => {
+  assert.deepEqual(books.items['raven-amulet'].slot, 'amulet');
+  const well = village.level.entities.find(e => e.prop === 'well');
+  assert.ok(well.behavior.contents.some(c => c.item === 'raven-amulet'));
+});

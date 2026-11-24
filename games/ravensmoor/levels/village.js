@@ -31,7 +31,7 @@ export const village = {
     { prop: 'crate', x: 1, z: 3, side: 'S' },
     { prop: 'well', name: 'the well', x: 2, z: 2, side: 'N', behavior: { type: 'open', title: 'The well',
       text: 'Moss clings to the old stones. Something glints on a ledge just below the rim, within reach.',
-      contents: [{ item: 'crystal' }] } },
+      contents: [{ item: 'crystal' }, { item: 'raven-amulet' }] } },
     { prop: 'barrel', name: 'a barrel', x: 2, z: 3, side: 'S' },
     { prop: 'barrel', x: 3, z: 3, side: 'E', behavior: { type: 'open', title: 'Barrel', text: 'Nothing but brine and fish bones.', contents: [] } },
   ],
