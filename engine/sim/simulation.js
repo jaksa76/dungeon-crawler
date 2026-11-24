@@ -15,7 +15,7 @@ import { createSession, DIRS, MOVES, EVENTS } from '../core/session.js';
 import { createRng } from '../core/rng.js';
 import { observe, viewAhead, knownMap, findPath, visibleMonsters } from './observe.js';
 
-export const PACE = { step: 180, strafe: 150, turn: 160, interact: 250, use: 400, equip: 600, take: 200, drop: 200 };
+export const PACE = { step: 180, strafe: 150, turn: 160, interact: 250, use: 400, equip: 600, take: 200, drop: 200, cast: 450 };
 
 // The campaign's books and levels, resolved once and shared by every run (they are not changed while playing).
 const prepared = new WeakMap();
@@ -36,6 +36,7 @@ export function prepareCampaign(campaign) {
 //   save        a snapshot (persistence) to start from: everything else is applied on top of it
 //   level, at   the level to start on, and { x, z, dir } on it (default: the campaign's start)
 //   hero        { name, spent: { strength: 2, ... }, xp, hp, mp }: points spent at character creation, experience, current hp/mp
+//   spells      ['firebolt', ...] spells the hero knows (learned after the hero's level is set, so `requires` counts)
 //   items       [{ item, qty }] added to the pack;  equip: ['sword', ...] worn (taken from the pack, or given)
 //   spawn       [{ kind, x, z, dir?, id?, level? }] creatures (or props) put into the world
 //   clear       true: remove the level's own creatures first (an arena for the spawned ones)
@@ -67,6 +68,7 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     if (Number.isFinite(scenario.hero.hp)) hero.hp = Math.min(hero.maxHp, scenario.hero.hp);
     if (Number.isFinite(scenario.hero.mp)) hero.mp = Math.min(hero.maxMp, scenario.hero.mp);
   }
+  for (const id of scenario.spells ?? []) { const learned = session.learn(id); if (!learned.ok && learned.reason !== 'known') throw new Error(`scenario: ${learned.message}`); }
   for (const [key, value] of Object.entries(scenario.flags ?? {})) flags.set(key, value);
   for (const { item, qty = 1 } of scenario.items ?? []) if (inventory.add(item, qty) > 0) throw new Error(`scenario: ${item} does not fit in the pack`);
   for (const item of scenario.equip ?? []) {
@@ -170,7 +172,13 @@ export async function createSimulation({ campaign, seed = 1, scenario = {}, tick
     spend: attribute => act(100, () => session.spend(attribute)),
     // Talking is Use on an NPC (talk behaviours arrive with dialogue); casting needs spells, which the engine has not yet.
     talk: () => sim.interact(),
-    cast: () => ({ ok: false, reason: 'no-spells' }),
+    // Magic: cast a spell (an id; without one the ready spell) at the nearest creature in the line ahead, or at `targetId`.
+    // { ok, spell, targets } or { ok: false, reason: 'no-spells' | 'unknown' | 'not-known' | 'stunned' | 'cooldown' | 'mana' | 'no-target' }.
+    cast: (spell, targetId = null) => act(speed.cast, () => session.cast(spell, targetId)),
+    // Learn a spell, as reading its book would (`requires` still counts).
+    learn: spell => act(speed.use, () => session.learn(spell)),
+    // The known spells: [{ id, name, cost, magicType, ready, description, ... }].
+    spells: () => session.spells(),
     // The pack: an item id or a slot index.
     use(item) {
       const index = stackIndex(item);

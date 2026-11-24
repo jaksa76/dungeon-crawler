@@ -97,3 +97,19 @@ export function explore(sim) {
   sim.face(route[0]);
   return sim.forward().ok || sim.wait(200).ok;
 }
+
+// Cast a healing spell when health falls below `below` (a share of the maximum) and one can be cast.
+export function mend(sim, below = 0.5) {
+  const { hero, spells } = sim.state();
+  if (hero.hp >= hero.maxHp * below) return false;
+  const spell = spells.find(s => s.castable && s.heals);
+  return !!spell && sim.cast(spell.id).ok;
+}
+
+// Cast a damaging spell at a creature in the line ahead, if there is one within three tiles. A cast that finds nothing costs
+// no mana, so it is only tried when the view shows a creature there.
+export function castAtFoe(sim) {
+  const spell = sim.state().spells.find(s => s.castable && s.damages);
+  if (!spell || !sim.view(3).some(tile => tile.monsters?.length)) return false;
+  return sim.cast(spell.id).ok;
+}

@@ -25,16 +25,21 @@ export function deriveStats(attrs, { weapon = FISTS, defence = 0, resist = {}, b
     accuracy: agility,
     evasion: agility,
     luck: bonus.luck ?? 0,
+    // Magic: how much a spell gains (intellect above 4); what an enchanted weapon adds ({ type, damage: [min, max] }) and the
+    // status effect it puts on a creature it hits ({ effect, tier, chance }).
+    spellPower: Math.max(0, intellect - 4),
+    elemental: weapon.elemental ?? null,
+    onHit: weapon.onHit ?? null,
   };
 }
 
-const HERO_STATS = ['maxHp', 'maxMp', 'attack', 'damage', 'damageType', 'attackMs', 'defence', 'resist', 'accuracy', 'evasion', 'luck'];
+const HERO_STATS = ['maxHp', 'maxMp', 'attack', 'damage', 'damageType', 'attackMs', 'defence', 'resist', 'accuracy', 'evasion', 'luck', 'spellPower', 'elemental', 'onHit'];
 
 // The hero: attributes, current hp/mp, and stats that follow what is worn. `equipment` is optional.
 // The returned object is what the HUD reads (hp, maxHp, mp, maxMp).
 // `base` are the attributes the game starts a hero with; the player may spend points on top (build()), and
 // only those points are saved, so retuning the base also reaches existing heroes.
-export function createCharacter(base, equipment = null, { unarmed = FISTS, name = 'Hero', progression: rules } = {}) {
+export function createCharacter(base, equipment = null, { unarmed = FISTS, name = 'Hero', progression: rules, modifiers = () => ({}) } = {}) {
   const progression = resolveProgression(rules), attrs = { ...base }, spent = Object.fromEntries(Object.keys(base).map(k => [k, 0]));
   // Experience, and the points the hero put into attributes as they levelled (`grown`, apart from the `spent` at creation).
   let xp = 0;
@@ -43,7 +48,13 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
   const earned = () => (levelFor(xp, progression) - 1) * progression.pointsPerLevel;
   const raise = () => { for (const k of Object.keys(base)) attrs[k] = base[k] + spent[k] + grown[k]; };
   // The hero's stats with `gear` (equipment.gear(), possibly of a preview()); what is worn now by default.
-  const statsWith = (gear = {}) => deriveStats(attrs, { ...gear, weapon: gear.weapon ?? unarmed });
+  // `modifiers()` is what status effects add right now: { attack, defence, slow } (slow: a share off the swing speed).
+  const statsWith = (gear = {}) => {
+    const m = modifiers(), bonus = { ...gear.bonus, attack: (gear.bonus?.attack ?? 0) + (m.attack ?? 0), defence: (gear.bonus?.defence ?? 0) + (m.defence ?? 0) };
+    const stats = deriveStats(attrs, { ...gear, bonus, weapon: gear.weapon ?? unarmed });
+    if (m.slow) stats.attackMs = Math.round(stats.attackMs / (1 - m.slow));
+    return stats;
+  };
   const stats = () => statsWith(equipment?.gear());
   const hero = {
     attrs, name, base, spent, unarmed,
@@ -104,7 +115,7 @@ export function createCharacter(base, equipment = null, { unarmed = FISTS, name 
 
 // What changes between two sets of the hero's stats (deriveStats), in words: ['damage 4–7 → 6–9 blunt', 'slower',
 // 'defence 2 → 4', 'blade damage taken ×0.8']. Empty when nothing a fight uses changes. `damageTypes` names the types.
-export function compareStats(before, after, damageTypes = {}) {
+export function compareStats(before, after, damageTypes = {}, effects = {}) {
   const typeName = t => (t && damageTypes[t]?.name) ?? t ?? '';
   const range = s => `${s.damage[0]}–${s.damage[1]}${s.damageType ? ` ${typeName(s.damageType)}` : ''}`;
   const changes = [];
@@ -115,11 +126,21 @@ export function compareStats(before, after, damageTypes = {}) {
     const was = before.resist[type] ?? 1, now = after.resist[type] ?? 1;
     if (Math.abs(was - now) > 1e-9) changes.push(`${typeName(type)} damage taken ×${+was.toFixed(2)} → ×${+now.toFixed(2)}`);
   }
+  changes.push(...enchantChanges(before, after, typeName, effects));
+  return changes;
+}
+
+// What a weapon's enchantment adds or takes away, in words: '+2–4 fire damage', 'burning on hit'.
+function enchantChanges(before, after, typeName, effects) {
+  const changes = [], range = s => (s.elemental ? `${s.elemental.damage[0]}–${s.elemental.damage[1]} ${typeName(s.elemental.type)}` : '');
+  if (range(before) !== range(after)) changes.push(after.elemental ? `+${range(after)} damage` : `no more +${range(before)} damage`);
+  const hit = s => s.onHit?.effect ?? '', name = id => (effects[id]?.name ?? id).toLowerCase();
+  if (hit(before) !== hit(after)) changes.push(after.onHit ? `${name(after.onHit.effect)} on hit` : `no ${name(before.onHit.effect)} on hit`);
   return changes;
 }
 
 // The same, short, for a tight space: ['+3 damage', 'slower', '+2 defence', 'less blade damage taken'].
-export function statDelta(before, after, damageTypes = {}) {
+export function statDelta(before, after, damageTypes = {}, effects = {}) {
   const typeName = t => damageTypes[t]?.name ?? t, signed = n => `${n > 0 ? '+' : ''}${n}`;
   const changes = [];
   if (after.attack !== before.attack) changes.push(`${signed(after.attack - before.attack)} damage`);
@@ -129,6 +150,7 @@ export function statDelta(before, after, damageTypes = {}) {
     const was = before.resist[type] ?? 1, now = after.resist[type] ?? 1;
     if (Math.abs(was - now) > 1e-9) changes.push(`${now < was ? 'less' : 'more'} ${typeName(type)} damage taken`);
   }
+  changes.push(...enchantChanges(before, after, typeName, effects));
   return changes;
 }
 

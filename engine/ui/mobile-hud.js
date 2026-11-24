@@ -5,6 +5,7 @@ import { reloadFresh } from '../core/reload.js';
 import { takeStack, takeAll } from '../rules/inventory.js';
 import { HEAD_X } from './head.js';
 import { QUICK_ICONS } from './panel-icons.js';
+import { TIER_NAMES } from './icons.js';
 
 // Responsive, DOM-based mobile chrome. The scene and desktop HUD stay on canvas.
 const STYLE_URL = new URL('./mobile-hud.css', import.meta.url);
@@ -22,7 +23,10 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   onEquip = (index, slot) => equipment.equip(inventory, index, slot), onUnequip = (slot, toIndex) => equipment.unequip(inventory, slot, toIndex),
   wouldChange = () => null, damageTypes = {},
   // Put a skill point (from levelling up) into an attribute: session.spend, which returns { ok }.
-  onSpend = attribute => ({ ok: hero.spend?.(attribute) ?? false }) }) {
+  onSpend = attribute => ({ ok: hero.spend?.(attribute) ?? false }),
+  // Magic (null when the game has no spells): { spells() -> [{ id, name, icon, cost, magicType, ready, description }], cast(id), setReady(id),
+  // ready() -> id, effects() -> [{ id, name, tier, left, harmful, magicType }] }.
+  magic = null }) {
   const sheet = document.createElement('link');
   sheet.rel = 'stylesheet'; sheet.href = STYLE_URL.href;
   const styleReady = new Promise((resolve, reject) => {
@@ -82,6 +86,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     row.append(caption, meter, number); vitals.append(row);
   }
   character.append(vitals); left.append(character);
+  const effectsRow = document.createElement('ul'); effectsRow.className = 'rpg-effects'; effectsRow.setAttribute('aria-label', 'Status effects'); character.append(effectsRow);
 
   // One panel for every menu and for the message log. It covers the scene (the view canvas) and nothing
   // else, so the rails and controls stay in view. `shown` is 'log' while it holds the message log.
@@ -136,15 +141,17 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   right.append(map);
   const menus = document.createElement('div'); menus.className = 'rpg-menus'; right.append(menus);
   // An item's picture, from the icon atlas, drawn through the art registry.
-  function itemIconCanvas(iconId, size) {
+  // The outline an enchanted item's icon wears: the colour of its kind of magic, as strong as its tier.
+  const outlineOf = def => (def?.enchant ? { colour: damageTypes[def.enchant.type]?.colour ?? '#ffffff', tier: def.enchant.tier ?? 1 } : null);
+  function itemIconCanvas(iconId, size, outline = null) {
     const c = document.createElement('canvas'); c.setAttribute('aria-hidden', 'true');
     // A pixel-art icon is shown at a whole multiple of its own size (the largest that fits), so every pixel stays whole.
     const native = icons.native(iconId);
     const fitted = () => { const wanted = typeof size === 'function' ? size() : size, unit = native * px; return unit * Math.max(1, Math.floor(wanted / unit)); };
-    addArt(c, native ? fitted : size, (g, n) => icons.draw(g, iconId, 0, 0, n, n));
+    addArt(c, native ? fitted : size, (g, n) => icons.draw(g, iconId, 0, 0, n, n, outline));
     return c;
   }
-  const itemIcon = (id, size) => itemIconCanvas(itemDefs[id].icon, size);
+  const itemIcon = (id, size) => itemIconCanvas(itemDefs[id].icon, size, outlineOf(itemDefs[id]));
   const stackLabel = ({ id, qty }) => `${itemDefs[id].name}${qty > 1 ? ` x${qty}` : ''}`;
   const paragraph = (text, className = '') => { const p = document.createElement('p'); p.className = className; p.textContent = text; return p; };
   const textButton = (label, handler) => { const b = document.createElement('button'); b.type = 'button'; b.textContent = label; b.addEventListener('click', handler); return b; };
@@ -155,6 +162,9 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
   const typeName = t => damageTypes[t]?.name ?? t;
   function itemStats(def) {
     const parts = [];
+    if (def.enchant) parts.push(`${typeName(def.enchant.type)} enchantment, ${TIER_NAMES[def.enchant.tier] ?? ''} (tier ${def.enchant.tier})`);
+    if (def.elemental) parts.push(`+${def.elemental.damage[0]}–${def.elemental.damage[1]} ${typeName(def.elemental.type)} damage`);
+    if (def.onHit) parts.push(`${Math.round((def.onHit.chance ?? 1) * 100)}% ${(magic?.effectName?.(def.onHit.effect) ?? def.onHit.effect).toLowerCase()} on hit`);
     if (Array.isArray(def.damage)) {
       const [lo, hi] = hero.statsWith ? hero.statsWith({ ...equipment.gear(), weapon: def }).damage : def.damage, type = def.damageType ? typeName(def.damageType) : 'damage';
       parts.push(`${type[0].toUpperCase()}${type.slice(1)} ${lo}–${hi}`, `a blow every ${+(def.speed / 1000).toFixed(2)} s`);
@@ -377,6 +387,30 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     more.addEventListener('click', openLog); body.append(more);
   }
   iconButton('Journal', 'journal', menus, toggle('journal', openJournal));
+  // The spells the hero knows: what each does, and a button to cast it or make it the ready one (the C key casts that).
+  function openSpells(note = '') {
+    open('Spells', null, 'spells');
+    const list = make('ul', 'rpg-spells'), known = magic.spells();
+    if (!known.length) body.append(make('p', '', 'You know no spells yet. Scrolls and books teach them: use one from the satchel.'));
+    for (const spell of known) {
+      const li = make('li', 'rpg-spell' + (spell.id === magic.ready() ? ' ready' : ''));
+      const colour = damageTypes[spell.magicType]?.colour ?? '#ffffff';
+      li.style.setProperty('--magic', colour);
+      const icon = itemIconCanvas(spell.icon ?? 'spell', 40, { colour, tier: 2 });
+      const text = make('div', 'rpg-spell-text');
+      text.append(make('b', '', spell.name), make('span', 'rpg-stats', spell.description), make('span', '', spell.text ?? ''));
+      const actions = make('div', 'rpg-actions');
+      const castIt = textButton('Cast', () => { const r = magic.cast(spell.id); openSpells(r?.ok ? '' : r?.reason === 'mana' ? 'Not enough mana.' : r?.reason === 'cooldown' ? 'Not ready yet.' : r?.reason === 'no-target' ? 'Nothing to strike in that direction.' : ''); });
+      castIt.disabled = hero.mp < spell.cost || !spell.ready;
+      const readyIt = textButton(spell.id === magic.ready() ? 'Ready' : 'Make ready', () => { magic.setReady(spell.id); openSpells(); });
+      readyIt.disabled = spell.id === magic.ready();
+      actions.append(castIt, readyIt);
+      li.append(icon, text, actions); list.append(li);
+    }
+    body.append(list);
+    if (note) body.append(make('p', 'rpg-note', note));
+  }
+  if (magic?.available) iconButton('Spells', 'spell', menus, toggle('spells', openSpells));
   async function toggleFullscreen() {
     try {
       if (document.fullscreenElement) await document.exitFullscreen();
@@ -446,6 +480,16 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       }
       meter.value = hero[key]; number.textContent = `${hero[key]}/${meter.max}`;
     }
+    if (magic) { // status effects on the hero, with the time they have left
+      const shown = magic.effects(), key = shown.map(e => `${e.id}${e.tier}${Math.ceil(e.left / 1000)}`).join();
+      if (effectsRow.dataset.key !== key) {
+        effectsRow.dataset.key = key; effectsRow.replaceChildren();
+        for (const e of shown) {
+          const li = make('li', e.harmful ? 'bad' : 'good', `${e.name} ${Math.ceil(e.left / 1000)}s`);
+          li.style.setProperty('--magic', damageTypes[e.magicType]?.colour ?? '#ffffff'); li.title = `${e.name}, tier ${e.tier}`; effectsRow.append(li);
+        }
+      }
+    }
     lastState = state;
     // The minimap's resolution follows its on-screen size (see addArt): 56 logical pixels when large.
     const n = map.width, g = map.getContext('2d'); g.fillStyle = '#100e10'; g.fillRect(0, 0, n, n);
@@ -472,7 +516,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
     map.setAttribute('aria-label', `${world.name} map, facing ${'NESW'[Math.round(-state.yaw / (Math.PI / 2)) % 4]}`);
   }
   // The desktop panel is a painted canvas; it calls these from its icons.
-  const menu = { journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
+  const menu = { spells: magic ? toggle('spells', openSpells) : () => {}, journal: toggle('journal', openJournal), inventory: toggle('inventory', openInventory), fullscreen: toggleFullscreen, settings: toggle('settings', openSettings) };
   return { left, right, controls, draw, open, openJournal, openLog, openContainer, menu, items, close: closePanel, isLogOpen: () => shown === 'log', ready,
     // The scene's height, and how many screen pixels one pixel of the UI font covers.
     setView(height, pixel) {
@@ -483,7 +527,7 @@ export function createMobileHUD({ icons, setIconStyle = () => {}, portrait, worl
       if (lastState) draw(lastState);
     },
     setLevel(level) { title.textContent = level.name; mapTitle.textContent = level.shortName ?? level.name; },
-    notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
+    openSpells, notice(text) { notice.textContent = text; notice.hidden = false; clearTimeout(noticeTimer); noticeTimer = setTimeout(() => { notice.hidden = true; }, 6000); },
     isOpen: () => !menuPanel.hidden,
     setLayout(mode, width) {
       const rail = Math.max(156, Math.min(176, Math.floor(width * .165)));

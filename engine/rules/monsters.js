@@ -37,7 +37,8 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
     if (!open(x, z)) throw new Error(`Monster ${actor.id} must start on a floor tile.`);
     if (x === level.start.x && z === level.start.z) throw new Error('A monster cannot start on the player entrance.');
     if (actor.x !== x || actor.z !== z) move(actor, x, z);
-    return Object.assign(actor, { dir, hp: actor.maxHp, attack: actor.damage, target: null, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0 });
+    // `slowFactor` (1: normal speed) and `stunned` are set from the creature's status effects (core/session.js).
+    return Object.assign(actor, { dir, hp: actor.maxHp, attack: actor.damage, target: null, mode: 'roaming', energy: 0, readyAt: null, hurtUntil: 0, dyingUntil: 0, slowFactor: 1, stunned: false, fx: null });
   }
   function reset() {
     animator = createMonsterAnimator(); signatures = new WeakMap();
@@ -79,8 +80,8 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
     for (const actor of actors) {
       if (!alive(actor)) continue;
       const state = animator.sample(actor, now).state;
-      if (state === 'attack' || state === 'hurt') continue;
-      actor.energy += actor.speed;
+      if (state === 'attack' || state === 'hurt' || actor.stunned) continue;
+      actor.energy += actor.speed * (actor.slowFactor ?? 1);
       if (actor.energy < 1) continue;
       actor.energy -= 1;
       if (sees(actor, player)) actor.target = { x: player.x, z: player.z };
@@ -122,12 +123,14 @@ export function createMonsters(level, cell, random = Math.random, { list = () =>
         continue;
       }
       face(actor, player); // fight face to face, even a creature that was walking away
-      if (actor.readyAt === null) actor.readyAt = now + Math.round(actor.attackMs * .6);
+      if (actor.stunned) { actor.readyAt = null; continue; } // a stunned creature cannot strike, and winds up again afterwards
+      const attackMs = actor.attackMs / (actor.slowFactor ?? 1); // a chilled one is slow to strike
+      if (actor.readyAt === null) actor.readyAt = now + Math.round(attackMs * .6);
       const attack = clipFor(actor, 'attack'), lead = (attack.impactFrame ?? 2) * attack.frameMs;
       if (now >= actor.readyAt - lead) animator.play(actor, 'attack', actor.readyAt - lead);
       if (now >= actor.readyAt) {
         animator.play(actor, 'attack', now - lead, { force: true });
-        strikes.push(actor); actor.readyAt = now + actor.attackMs;
+        strikes.push(actor); actor.readyAt = now + attackMs;
       }
     }
     return strikes;

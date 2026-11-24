@@ -34,6 +34,15 @@
 .rpg-cell canvas, .rpg-row canvas, .rpg-hero, .rpg-dialog-body > canvas { image-rendering: pixelated; }
 .rpg-dialog-body > canvas { display: block; margin: 0 auto 8px; }
 .rpg-note { color: #f1dfbe; }
+.rpg-effects { list-style: none; margin: 2px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 3px; font: 14px/1 'RPG Pixel', monospace; }
+.rpg-effects li { padding: 1px 4px; border: 1px solid var(--magic, #888); background: #1a1216; color: #f1dfbe; }
+.rpg-effects li.bad { color: #ffb0a0; }
+.rpg-spells { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.rpg-spell { display: flex; align-items: center; gap: 10px; padding: 6px; border: 1px solid #5a4031; border-left: 4px solid var(--magic, #888); background: #1a1216; }
+.rpg-spell.ready { background: #251a22; }
+.rpg-spell-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.rpg-spell .rpg-actions { display: flex; flex-direction: column; gap: 4px; }
+.rpg-spell button { min-height: 30px; padding: 0 8px; }
 .rpg-spend { display: flex; flex-wrap: wrap; gap: calc(var(--rpg-px, 2) * 2px); margin: 0 0 4px; }
 .rpg-spend button { min-height: 32px; padding: 0 8px; }
 

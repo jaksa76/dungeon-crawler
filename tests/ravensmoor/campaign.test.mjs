@@ -168,7 +168,7 @@ test('the Raven horn opens the locked crypt gate in the Undercrypt from the vill
 });
 
 test('weapons and armour come in materials: a rusty sword to start, an iron mace and shield in the Undercrypt, mail in a village crate', () => {
-  assert.deepEqual(Object.keys(books.damageTypes).sort(), ['blade', 'blunt', 'pierce']);
+  assert.deepEqual(Object.keys(books.damageTypes).filter(t => !books.damageTypes[t].magic).sort(), ['blade', 'blunt', 'pierce']);
   for (const id of ['rusty-sword', 'iron-sword', 'steel-sword', 'iron-mace', 'iron-spear', 'rusty-mail', 'iron-shield']) assert.ok(itemDefs[id], id);
   assert.equal(itemDefs.sword, undefined); // a family, not an item
   assert.deepEqual(itemDefs['iron-sword'].aliases, ['sword']); // old saves keep their sword

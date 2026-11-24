@@ -6,12 +6,15 @@
 // rules/generate-loot.js). `loot: false` leaves nothing (beasts); `loot: { contents, generate: { budget } }` is specific: the
 // ogre always carries a potion and may carry more.
 //
+// Magic resistances come with the engine's creatures (engine/content/bestiary.js); a `resist` here adds to them. The snake
+// is Ravensmoor's own, so it carries its own: cold-blooded, and venomous.
+//
 // Every creature also gets the damage type of its blows and its resistances (arms.js): `resist` multiplies the damage
 // it takes of that type. Bare bones shrug off cuts and stabs but shatter under a mace; the dead are hacked apart but a
 // spear goes through them; a spider's body crushes.
 export const monsters = {
   snake: { name: 'snake', verb: 'bites', cr: 1 / 4, hp: 11, ac: 14, dmg: 7.5, h: .9, w: .4, distanceShaded: true,
-    damageType: 'pierce', resist: { blunt: 0.75 }, loot: false },
+    damageType: 'pierce', resist: { blunt: 0.75, frost: 1.5 }, onHit: { effect: 'poisoned', tier: 1, chance: 0.3 }, loot: false },
   rat: { damageType: 'pierce', loot: false },
   kobold: { damageType: 'pierce' },
   goblin: { damageType: 'blade' },

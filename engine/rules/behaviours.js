@@ -63,9 +63,17 @@ export function door({ key = null, opens = 'The door swings open.', closes = 'Th
   };
 }
 
-// An item's `use` as a method: its own function, or the data form { hp, mp } as restore().
+// A book or scroll: reading it teaches a spell (`teaches: 'firebolt'` on the item) and uses it up. The game's `learn(id)`
+// says why it may not (too low a level, already known).
+export const teach = spell => Object.assign(function use(game) {
+  const result = game.learn(spell);
+  return { consumed: result.ok, message: result.message };
+}, { teaches: spell });
+
+// An item's `use` as a method: its own function, or the data form { hp, mp } as restore(), or `teaches` as teach().
 export function itemUse(def) {
   if (typeof def.use === 'function') return def.use;
+  if (def.teaches && !def.use) return teach(def.teaches);
   return def.use ? restore(def.use) : null;
 }
 

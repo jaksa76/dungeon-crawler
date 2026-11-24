@@ -11,7 +11,7 @@ const distance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.z - b.z);
 function monsterView(session, actor) {
   const p = session.player;
   return { id: actor.id, kind: actor.kind, name: actor.name, x: actor.x, z: actor.z, dir: actor.dir, hp: actor.hp, maxHp: actor.maxHp,
-    mode: actor.mode, distance: distance(actor, p), adjacent: distance(actor, p) <= 1 };
+    mode: actor.mode, distance: distance(actor, p), adjacent: distance(actor, p) <= 1, effects: actor.fx?.view() ?? [] };
 }
 
 // The creatures the player can see: on their tile, next to it, or in the three columns ahead up to `depth`, stopping
@@ -102,10 +102,12 @@ export function observe(session, { omniscient = false, depth = VIEW_DEPTH } = {}
     position: { x: p.x, z: p.z, dir: p.dir, facing: DIR_KEYS[p.dir] },
     dead: session.dead,
     hero: { name: hero.name, level: hero.level, xp: hero.xp, unspent: hero.unspent, luck: hero.luck, hp: hero.hp, maxHp: hero.maxHp, mp: hero.mp, maxMp: hero.maxMp, attack: hero.attack, defence: hero.defence,
-      accuracy: hero.accuracy, evasion: hero.evasion, attrs: { ...hero.attrs }, attackReady: session.swing.ready(session.clock()) },
+      accuracy: hero.accuracy, evasion: hero.evasion, spellPower: hero.spellPower, effects: session.heroEffects.view(), attrs: { ...hero.attrs }, attackReady: session.swing.ready(session.clock()) },
     inventory: inventory.slots.map((s, slot) => s && { slot, id: s.id, qty: s.qty, name: itemDefs[s.id].name, type: itemDefs[s.id].type,
       ...(itemDefs[s.id].use?.restores ? { restores: { ...itemDefs[s.id].use.restores } } : {}), ...(itemDefs[s.id].slot ? { wear: itemDefs[s.id].slot } : {}) }).filter(Boolean),
     equipment: { ...equipment.worn },
+    spells: session.spells().map(s => ({ id: s.id, name: s.name, cost: s.cost, magicType: s.magicType ?? null, target: s.target ?? 'foe', damages: !!s.damage, heals: !!s.heal, ready: s.ready, castable: s.ready && hero.mp >= s.cost })),
+    readySpell: session.readySpell,
     monsters: visibleMonsters(session, { depth, omniscient }),
     ahead: viewAhead(session, depth),
     // Things standing against the sides of the player's own tile (turn to a side to face one, then interact).

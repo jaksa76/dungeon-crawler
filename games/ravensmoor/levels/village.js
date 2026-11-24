@@ -24,7 +24,7 @@ export const village = {
     { npc: 'guard', name: 'a town guard', x: 1, z: 1, side: 'N' },
     { id: 'start-chest', prop: 'chest', name: 'a chest', x: 3, z: 2, side: 'N', behavior: { type: 'open', title: 'Chest',
       text: 'The iron-banded chest is unlocked. Inside, packed in oilcloth, are supplies for a descent.',
-      contents: [{ item: 'rusty-sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }] } },
+      contents: [{ item: 'rusty-sword' }, { item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }, { item: 'scroll-firebolt' }] } },
     // A placement can have its own methods and saved state: the stranger hands over the Raven horn once.
     { npc: 'hooded', name: 'a hooded stranger', x: 3, z: 2, side: 'S', state: { gaveHorn: false },
       interact(game) {

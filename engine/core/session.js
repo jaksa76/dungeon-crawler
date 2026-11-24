@@ -22,6 +22,8 @@ import { createMonsters } from '../rules/monsters.js';
 import { interact as interactWith } from '../rules/interaction.js';
 import { createWorld, flat } from './world.js';
 import { itemUse } from '../rules/behaviours.js';
+import { createEffects, tierValue } from '../rules/effects.js';
+import { spellDamage, spellHeal, spellRange, canLearn, isImmune, describeSpell } from '../rules/magic.js';
 import { createEquipment } from '../rules/equipment.js';
 import { createCharacter, strike, createCooldown, compareStats, statDelta, FISTS } from '../rules/combat.js';
 import { createInventory, addToStacks, checkItems, stacksPersistence, takeStack, takeAll } from '../rules/inventory.js';
@@ -44,6 +46,10 @@ export const EVENTS = {
   'damage-dealt': '{ target, amount, hp }: the hero hurt a creature',
   kill: '{ target, xp }: the hero killed a creature (xp: what it was worth)',
   xp: '{ amount, xp, level }: the hero gained experience',
+  learn: '{ spell }: the hero learned a spell',
+  cast: '{ spell, targets, mana }: the hero cast a spell (targets: [{ id, kind, name }], none for a spell cast on oneself)',
+  effect: '{ target, effect, tier, result }: a status effect was put on the hero (target: \'hero\') or a creature ({ id, kind, name }); result is new, stronger, renewed, weaker or immune',
+  'effect-end': '{ target, effect }: a status effect wore off',
   'level-up': '{ level, points }: the hero reached a new level (health and mana are restored)',
   spend: '{ attribute, value, unspent }: a skill point went into an attribute',
   loot: '{ source, items, value, budget, at }: a creature left things behind (items: [{ item, qty }], on the floor where it fell)',
@@ -85,7 +91,7 @@ export function cellLookup(world, id, { level, tileTypes }) {
 
 export function createSession({ levels: definitions, start, books, startingItems = [], respawn = { level: start },
   inventorySize = 48, heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 }, unarmed = FISTS,
-  creation = null, persist = [], progression, loot: lootOptions, level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
+  creation = null, persist = [], progression, loot: lootOptions, startingSpells = [], level: firstLevel = start, random = () => Math.random(), clock = () => performance.now(),
   hooks = {} }) {
   const itemDefs = books.items;
   if (!Object.hasOwn(definitions, start)) throw new Error(`The start level "${start}" is not one of the levels`);
@@ -127,7 +133,11 @@ export function createSession({ levels: definitions, start, books, startingItems
 
   const inventory = createInventory(itemDefs, { size: inventorySize, start: startingItems });
   const equipment = createEquipment(itemDefs);
-  const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name, progression });
+  const heroFx = createEffects(books.effects); // the status effects on the hero (creatures carry their own, `fx`)
+  const hero = createCharacter(heroAttributes, equipment, { unarmed, name: creation?.name, progression,
+    modifiers: () => ({ ...heroFx.mods(), slow: heroFx.slow() }) });
+  const known = new Set(startingSpells), spellReadyAt = new Map(); // the spells the hero knows, and when each may be cast again
+  let readySpell = startingSpells[0] ?? null; // the spell a bare cast() uses
   const lootRules = resolveLootRules(lootOptions);
   if (creation) { hero.build(creation.spent); hero.restore(); }
   const containers = new Map(); // `level:x,z,side` -> stacks of opened containers (rolled the first time they are opened)
@@ -317,7 +327,7 @@ export function createSession({ levels: definitions, start, books, startingItems
   // blade → 9–13 blunt, slower." `changes` is the same as a list.
   function withChanges(before, result) {
     if (!result.ok) return result;
-    const changes = compareStats(before, hero.stats(), books.damageTypes);
+    const changes = compareStats(before, hero.stats(), books.damageTypes, books.effects);
     return changes.length ? { ...result, changes, message: `${result.message.replace(/\.$/, '')}: ${changes.join(', ')}.` } : { ...result, changes };
   }
   function equip(index, slot = null) {
@@ -333,7 +343,7 @@ export function createSession({ levels: definitions, start, books, startingItems
   // What wearing a pack item would change, in short words (statDelta, for the satchel), or null for an item not worn.
   function wouldChange(itemId) {
     if (!itemDefs[itemId]?.slot || !equipment.targetFor(itemId)) return null;
-    return statDelta(hero.stats(), hero.statsWith(equipment.gear(equipment.preview(itemId))), books.damageTypes);
+    return statDelta(hero.stats(), hero.statsWith(equipment.gear(equipment.preview(itemId))), books.damageTypes, books.effects);
   }
 
   // Fighting. The hero swings at a creature (`targetId`, or the one on the tile they face or share), then waits out a
@@ -341,6 +351,7 @@ export function createSession({ levels: definitions, start, books, startingItems
   // the cooldown runs, or { ok: true, target, hit, damage, killed }.
   function attack(targetId = null) {
     if (dead) return { ok: false, reason: 'dead' };
+    if (heroFx.stunned()) { say('You are stunned.'); return { ok: false, reason: 'stunned' }; }
     const now = clock(), { x: ax, z: az } = ahead();
     const target = targetId ? active.monsters.actors.find(a => a.id === targetId && alive(a))
       : active.monsters.adjacent(p).find(a => (a.x === p.x && a.z === p.z) || (a.x === ax && a.z === az));
@@ -351,20 +362,158 @@ export function createSession({ levels: definitions, start, books, startingItems
     if (!target) { say('You swing at the empty air.'); return { ok: false, reason: 'empty' }; }
     active.monsters.face(target, p);
     const result = strike(hero, target, random);
-    emit('attack', { target: describe(target), hit: result.hit, damage: result.damage });
+    // An enchanted weapon adds damage of its own type, which the creature's resistance to that type scales.
+    let extra = 0;
+    const ele = hero.elemental;
+    if (result.hit && ele) extra = Math.round((ele.damage[0] + Math.floor(random() * (ele.damage[1] - ele.damage[0] + 1))) * (target.resist?.[ele.type] ?? 1));
+    const total = result.damage + extra;
+    emit('attack', { target: describe(target), hit: result.hit, damage: total });
     let killed = false;
     if (!result.hit) say(`You miss the ${target.name}.`);
     else {
-      say(`You hit the ${target.name} for ${result.damage}.${resistance(target, result.resisted)}`);
-      killed = active.monsters.damage(target, result.damage, now);
-      emit('damage-dealt', { target: describe(target), amount: result.damage, hp: target.hp });
-      if (killed) {
-        say(`The ${target.name} dies.`); emit('kill', { target: describe(target), xp: target.xp ?? 0 });
-        reward(target); leaveLoot(target); target.onDeath?.(api);
-      }
+      say(`You hit the ${target.name} for ${total}.${extra ? ` (${extra} ${books.damageTypes[ele.type]?.name ?? ele.type})` : ''}${resistance(target, result.resisted)}`);
+      killed = active.monsters.damage(target, total, now);
+      emit('damage-dealt', { target: describe(target), amount: total, hp: target.hp });
+      if (killed) slay(target);
+      else if (hero.onHit && random() < (hero.onHit.chance ?? 1)) applyEffect(target, hero.onHit.effect, hero.onHit.tier ?? 1);
     }
-    return { ok: true, target, hit: result.hit, damage: result.damage, killed };
+    return { ok: true, target, hit: result.hit, damage: total, killed };
   }
+  // A creature the hero killed: the experience, and what it leaves behind.
+  function slay(target) {
+    say(`The ${target.name} dies.`); emit('kill', { target: describe(target), xp: target.xp ?? 0 });
+    reward(target); leaveLoot(target); target.onDeath?.(api);
+  }
+
+  // Status effects (rules/effects.js). `target` is 'hero' or a creature. Returns how it went: 'new', 'stronger', 'renewed',
+  // 'weaker' or 'immune'. A creature's effects live on it (`fx`) until it is reset.
+  function applyEffect(target, id, tier = 1) {
+    const def = books.effects[id];
+    if (!def) throw new Error(`unknown effect "${id}"`);
+    const hero_ = target === 'hero', who = hero_ ? hero : target;
+    const name = def.name.toLowerCase(), you = hero_ ? 'You' : `The ${target.name}`;
+    if (isImmune(hero_ ? { resist: hero.resist } : who, def, id)) {
+      say(hero_ ? `You shrug off the ${name}.` : `The ${target.name} is immune to ${name}.`);
+      emit('effect', { target: hero_ ? 'hero' : describe(target), effect: id, tier, result: 'immune' });
+      return 'immune';
+    }
+    const set = hero_ ? heroFx : (target.fx ??= createEffects(books.effects));
+    const result = set.apply(id, tier);
+    if (!hero_) { target.slowFactor = 1 - set.slow(); target.stunned = set.stunned(); }
+    if (result !== 'weaker') say(`${you} ${hero_ ? 'are' : 'is'} ${result === 'renewed' ? 'still ' : ''}${name}.`);
+    emit('effect', { target: hero_ ? 'hero' : describe(target), effect: id, tier, result });
+    return result;
+  }
+
+  // Hurt the hero from something that is not a blow: an effect's tick. Death works as it does for a blow.
+  function hurtHero(amount, source) {
+    hero.hp = Math.max(0, hero.hp - amount);
+    emit('damage-taken', { source, amount, hp: hero.hp });
+    if (hero.hp <= 0 && !dead) { dead = true; swing.reset(); emit('death', { source }); }
+  }
+
+  // Let time pass for every status effect: ticks of damage and healing, effects that end. Hero first, then creatures.
+  function tickEffects(now) {
+    const { ticks, ended } = heroFx.tick(now);
+    for (const t of ticks) {
+      const def = books.effects[t.id];
+      if (t.damage) {
+        const amount = Math.round(t.damage * (hero.resist[def.magicType] ?? 1));
+        if (amount > 0) { say(`The ${def.name.toLowerCase()} hurts you for ${amount}.`); hurtHero(amount, { id: t.id, kind: t.id, name: def.name }); }
+      }
+      if (t.heal && !dead) hero.hp = Math.min(hero.maxHp, hero.hp + t.heal);
+    }
+    for (const id of ended) { say(`The ${books.effects[id].name.toLowerCase()} fades.`); emit('effect-end', { target: 'hero', effect: id }); }
+    let changed = ticks.length > 0 || ended.length > 0;
+    for (const actor of active.monsters.actors) {
+      if (!actor.fx) continue;
+      const result = actor.fx.tick(now);
+      for (const t of result.ticks) {
+        const def = books.effects[t.id];
+        if (t.damage && alive(actor)) {
+          const amount = Math.round(t.damage * (actor.resist?.[def.magicType] ?? 1));
+          if (amount > 0) {
+            const killed = active.monsters.damage(actor, amount, now);
+            emit('damage-dealt', { target: describe(actor), amount, hp: actor.hp });
+            if (killed) slay(actor);
+          }
+        }
+        if (t.heal && alive(actor)) actor.hp = Math.min(actor.maxHp, actor.hp + t.heal);
+      }
+      for (const id of result.ended) emit('effect-end', { target: describe(actor), effect: id });
+      actor.slowFactor = 1 - actor.fx.slow(); actor.stunned = actor.fx.stunned();
+      changed ||= result.ticks.length > 0;
+    }
+    return changed;
+  }
+
+  // Spells. The creatures in the line the hero faces: on their own tile, then each tile ahead, up to `range`, never past a wall.
+  function foesInLine(range) {
+    const found = [];
+    for (let d = 0; d <= range; d++) {
+      const x = p.x + DIRS[p.dir][0] * d, z = p.z + DIRS[p.dir][1] * d;
+      if (d > 0) { const c = active.cell(x, z); if (!c || c.wall) break; }
+      found.push(...active.monsters.at(x, z).filter(alive));
+    }
+    return found;
+  }
+  const spellList = () => [...known].map(id => ({ id, ...books.spells[id], ready: clock() >= (spellReadyAt.get(id) ?? 0), description: describeSpell(books.spells[id], { damageTypes: books.damageTypes, effects: books.effects, power: hero.spellPower }) }));
+  // Learn a spell. Returns { ok, message, reason? } and says it.
+  function learn(id) {
+    const spell = books.spells[id];
+    if (!spell) return { ok: false, reason: 'unknown', message: 'You cannot make sense of it.' };
+    if (known.has(id)) { const message = `You already know ${spell.name}.`; say(message); return { ok: false, reason: 'known', message }; }
+    const can = canLearn(spell, hero);
+    if (!can.ok) { say(can.reason); return { ok: false, reason: 'requirements', message: can.reason }; }
+    known.add(id); readySpell ??= id;
+    const message = `You learn ${spell.name}.`;
+    say(message); emit('learn', { spell: id });
+    return { ok: true, message };
+  }
+  // Cast a spell (by id; without one, the ready spell) at a creature in the line ahead (`targetId`, or the nearest). Returns
+  // { ok: false, reason } ('dead', 'unknown', 'not-known', 'stunned', 'cooldown', 'mana', 'no-target') or { ok: true, spell, targets, ... }.
+  function cast(id = readySpell, targetId = null) {
+    if (dead) return { ok: false, reason: 'dead' };
+    const spell = books.spells[id];
+    if (!spell) return { ok: false, reason: id ? 'unknown' : 'no-spells' };
+    if (!known.has(id)) { say(`You do not know ${spell.name}.`); return { ok: false, reason: 'not-known' }; }
+    if (heroFx.stunned()) { say('You are stunned.'); return { ok: false, reason: 'stunned' }; }
+    const now = clock(), wait = (spellReadyAt.get(id) ?? 0) - now;
+    if (wait > 0) return { ok: false, reason: 'cooldown', wait };
+    if (hero.mp < spell.cost) { say('You do not have the mana.'); return { ok: false, reason: 'mana' }; }
+    const aim = spell.target ?? 'foe';
+    let foes = [];
+    if (aim !== 'self') {
+      const line = foesInLine(spellRange(spell));
+      foes = targetId ? line.filter(a => a.id === targetId) : aim === 'area' ? line : line.slice(0, 1);
+      if (!foes.length) { say(`${spell.name} has nothing to strike.`); return { ok: false, reason: 'no-target' }; }
+    }
+    hero.mp -= spell.cost; spellReadyAt.set(id, now + (spell.cooldown ?? 0));
+    const type = books.damageTypes[spell.magicType]?.name ?? spell.magicType, results = [];
+    if (aim === 'self') {
+      const healed = Math.min(hero.maxHp - hero.hp, spellHeal(spell, hero.spellPower, random));
+      hero.hp += healed;
+      say(`You cast ${spell.name.toLowerCase()}${healed ? ` and recover ${healed} health` : ''}.`);
+      if (spell.effect && random() < (spell.effect.chance ?? 1)) applyEffect('hero', spell.effect.id, spell.effect.tier ?? 1);
+      results.push({ target: 'hero', healed });
+    }
+    for (const foe of foes) {
+      const hit = spellDamage(spell, foe, hero.spellPower, random);
+      let killed = false;
+      if (hit.immune) say(`The ${foe.name} is immune to ${type}.`);
+      else if (hit.damage) {
+        say(`Your ${spell.name.toLowerCase()} hits the ${foe.name} for ${hit.damage}.${hit.resisted < 1 ? ` It resists ${type}.` : hit.resisted > 1 ? ` It is weak to ${type}.` : ''}`);
+        killed = active.monsters.damage(foe, hit.damage, now);
+        emit('damage-dealt', { target: describe(foe), amount: hit.damage, hp: foe.hp });
+      } else say(`You cast ${spell.name.toLowerCase()} at the ${foe.name}.`);
+      if (killed) slay(foe);
+      else if (spell.effect && !hit.immune && random() < (spell.effect.chance ?? 1)) applyEffect(foe, spell.effect.id, spell.effect.tier ?? 1);
+      results.push({ target: describe(foe), damage: hit.damage, resisted: hit.resisted, immune: hit.immune, killed });
+    }
+    emit('cast', { spell: id, targets: results.map(r => r.target), mana: hero.mp });
+    return { ok: true, spell: id, mana: hero.mp, targets: results };
+  }
+
   // A few words when a creature shrugs off or is weak to the hero's damage type.
   const resistance = (target, resisted) => {
     const type = books.damageTypes[hero.damageType]?.name ?? hero.damageType;
@@ -376,10 +525,9 @@ export function createSession({ levels: definitions, start, books, startingItems
   function struckBy(actor) {
     const result = strike(actor, hero, random);
     if (!result.hit) { say(`The ${actor.name} misses you.`); emit('evade', { source: describe(actor) }); return result; }
-    hero.hp = Math.max(0, hero.hp - result.damage);
     say(`The ${actor.name} ${actor.verb ?? 'hits'} you for ${result.damage}.`);
-    emit('damage-taken', { source: describe(actor), amount: result.damage, hp: hero.hp });
-    if (hero.hp <= 0 && !dead) { dead = true; swing.reset(); emit('death', { source: describe(actor) }); }
+    hurtHero(result.damage, describe(actor));
+    if (!dead && actor.onHit && random() < (actor.onHit.chance ?? 1)) applyEffect('hero', actor.onHit.effect, actor.onHit.tier ?? 1); // a poisonous bite
     return result;
   }
 
@@ -389,11 +537,16 @@ export function createSession({ levels: definitions, start, books, startingItems
   let drawnVersion = world.version;
   function update(now = clock(), { paused = false } = {}) {
     const monsters = active.monsters, struck = [];
-    if (paused || dead) { monsterDue = now + monsters.stepMs; monsters.freeze(now); return { changed: false, struck, gone: [] }; }
+    if (paused || dead) {
+      monsterDue = now + monsters.stepMs; monsters.freeze(now);
+      heroFx.freeze(); for (const actor of monsters.actors) actor.fx?.freeze(); // time stands still for effects too
+      return { changed: false, struck, gone: [] };
+    }
     monsters.resume(now);
+    const effectsChanged = tickEffects(now);
     const gone = monsters.reap(now);
     for (const actor of gone) if (actor.spawned) world.remove(actor); // a spawned creature that died is gone for good
-    let changed = gone.length > 0 || world.version !== drawnVersion;
+    let changed = effectsChanged || gone.length > 0 || world.version !== drawnVersion;
     drawnVersion = world.version;
     if (monsters.actors.length && now >= monsterDue) {
       monsterDue = now + monsters.stepMs;
@@ -422,7 +575,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     const from = session.levelId;
     active.level.onExit?.(api);
     active = destination; openBox = null;
-    if (waking) { for (const c of contexts.values()) c.monsters.reset(); hero.restore(); }
+    if (waking) { for (const c of contexts.values()) c.monsters.reset(); hero.restore(); heroFx.clear(); }
     else active.monsters.reset();
     delayMonsters();
     Object.assign(p, spawn, { steps: 0 });
@@ -457,7 +610,8 @@ export function createSession({ levels: definitions, start, books, startingItems
     world.changed();
   }
   const api = {
-    say, flags, hero, inventory, equipment, items: itemDefs, random,
+    say, flags, hero, inventory, equipment, items: itemDefs, random, learn, applyEffect,
+    removeEffect: id => heroFx.remove(id),
     get level() { return session.levelId; },
     get player() { return { x: p.x, z: p.z, dir: p.dir }; },
     find: (level, key) => world.find(level, key),
@@ -493,6 +647,17 @@ export function createSession({ levels: definitions, start, books, startingItems
     },
   });
   for (const part of [inventory, equipment, hero, explorations]) persistence.engine.register(part.persistence);
+  persistence.engine.register({
+    id: 'magic', after: ['hero'], // the spells the hero knows, the one ready, and the effects on them
+    save: () => ({ known: [...known], ready: readySpell, effects: heroFx.save() }),
+    load(data, ctx) {
+      known.clear(); spellReadyAt.clear();
+      for (const id of Array.isArray(data?.known) ? data.known : []) { if (books.spells[id]) known.add(id); else ctx?.issue?.(`spell "${id}" no longer exists`); }
+      readySpell = known.has(data?.ready) ? data.ready : [...known][0] ?? null;
+      heroFx.load(data?.effects);
+    },
+    reset() { known.clear(); spellReadyAt.clear(); for (const id of startingSpells) known.add(id); readySpell = startingSpells[0] ?? null; heroFx.clear(); },
+  });
   persistence.engine.register(stacksPersistence('containers', itemDefs, containers));
   persistence.engine.register(stacksPersistence('piles', itemDefs, piles));
   persistence.game.register(flags.persistence);
@@ -504,7 +669,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     const result = await persistence.restore(snapshot);
     await hooks.ensureArt?.(session.levelId);
     for (const c of contexts.values()) c.monsters.reset();
-    if (waking) hero.restore();
+    if (waking) { hero.restore(); heroFx.clear(); }
     dead = false; openBox = null; swing.reset(); delayMonsters();
     return result;
   }
@@ -520,7 +685,11 @@ export function createSession({ levels: definitions, start, books, startingItems
 
   const session = {
     books, itemDefs, definitions, world, hero, inventory, equipment, flags, persistence, containers, piles, messages, api,
-    random, clock, swing, player: p,
+    random, clock, swing, player: p, heroEffects: heroFx,
+    get known() { return [...known]; },
+    get readySpell() { return readySpell; },
+    setReadySpell(id) { if (known.has(id)) readySpell = id; return readySpell; },
+    spells: spellList,
     get levelId() { return active.id; },
     get context() { return active; },
     get level() { return active.level; },
@@ -530,7 +699,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     closeBox() { openBox = null; },
     contextOf: context,
     on(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); return () => listeners.get(type).delete(fn); },
-    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend,
+    emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend, learn, cast, applyEffect,
     attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
   };
   return session;

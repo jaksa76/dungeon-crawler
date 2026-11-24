@@ -9,7 +9,7 @@
 // Options:
 //   --campaign <path>   the campaign module (default games/ravensmoor/campaign.js); it exports `campaign`, and may
 //                       export `scenarios` from <campaign dir>/scenarios.js
-//   --bot <name|path>   an example bot from tools/bots/ (random-walker, explorer, fighter) or a module of your own
+//   --bot <name|path>   an example bot from tools/bots/ (random-walker, explorer, fighter, caster) or a module of your own
 //   --scenario <name|path>  a scenario from the campaign's scenarios.js, or a .json/.mjs file (its default export)
 //   --level <id>, --at x,z,dir   start here instead (on top of the scenario)
 //   --runs <n> (100), --seed <n> (1): run i uses seed + i

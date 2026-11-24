@@ -32,15 +32,15 @@ export const arms = {
   // The engine's sword and shield come in materials here; saves that hold the old ones get the iron ones.
   sword: weapon('Sword', 'short-sword', 'blade', [5, 9], 700, 40, {
     rusty: { description: 'A short sword gone brown with rust. It still has an edge, of sorts.' }, iron: {}, steel: {}, mithril: {} },
-  'A {material} short sword, quick in the hand.', { aliases: { iron: ['sword'] } }),
-  axe: weapon('Axe', 'hand-axe', 'blade', [6, 12], 900, 55, ['bronze', 'iron', 'steel'], 'A {material} hand axe: slow, and it bites deep.'),
-  mace: weapon('Mace', 'mace', 'blunt', [6, 10], 850, 50, ['bronze', 'iron', 'steel'], 'A flanged {material} mace. Bones break under it.'),
-  spear: weapon('Spear', 'spear', 'pierce', [5, 10], 800, 45, ['bronze', 'iron', 'steel'], 'A {material}-headed spear on an ash shaft.'),
-  dagger: weapon('Dagger', 'dagger', 'pierce', [2, 4], 450, 20, ['rusty', 'iron', 'steel', 'silver'], 'A {material} dagger: little weight, many blows.'),
+  'A {material} short sword, quick in the hand.', { aliases: { iron: ['sword'] }, enchants: ['flame', 'frost', 'venom', 'dawn'] }),
+  axe: weapon('Axe', 'hand-axe', 'blade', [6, 12], 900, 55, ['bronze', 'iron', 'steel'], 'A {material} hand axe: slow, and it bites deep.', { enchants: ['flame'] }),
+  mace: weapon('Mace', 'mace', 'blunt', [6, 10], 850, 50, ['bronze', 'iron', 'steel'], 'A flanged {material} mace. Bones break under it.', { enchants: ['storm', 'frost'] }),
+  spear: weapon('Spear', 'spear', 'pierce', [5, 10], 800, 45, ['bronze', 'iron', 'steel'], 'A {material}-headed spear on an ash shaft.', { enchants: ['venom'] }),
+  dagger: weapon('Dagger', 'dagger', 'pierce', [2, 4], 450, 20, ['rusty', 'iron', 'steel', 'silver'], 'A {material} dagger: little weight, many blows.', { enchants: ['venom'] }),
 
   helmet: armour('Helmet', 'iron-helmet', 'head', 1, 30, ['rusty', 'iron', 'steel'], 'A {material} helmet with a nose guard.'),
   mail: armour('Mail shirt', 'chainmail', 'armour', 2, 80, ['rusty', 'iron', 'steel', 'mithril'],
-    'A shirt of {material} rings. Edges skid off it.', { resist: { blade: 0.8 } }),
+    'A shirt of {material} rings. Edges skid off it.', { resist: { blade: 0.8 }, enchants: ['flame', 'frost'] }),
   shield: armour('Shield', 'round-shield', 'shield', 1, 35, ['bronze', 'iron', 'steel'], 'A round wooden shield rimmed with {material}.',
-    { aliases: { iron: ['shield'] } }),
+    { aliases: { iron: ['shield'] }, enchants: ['flame', 'frost', 'storm'] }),
 };

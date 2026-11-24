@@ -33,5 +33,5 @@ test('icon sheets live in the book’s icons folder, with an optional detailed v
 
 test('a malformed icon sheet or an unknown kind is an error', () => {
   assert.throws(() => mergeContent(engineContent, campaignBook({ icons: { bad: { image: 'x.png' } } })), /needs an image, a tile size and a list of icons/);
-  assert.throws(() => campaignBook({ spells: {} }), /unknown kind/);
+  assert.throws(() => campaignBook({ quests: {} }), /unknown kind/);
 });

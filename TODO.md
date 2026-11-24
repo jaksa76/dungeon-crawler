@@ -178,29 +178,31 @@ retuning the Undercrypt itself: a fighter bot still dies there (see the Balancin
 
 ## M8.1 — Magic and status effects
 
+See docs/engine/magic.md.
+
 *Needs M3 (mana, combat), M7 (damage types, resistances, materials) and M8 (levels and skill points, to learn spells). The engine provides the mechanism; the game declares every magic type, spell, effect and number.*
 
 **Engine**
-- [ ] Magic types as damage types (fire, frost, shock, poison), using the M7 resistance mechanism
-- [ ] Spell definitions as data: name, icon, magic type, mana cost, cooldown, target (self, faced monster, area in front), effect (damage, heal, status effect)
-- [ ] Casting action (same control API as M6), with mana cost, cooldown, cast feedback and messages in the log
-- [ ] Status effects as data: type, duration, strength tier, tick effects (damage or heal over time, slow, stun, buffs and debuffs to stats); stacking and refresh rules; apply to the hero and to monsters
-- [ ] Status effects shown on the hero (icons with remaining time) and on the targeted monster; saved with the game (M4)
-- [ ] Monsters can have resistances (and weaknesses) to magic types, and immunity to status effects; magic damage uses the same formula as M7
-- [ ] Spells are learned: spell books or scrolls as items, and/or learned with skill points (M8); known spells saved as what the player chose (M4)
-- [ ] Spell list screen (the hero's known spells, with description, cost and the resistance-adjusted effect on the targeted monster)
-- [ ] Enchanted items: an item carries an enchantment (magic type and strength tier) as a plain definition, so inventory and saves stay `{id, qty}`; effects are an on-hit status or damage bonus on weapons and a resistance or buff on armour (builds on the M7 materials generator)
-- [ ] Enchantment shown as a coloured outline on the item's icon: the colour is the magic type, the intensity is the strength tier (none, faint, clear, strong, blazing); same rule in the satchel, equipment slots and containers, and for both icon styles
-- [ ] Item text lists the enchantment and its tier; the M7 "what changed" log includes it
-- [ ] Bot API (M6): cast, learn, read the status effects of hero and target
+- [x] Magic types as damage types (fire, frost, shock, poison, holy), using the M7 resistance mechanism; predefined by the engine, with the engine's creatures already resisting them
+- [x] Spell definitions as data: name, icon, magic type, mana cost, cooldown, target (self, faced monster, area in front), effect (damage, heal, status effect)
+- [x] Casting action (same control API as M6), with mana cost, cooldown, cast feedback and messages in the log
+- [x] Status effects as data: type, duration, strength tier, tick effects (damage or heal over time, slow, stun, buffs and debuffs to stats); stacking and refresh rules; apply to the hero and to monsters
+- [~] Status effects shown on the hero (text with remaining time) and saved with the game (M4); not yet shown on the targeted monster
+- [x] Monsters can have resistances (and weaknesses) to magic types, and immunity to status effects; magic damage uses the same formula as M7
+- [x] Spells are learned: spell books or scrolls as items (skill points go to attributes); known spells saved as what the player chose (M4)
+- [~] Spell list screen (the hero's known spells, with description, cost and cooldown, Cast and Make ready); not yet the resistance-adjusted effect on the targeted monster
+- [x] Enchanted items: an item carries an enchantment (magic type and strength tier) as a plain definition, so inventory and saves stay `{id, qty}`; effects are an on-hit status or damage bonus on weapons and a resistance or buff on armour (builds on the M7 materials generator)
+- [x] Enchantment shown as a coloured outline on the item's icon: the colour is the magic type, the intensity is the strength tier (none, faint, clear, strong, blazing); same rule in the satchel, equipment slots and containers, and for both icon styles
+- [x] Item text lists the enchantment and its tier; the M7 "what changed" log includes it
+- [x] Bot API (M6): cast, learn, read the status effects of hero and target
 
 **Game**
-- [ ] As a player, I want to learn a first spell (a fire bolt) and cast it at a monster.
-- [ ] As a player, I want a spell that heals or protects me, and a status effect that wears off with time.
-- [ ] As a player, I want some monsters to resist or fear a type of magic, so I pick my spell to suit the monster.
-- [ ] As a player, I want to see at a glance that an item is enchanted, what type it is and how strong it is.
-- [ ] As a player, I want to find an enchanted weapon or ring in the dungeon.
-- [ ] As a designer, I want the bots to measure how much magic changes survival and kill times.
+- [x] As a player, I want to learn a first spell (a fire bolt) and cast it at a monster.
+- [x] As a player, I want a spell that heals or protects me, and a status effect that wears off with time.
+- [x] As a player, I want some monsters to resist or fear a type of magic, so I pick my spell to suit the monster.
+- [x] As a player, I want to see at a glance that an item is enchanted, what type it is and how strong it is.
+- [x] As a player, I want to find an enchanted weapon or ring in the dungeon.
+- [x] As a designer, I want the bots to measure how much magic changes survival and kill times.
 
 ## M8.2 — Quick bar
 

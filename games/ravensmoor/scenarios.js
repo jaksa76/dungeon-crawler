@@ -9,6 +9,7 @@ export const scenarios = {
     level: 'dungeon',
     items: [{ item: 'health-potion', qty: 2 }, { item: 'mana-potion' }, { item: 'torch' }],
     equip: ['rusty-sword'],
+    spells: ['firebolt'], // the scroll from the village chest, read
   },
   // The same with the gear Ravensmoor hides: the village crate's mail, the Undercrypt hoard's mace and shield, a helmet.
   'undercrypt-geared': {

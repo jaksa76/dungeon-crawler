@@ -50,7 +50,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
   unarmed = FISTS,
   // Experience and levels (rules/progression.js) and the loot budget rules (rules/generate-loot.js): both optional, the engine has defaults.
-  progression, loot,
+  progression, loot, startingSpells = [],
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
@@ -113,7 +113,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const random = params.has('seed') ? createRng(params.get('seed')) : () => Math.random();
   // The rules. Its hooks are where the screen takes part: a level's art loads before the player arrives there.
   const session = createSession({ levels: definitions, start, books, startingItems, respawn, inventorySize, heroAttributes,
-    unarmed, creation, persist, progression, loot, level: firstLevel, random, clock: () => performance.now(),
+    unarmed, creation, persist, progression, loot, startingSpells, level: firstLevel, random, clock: () => performance.now(),
     hooks: {
       travel: (exit, options) => travel(exit, options),
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
@@ -248,13 +248,19 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
   const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, onQuick: quickUse, saves: saveMenu,
-    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, damageTypes: books.damageTypes,
+    onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend,
+    magic: Object.keys(books.spells).length ? {
+      available: true, spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
+      cast: id => castSpell(id), setReady: id => session.setReadySpell(id), ready: () => session.readySpell,
+      effects: () => session.heroEffects.view(), effectName: id => books.effects[id]?.name ?? id,
+    } : null, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
   });
   await bars.ready;
   bars.setLevel(level);
   // Desktop: the painted panel's icons (regions in the panel image's pixels) open the same menus as the phone buttons.
   const hotspots = [
+    ...(Object.keys(books.spells).length ? [{ label: 'Spells', rect: [545 + 1 * 99, 20, 99, 92], run: () => bars.menu.spells() }] : []),
     ...[['Journal', 2, 'journal'], ['Inventory', 3, 'inventory'], ['Full screen', 4, 'fullscreen'], ['Settings', 5, 'settings']]
       .map(([label, i, name]) => ({ label, rect: [545 + i * 99, 20, 99, 92], run: () => bars.menu[name]() })),
     ...bars.items.map(([label, text, , use], i) => ({ label, rect: [545 + i * 76, 130, 76, 76], run: () => (use ? quickUse(use) : bars.open(label, text)) })),
@@ -508,6 +514,19 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     peeks.clear(); peekKey = ''; render(next);
     return target.hp > 0;
   }
+  // Cast the ready spell (or `id`): the session does it; floating numbers show what it did, in the colour of its magic.
+  function castSpell(id = undefined) {
+    if (isDead() || transitioning || loading || document.hidden) return null;
+    const result = session.cast(id), colour = books.damageTypes[books.spells[result.spell ?? id ?? session.readySpell]?.magicType]?.colour ?? '#ffe08a';
+    if (!result.ok) return result;
+    for (const t of result.targets) {
+      if (t.target === 'hero') { if (t.healed) float(`+${t.healed}`, '#8fe08a', cw / 2, ch * .8); continue; }
+      const rect = comp.target(t.target.id)?.rect;
+      float(t.immune ? 'Immune' : `-${t.damage}`, colour, rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2, rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42);
+    }
+    peeks.clear(); peekKey = ''; render(next); drawHud();
+    return result;
+  }
   // A creature's blow, as the session dealt it.
   function struckBy({ hit, damage }, now) {
     if (!hit) { float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
@@ -515,6 +534,10 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     drawHud();
   }
   function drawEffects(now) {
+    session.heroEffects.view().forEach((e, i) => { // status effects on the hero, top left, in the colour of their magic
+      const colour = books.damageTypes[e.magicType]?.colour ?? '#ffffff';
+      drawText(g, FONT, `${e.name.toUpperCase()} ${Math.ceil(e.left / 1000)}`, 3, 3 + i * (FONT.h + 2), colour, { outline: '#000' });
+    });
     if (hurtFlash > now) { g.fillStyle = `rgba(190,20,20,${.4 * (hurtFlash - now) / 300})`; g.fillRect(0, 0, cw, ch); }
     for (let i = floaters.length - 1; i >= 0; i--) {
       const f = floaters[i], k = (now - f.t0) / 800;
@@ -526,6 +549,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   function act(cmd) {
     if (bars.isOpen() || transitioning || loading || isDead()) return;
     if (cmd === 'attack') { attack(); return; }
+    if (cmd === 'cast') { castSpell(); return; }
     if (cmd === 'interact') { session.interact(); return; }
     sceneInput?.cancel();
     // The session moves the player and says what they see; the picture is shown before that is said.
@@ -540,7 +564,7 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
   };
   const touch = createTouch({
     onCommand: act, onSwipe, swipeEl: viewCanvas, mount: bars.controls,
-    action: [{ label: 'Attack', cmd: 'attack' }, { label: 'Use', cmd: 'interact' }],
+    action: [{ label: 'Attack', cmd: 'attack' }, ...(Object.keys(books.spells).length ? [{ label: 'Cast', cmd: 'cast' }] : []), { label: 'Use', cmd: 'interact' }],
     extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
     sideBars: { left: bars.left, right: bars.right },
   });
@@ -562,6 +586,8 @@ async function runGame({ levels, start, content = [], startingItems = [], respaw
     if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
     if (isDead() || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
+    if (ev.code === 'KeyC' && !ev.repeat && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); act('cast'); return; } // the ready spell
+    if (ev.code === 'KeyB' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && Object.keys(books.spells).length) { ev.preventDefault(); bars.menu.spells(); return; } // the spell book
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }
     if (ev.code === 'Digit1') { ev.preventDefault(); if (!ev.repeat) quickUse('hp'); return; }
     if (ev.code === 'Digit2') { ev.preventDefault(); if (!ev.repeat) quickUse('mp'); return; }

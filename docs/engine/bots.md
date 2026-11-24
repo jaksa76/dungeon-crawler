@@ -23,7 +23,7 @@ Its options are listed at the top of `tools/play.mjs`. There is nothing to insta
 | `engine/sim/observe.js` | What a bot can see, as plain data. |
 | `engine/sim/runner.js` | `runBot`, `runBots`: run a bot many times and measure it; `summarise`, `toCsv`, `compareReports`. |
 | `tools/play.mjs` | The command line. |
-| `tools/bots/` | Example bots: `random-walker`, `explorer`, `fighter`, and their shared `tactics.mjs`. |
+| `tools/bots/` | Example bots: `random-walker`, `explorer`, `fighter`, `caster`, and their shared `tactics.mjs`. |
 | `games/<campaign>/scenarios.js` | A campaign's named starting points for bots (`--scenario undercrypt`). |
 
 ## Writing a bot
@@ -74,7 +74,7 @@ an action the rules forbid returns `{ ok: false, reason }` and never throws.
 | `drop(itemOrSlot, qty?)` | 200 ms | onto the floor here |
 | `wait(ms)` | `ms` | |
 | `spend(attribute)` | 100 ms | put a skill point from levelling up into `'strength'`, `'vitality'`, `'intellect'` or `'agility'`: `{ ok, value, unspent }` or `{ ok: false, reason: 'no-points' | 'unknown' }` |
-| `cast()` | | `{ ok: false, reason: 'no-spells' }` until spells exist (M8.1) |
+| `cast(spell?, targetId?)` | 450 ms | cast a spell (default: the ready one) at the nearest creature in the line ahead: `{ ok, spell, targets }` or `{ ok: false, reason: 'no-spells' | 'unknown' | 'not-known' | 'stunned' | 'cooldown' | 'mana' | 'no-target' }`; `learn(spell)` and `spells()` too (see [magic.md](magic.md)) |
 | `travel(level, spawn?)` | 0 | a scenario shortcut, as content's `game.travel` does; a player travels by stepping into a passage |
 | `stop(outcome?)` | | end the run (`'won'` or `'stopped'`) |
 

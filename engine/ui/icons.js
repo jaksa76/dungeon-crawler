@@ -14,6 +14,16 @@ export function savedIconStyle(search = location.search) {
 }
 export function saveIconStyle(style) { try { localStorage.setItem('iconStyle', style); } catch { /* private window: lasts until reload only */ } }
 
+// The outline of an enchanted item (docs/engine/magic.md): the colour is the kind of magic, the strength is the tier.
+// `width` is in canvas pixels, `alpha` how solid the line is, `glow` how far a soft halo of the same colour reaches. The
+// icon is drawn that much smaller, to leave room for it.
+export const TIER_NAMES = ['', 'faint', 'clear', 'strong', 'blazing'];
+export const TIER_OUTLINE = [null,
+  { width: 1, alpha: 0.5, glow: 0 },
+  { width: 1, alpha: 1, glow: 2 },
+  { width: 2, alpha: 1, glow: 4 },
+  { width: 2, alpha: 1, glow: 8 }];
+
 export async function loadIcons(path, style = 'pixel', sheets = [], materials = {}) {
   const suffix = style === 'detailed' ? '-hd' : '';
   const [manifest, image] = await Promise.all([
@@ -58,19 +68,42 @@ export async function loadIcons(path, style = 'pixel', sheets = [], materials = 
     // Pixels across for a true pixel-art icon (such as 12), or undefined for a painted one. Draw it at a whole
     // multiple of that and it stays crisp.
     native: id => source(baseOf(id))?.native,
-    // Draw icon `id` into the rectangle (dx, dy, dw, dh).
-    draw(g, id, dx, dy, dw, dh) {
-      const from = find(id);
-      if (!from) throw new Error(`unknown icon "${id}"`);
-      const smooth = g.imageSmoothingEnabled, n = from.native;
-      if (!n) { g.drawImage(from.image, from.x, from.y, from.tile, from.tile, dx, dy, dw, dh); return; }
-      // A pixel-art icon: draw just its pixels, without smoothing, so each icon pixel stays a hard block.
-      const k = from.atlas ? Math.floor(from.tile / n) : 1, span = n * k, pad = (from.tile - span) >> 1;
-      g.imageSmoothingEnabled = false;
-      g.drawImage(from.image, from.x + pad, from.y + pad, span, span, dx, dy, dw, dh);
-      g.imageSmoothingEnabled = smooth;
+    // Draw icon `id` into the rectangle (dx, dy, dw, dh). `outline` ({ colour, tier }) rings it in a kind of magic's colour,
+    // as strong as the tier says (TIER_OUTLINE).
+    draw(g, id, dx, dy, dw, dh, outline = null) {
+      const style = outline && TIER_OUTLINE[Math.min(4, Math.max(0, Math.round(outline.tier)))];
+      if (!style) { paint(g, id, dx, dy, dw, dh); return; }
+      // The icon, shrunk to leave room; its silhouette in the colour, stamped around it; a halo; then the icon on top.
+      const m = style.width + Math.ceil(style.glow / 2), iw = dw - 2 * m, ih = dh - 2 * m;
+      if (iw < 4 || ih < 4) { paint(g, id, dx, dy, dw, dh); return; }
+      const shape = document.createElement('canvas'); shape.width = Math.max(1, Math.round(dw)); shape.height = Math.max(1, Math.round(dh));
+      const s = shape.getContext('2d');
+      s.imageSmoothingEnabled = g.imageSmoothingEnabled;
+      paint(s, id, m, m, iw, ih);
+      s.globalCompositeOperation = 'source-in'; s.fillStyle = outline.colour; s.fillRect(0, 0, shape.width, shape.height);
+      g.save();
+      if (style.glow) { g.shadowColor = outline.colour; g.shadowBlur = style.glow; g.globalAlpha = 0.9; g.drawImage(shape, dx, dy); g.shadowBlur = 0; }
+      g.globalAlpha = style.alpha;
+      for (let a = 0; a < 8; a++) { // eight directions, as wide as the line
+        const ox = Math.round(Math.cos(a * Math.PI / 4) * style.width * 1.01), oy = Math.round(Math.sin(a * Math.PI / 4) * style.width * 1.01);
+        g.drawImage(shape, dx + ox, dy + oy);
+      }
+      g.restore();
+      paint(g, id, dx + m, dy + m, iw, ih);
     },
   };
+  // The icon alone.
+  function paint(g, id, dx, dy, dw, dh) {
+    const from = find(id);
+    if (!from) throw new Error(`unknown icon "${id}"`);
+    const smooth = g.imageSmoothingEnabled, n = from.native;
+    if (!n) { g.drawImage(from.image, from.x, from.y, from.tile, from.tile, dx, dy, dw, dh); return; }
+    // A pixel-art icon: draw just its pixels, without smoothing, so each icon pixel stays a hard block.
+    const k = from.atlas ? Math.floor(from.tile / n) : 1, span = n * k, pad = (from.tile - span) >> 1;
+    g.imageSmoothingEnabled = false;
+    g.drawImage(from.image, from.x + pad, from.y + pad, span, span, dx, dy, dw, dh);
+    g.imageSmoothingEnabled = smooth;
+  }
 }
 
 // Repaint the grey metal of an icon (RGBA bytes, changed in place) in `colours`: hex colours, dark to light. A pixel is

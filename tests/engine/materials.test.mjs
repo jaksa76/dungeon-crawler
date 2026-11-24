@@ -29,8 +29,8 @@ test('books declare damage types; an unknown one is refused', () => {
   assert.doesNotThrow(() => mergeContent(engineContent, book({ blunt: {} })));
   assert.equal(mergeContent(engineContent, book({ blunt: {} })).damageTypes.blunt.name, 'blunt');
   assert.throws(() => mergeContent(engineContent, book({})), /unknown damage type "blunt"/);
-  const resists = defineContent(base, { monsters: { rat: { resist: { fire: 2 } } } });
-  assert.throws(() => mergeContent(engineContent, resists), /creature "rat" \(resist\) names an unknown damage type "fire"/);
+  const resists = defineContent(base, { monsters: { rat: { resist: { plasma: 2 } } } });
+  assert.throws(() => mergeContent(engineContent, resists), /creature "rat" \(resist\) names an unknown damage type "plasma"/);
 });
 
 test('the engine paints every material, dark to light', () => {

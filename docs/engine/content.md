@@ -48,7 +48,8 @@ Behaviour is code on the same objects: an item's `use`, an NPC's `interact`, a c
 
 ## Content books
 
-A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons, damageTypes, materials })`,
+A book is made with `defineContent(baseUrl, { items, monsters, npcs, props, buildings, environments, icons, damageTypes, materials,
+spells, effects, enchantments })`,
 where `baseUrl` is the folder that holds its art (doors have none of their own: they show a building):
 
 ```
