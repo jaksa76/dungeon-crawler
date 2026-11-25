@@ -18,7 +18,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-5 - M4 — Persistence and game state (docs/engine/persistence.md)
 - [x] TODO-6 - M5 — Combat interaction and monster animation
 - [x] TODO-7 - M6 — Automated test player (docs/engine/bots.md)
-- [x] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md): rusty → iron → steel → mithril, by loot and shops. Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure
 - [x] TODO-12 - M9 — World map and travel
 - [x] TODO-13 - M10 — Flags and dialogue
 - [x] TODO-14 - M11 — Quests
@@ -30,6 +29,10 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-20 - Show a plus sign on the hero profile when skill points are available
 
 ## Open in finished milestones
+
+- [>] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md)
+  - `[x]` Upgrade path: rusty sword → iron mace → steel (smithy, loot from level 3) → mithril (one sword at the smithy, mail in the Undercrypt's knight's strongbox). Mithril is never dropped, enchanted or not.
+  - Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure.
 
 - [ ] TODO-9 - M8 — Loot, XP and progression (docs/engine/progression.md)
   - `[ ]` Monster respawn (needs a per-level state scope)
@@ -147,11 +150,3 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - As a campaign designer, I want to start a test or a play session from a checkpoint (TODO-49) with a few changes (level, gold, items, flags, position), so I can test a specific situation without replaying everything before it.
   - Generated states are checked against consistency rules a real state always obeys: quest stage matches its flags, a unique item is not in two places, a defeated boss's loot is not still in its container. The campaign supplies the rules.
   - Usable from tests, from bots and in the browser (e.g. a dev-only URL parameter or menu that loads a scenario). Replaces the hand-built setups in games/ravensmoor/scenarios.js where they overlap.
-
-## Later — art pipeline and toolkit
-
-*Not required by any game story. Pick up when the game needs more art or other people start making levels.*
-
-- `[ ]` Experiment 3: full AI-generated screens per cell/direction, mixable per area
-- `[ ]` Visual level editor (tile map, entities, exits)
-- `[ ]` Dialogue and quest editor
