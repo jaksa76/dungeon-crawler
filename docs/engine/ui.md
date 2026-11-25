@@ -87,10 +87,14 @@ A screen is `{ kind, title, draw(), opened?(), closed?() }`; `draw` runs every f
 
 **Desktop bar** (y 180–240): the hero's head (tap: character screen), health, mana and experience bars with numbers,
 `LV n` under the head, gold, six menu buttons (character, spells or help, journal, satchel, full screen, settings), the eight
-quick slots with their key numbers under them, the minimap.
+quick slots with their key numbers under them, the minimap. They line up (`hudRects` in `ui/hud.js`): head, bars, buttons and
+minimap start on one line 6 pixels below the bar's top, the four groups are 4 pixels apart with 5 at each end, the buttons are
+centred on the quick bar, and the quick bar ends where the experience bar does; gold and the key numbers share a line.
 
 **Phone rails**: the left rail has the head, the bars (a number, a thin experience bar, `Ln` on the head), the six menu
 buttons in 2 × 3, and the **move stick**; the right rail has the minimap, the eight quick slots in 2 × 4, and the **turn pill**.
+Each rail is one 37-pixel column, one pixel in from the canvas edge and against the rim: the head, bars and minimap are as wide as
+two buttons or slots side by side.
 The stick and the pill are widgets you drag, like a joystick: the direction is where the finger is from the widget's centre
 (up forward, down back, left and right strafe; the pill turns), a change of direction acts at once, and holding repeats like
 a held key (after 350 ms, then every 220 ms). The game steps one tile at a time, so a widget picks a direction; it has no speed.

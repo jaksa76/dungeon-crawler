@@ -59,8 +59,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The review caught that save() silently skips while travelling between levels, so leaving then would not have saved; leaving now waits until arrival. The log is hidden while a menu is open, so failures show as the panel's news line.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-24 - Precisely align UI elements
+- [x] TODO-24 - Precisely align UI elements
   - As a player, I want HUD and screen elements aligned to the pixel grid on both layouts (320×240 desktop, 400×180 phone).
+  - Note: **Iteration note**
+  - Note: Expected off-grid drawing; an audit that hooked every canvas draw call on the main menu, character creation, the HUD and six menus found none (the canvas kit rounds every coordinate). So "aligned" was read as layout alignment: shared top lines, equal margins and gaps, one column per phone rail.
+  - Note: The menu screens were checked by screenshot and already line up (frames at 5/20/310/155, bottoms at 175); only the empty spell list's text moved. The bigger misalignments were all in the HUD (hudRects).
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-25 - MP3 soundtrack and sound effects
   - As a player, I want recorded music and sound effects (mp3) instead of the synthesised sounds, per level and per event.

@@ -61,9 +61,25 @@ test('the HUD fits its layout: everything is on the canvas, nothing overlaps, an
   const m = hudRects(LAYOUTS.mobile);
   for (const box of [m.head, m.hp, m.mp, m.xp, ...m.buttons]) assert.ok(box.x + box.w <= 38, 'left rail content stays inside the rim at x 38');
   for (const box of [m.minimap, ...m.slots]) assert.ok(box.x >= 362 && box.x + box.w <= 399, 'right rail content stays inside the rim at x 361');
-  assert.deepEqual([m.move.cx, m.turn.cx], [20, 380]);
+  assert.deepEqual([m.move.cx, m.turn.cx], [19, 380]);
   assert.ok(m.slots.every(s => s.w >= 18 && s.h >= 18), 'a quick slot is at least 18 pixels, 41 CSS pixels on a Pixel 7a');
   assert.equal(hudRects(LAYOUTS.desktop).numbers, true); assert.equal(m.numbers, false);
+});
+
+test('the HUD lines up: one top line and even margins on the desktop bar, one column per rail on a phone', () => {
+  const d = hudRects(LAYOUTS.desktop, 8), right = box => box.x + box.w, bottom = box => box.y + box.h;
+  assert.equal(new Set([d.head, d.hp, d.buttons[0], d.minimap].map(b => b.y)).size, 1, 'head, bars, buttons and minimap start on one line');
+  assert.equal(d.head.x, 320 - right(d.minimap), 'the same margin at both ends of the bar');
+  assert.deepEqual([d.hp.x - right(d.head), d.slots[0].x - right(d.hp), d.minimap.x - right(d.slots.at(-1))], [4, 4, 4], 'the groups are 4 pixels apart');
+  assert.equal(d.buttons[0].x - d.slots[0].x, right(d.slots.at(-1)) - right(d.buttons.at(-1)), 'the buttons are centred on the quick bar');
+  assert.equal(bottom(d.slots[0]), bottom(d.xp), 'the quick bar ends where the bars do');
+  const six = hudRects(LAYOUTS.desktop, 6);
+  assert.ok(six.buttons[0].x >= right(six.hp) + 4, 'with fewer slots the buttons still clear the bars');
+  const m = hudRects(LAYOUTS.mobile, 8);
+  for (const box of [m.head, m.hp, m.mp, m.xp]) assert.deepEqual([box.x, right(box)], [m.buttons[0].x, right(m.buttons[1])], 'the left rail is one column');
+  assert.deepEqual([m.minimap.x, right(m.minimap)], [m.slots[0].x, right(m.slots[1])], 'the right rail is one column');
+  assert.equal(m.slots[0].y - bottom(m.minimap), 1, 'the minimap sits one pixel above the slots, as the slots sit apart');
+  assert.equal(m.buttons[0].x, 400 - right(m.slots[1]), 'the rails mirror each other');
 });
 
 test('text the bitmap font cannot draw becomes something it can, and wraps to the width', () => {

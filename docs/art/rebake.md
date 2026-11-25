@@ -82,5 +82,6 @@ painted, these are the pieces, all at native size and with the hit regions of `u
 | Desktop bar | 320 × 60 |
 | Left and right rail | 40 × 180 each |
 | Menu window (the frame round every menu) | 320 × 180, with a rim of at most 5 px and the title bar at y 5–18 |
-| Quick slot, menu button, bar frames | 18 × 18, 24 × 18, 70 × 11 (desktop) / 34 × 9 (phone) |
+| Quick slot, menu button, bar frames | 18 × 18, 24 × 18, 69 × 11 (desktop) / 37 × 9 (phone) |
+| Minimap | 44 × 44 (desktop) / 37 × 37 (phone) |
 | Move stick and turn pill | 36 × 36 and 36 × 24 |

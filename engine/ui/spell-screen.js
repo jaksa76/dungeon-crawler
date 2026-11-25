@@ -17,7 +17,7 @@ export function createSpellScreen({ kit, icons, hero, magic, quick = null, damag
     kind: 'spells', title: 'Spells',
     draw() {
       const known = magic.spells();
-      if (!known.length) { kit.paragraph('You know no spells yet. Scrolls and books teach them: use one from the satchel.', 12, 28, 296, THEME.text); return; }
+      if (!known.length) { kit.paragraph('You know no spells yet. Scrolls and books teach them: use one from the satchel.', 9, 23, 302, THEME.text); return; } // where the text screens start their text
       if (!known.some(s => s.id === selected)) selected = magic.ready() ?? known[0].id;
       const spell = known.find(s => s.id === selected);
 

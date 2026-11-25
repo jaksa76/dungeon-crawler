@@ -19,21 +19,28 @@ const HOLD_MS = 350, REPEAT_MS = 220, DEAD = 5; // a stick repeats like a held b
 // Where everything is, in canvas pixels, for a layout.
 export function hudRects(layout, slotCount = 8) {
   if (layout.name === 'mobile') {
-    const left = i => ({ x: 1 + 19 * (i % 2), y: 63 + 19 * (i >> 1), w: 18, h: 18 }), right = i => ({ x: 362 + 19 * (i % 2), y: 40 + 19 * (i >> 1), w: 18, h: 18 });
+    // Each rail has 38 pixels inside its rim (x 0-37 and 362-399). Everything in it fills the same 37-pixel column, one pixel
+    // from the canvas edge and against the rim: two 18-pixel buttons or slots with a 1-pixel gap, the head, the bars, the minimap.
+    const COL = { left: 1, right: 362, w: 37 };
+    const left = i => ({ x: COL.left + 19 * (i % 2), y: 63 + 19 * (i >> 1), w: 18, h: 18 }), right = i => ({ x: COL.right + 19 * (i % 2), y: 40 + 19 * (i >> 1), w: 18, h: 18 });
     return {
-      head: { x: 3, y: 3, w: 34, h: 30 }, hp: { x: 3, y: 36, w: 34, h: 9 }, mp: { x: 3, y: 46, w: 34, h: 9 }, xp: { x: 3, y: 56, w: 34, h: 4 },
+      head: { x: COL.left, y: 3, w: COL.w, h: 30 },
+      hp: { x: COL.left, y: 36, w: COL.w, h: 9 }, mp: { x: COL.left, y: 46, w: COL.w, h: 9 }, xp: { x: COL.left, y: 56, w: COL.w, h: 4 },
       buttons: Array.from({ length: 6 }, (_, i) => left(i)), slots: Array.from({ length: slotCount }, (_, i) => right(i)),
-      minimap: { x: 363, y: 3, w: 34, h: 34 },
-      move: { x: 0, y: 122, w: 40, h: 58, cx: 20, cy: 150 }, turn: { x: 360, y: 122, w: 40, h: 58, cx: 380, cy: 150 },
+      minimap: { x: COL.right, y: 2, w: COL.w, h: COL.w }, // square, one pixel above the first row of slots
+      move: { x: 0, y: 122, w: 40, h: 58, cx: COL.left + 18, cy: 150 }, turn: { x: 360, y: 122, w: 40, h: 58, cx: COL.right + 18, cy: 150 }, // the widgets centred on the columns
       numbers: false,
     };
   }
-  const y0 = VIEW_H;
+  // The bar (y 180-240, a 3-pixel rim): four groups along one top line, 5 pixels from each end and 4 apart: the head; the bars;
+  // the menu buttons over the quick bar (the buttons' row centred on the slots', or from their left edge when there are fewer
+  // than eight slots); the minimap.
+  const top = VIEW_H + 6, slot0 = 116, slotsW = slotCount * 19 - 1, buttonsW = 6 * 25 - 1;
   return {
-    head: { x: 5, y: y0 + 6, w: 34, h: 30 }, hp: { x: 43, y: y0 + 6, w: 70, h: 11 }, mp: { x: 43, y: y0 + 19, w: 70, h: 11 }, xp: { x: 43, y: y0 + 32, w: 70, h: 11 },
-    buttons: Array.from({ length: 6 }, (_, i) => ({ x: 117 + 25 * i, y: y0 + 7, w: 24, h: 18 })),
-    slots: Array.from({ length: slotCount }, (_, i) => ({ x: 117 + 19 * i, y: y0 + 29, w: 18, h: 18 })),
-    minimap: { x: 272, y: y0 + 8, w: 44, h: 44 },
+    head: { x: 5, y: top, w: 34, h: 30 }, hp: { x: 43, y: top, w: 69, h: 11 }, mp: { x: 43, y: top + 13, w: 69, h: 11 }, xp: { x: 43, y: top + 26, w: 69, h: 11 },
+    buttons: Array.from({ length: 6 }, (_, i) => ({ x: slot0 + Math.max(0, Math.floor((slotsW - buttonsW) / 2)) + 25 * i, y: top, w: 24, h: 18 })),
+    slots: Array.from({ length: slotCount }, (_, i) => ({ x: slot0 + 19 * i, y: top + 19, w: 18, h: 18 })), // their bottom is the xp bar's
+    minimap: { x: 271, y: top, w: 44, h: 44 },
     numbers: true,
   };
 }
@@ -146,7 +153,8 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
     const h = rects.head, p = hero.progress;
     kit.frame(h.x, h.y, h.w, h.h, { fill: '#0d0b10', edge: THEME.frame });
     g.imageSmoothingEnabled = false;
-    g.drawImage(portrait, HEAD_X - 16, 0, 32, 28, h.x + 1, h.y + 1, 32, 28);
+    const pw = h.w - 2, ph = h.h - 2; // the portrait fills the frame: a crop of the sprite round the head
+    g.drawImage(portrait, HEAD_X - Math.floor(pw / 2), 0, pw, ph, h.x + 1, h.y + 1, pw, ph);
     kit.hit(h.x, h.y, h.w, h.h, { key: 'head', title: 'Character', tap: () => menus.menu.character() });
     if (hero.unspent > 0) { // skill points to spend: a gold plus
       const x = h.x + h.w - 9, y = h.y + 2;
@@ -157,7 +165,7 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
       kit.bar(rects.mp.x, rects.mp.y, rects.mp.w, rects.mp.h, hero.mp, hero.maxMp, { fill: THEME.mp, hi: THEME.mpHi, label: `${hero.mp}/${hero.maxMp}` });
       if (p) kit.bar(rects.xp.x, rects.xp.y, rects.xp.w, rects.xp.h, p.to === null ? 1 : p.xp - p.from, p.to === null ? 1 : p.to - p.from, { fill: THEME.xp, hi: THEME.xpHi, label: p.to === null ? 'MAX' : `${p.xp}/${p.to}` });
       if (p) kit.text(`LV ${p.level}`, h.x + h.w / 2, h.y + h.h + 4, THEME.xpHi, { align: 'center' });
-      if (wallet) kit.text(`Gold ${wallet.amount}`, rects.hp.x, rects.xp.y + rects.xp.h + 4, THEME.dim);
+      if (wallet) kit.text(`Gold ${wallet.amount}`, rects.hp.x, rects.xp.y + rects.xp.h + 2, THEME.dim); // on the line of the slot numbers
     } else {
       kit.bar(rects.hp.x, rects.hp.y, rects.hp.w, rects.hp.h, hero.hp, hero.maxHp, { fill: THEME.hp, hi: THEME.hpHi, label: String(hero.hp) });
       kit.bar(rects.mp.x, rects.mp.y, rects.mp.w, rects.mp.h, hero.mp, hero.maxMp, { fill: THEME.mp, hi: THEME.mpHi, label: String(hero.mp) });
