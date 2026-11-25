@@ -21,10 +21,7 @@ Listed with a short description of each in `art/engine/icons/sheets.json`, six s
 | ui | bag, journal, map, settings, fullscreen, close, attack, spell, shield, heart, mana-drop, xp-star, gold, talk, use-hand, look-eye, search, drop, lock, unlock, sound-on, sound-off, quest, character |
 
 Where the HUD uses them: the menu buttons (bag, journal, fullscreen, settings), the quick slots, the
-satchel grid and container lists. The painted desktop panel in `experiments/game-1/assets/ui/panel.png` has its
-pictures baked in; `engine/ui/panel-icons.js` paints the atlas icons over them at startup on a copy,
-so games one and three are unaffected. The six menu icons have no cell frames any more: their painted
-frames are covered with matching stone, and the icons are drawn crisply, centred where the cells were.
+satchel grid and container lists. The HUD draws them straight onto the canvas (`ui/hud.js`), centred in buttons of the game's own colours.
 (The cells' positions in the painting are measured and listed in that file, `MENU_CELLS`.) `attack`, `spell`, `heart`, `lock` and the rest are ready for
 the features that will use them.
 
@@ -35,8 +32,7 @@ shapes mushy, so every sheet is painted differently (`"native": 16` in `sheets.j
 icon as 16 × 16 pixel art, enlarged so every art pixel is a hard 12 × 12 block. `slice` finds the block size
 and samples one colour per block, giving a real 16 × 16 image with no smoothing (`png/` holds those 16 × 16
 files). The atlas stores them enlarged 4× with nearest neighbour, so its tiles stay 64 × 64, and lists them
-under `"native"` in `atlas.json`. The HUD draws a native icon at 16 icon pixels (32 px on phones, 48 on the
-desktop panel), with smoothing off, so it is always crisp.
+under `"native"` in `atlas.json`. Everything draws a native icon at 16 canvas pixels, with smoothing off, so it is always crisp at any scale of the canvas (see [ui.md](ui.md)).
 
 The first version of the item icons was painted at higher resolution and smoothly shrunk. Next to the
 crisp interface icons it looked mushy, so all of them were regenerated as 16 × 16. 16 is small for 120
@@ -89,12 +85,11 @@ in steel's colours. See [equipment.md](equipment.md#one-icon-per-family).
 ## Using an icon
 
 An item: set `icon: '<id>'` in its definition. Anywhere else: `icons.draw(g, id, x, y, w, h)` from
-`engine/ui/icons.js`. If it appears in the HUD, go through `addArt` in `engine/ui/mobile-hud.js` so its pixels
-stay the same size as the UI's.
+`engine/ui/icons.js`. On the canvas, use `kit.icon(icons, id, x, y, 16)` (`engine/ui/canvas.js`) so it lands on a whole pixel.
 
 ## Checks
 
 `node --test tests/inventory.test.mjs` checks that the ids are unique, that there are between 100 and
 200, that every one is in the atlas, that the 24 interface icons are native 16 × 16, and that every item and
 the panel use ids that exist.
-`node tools/check-pixels.mjs` checks that every icon is shown at the UI pixel size.
+`node tools/check-pixels.mjs` checks that the whole canvas, icons included, is shown at a whole number of device pixels per pixel.

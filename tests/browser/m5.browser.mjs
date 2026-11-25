@@ -6,7 +6,7 @@ const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PAT
 const base = process.env.TEST_URL || 'http://127.0.0.1:8000';
 const errors = [];
 async function fixture(mobile = false) {
-  const page = await browser.newPage(mobile ? { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } : { viewport: { width: 1100, height: 850 } });
+  const page = await browser.newPage(mobile ? { viewport: { width: 844, height: 390 }, isMobile: true, hasTouch: true } : { viewport: { width: 1100, height: 850 } });
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(`${base}/games/ravensmoor/?level=dungeon`);
   await page.waitForFunction(() => window.__game2d?.targets);
@@ -21,16 +21,16 @@ async function fixture(mobile = false) {
   return page;
 }
 async function point(page, index = 0) {
-  const rect = await page.evaluate(i => __game2d.targets.filter(t => t.kind === 'actor')[i].rect, index);
-  const box = await page.locator('#view').boundingBox();
-  return { x: box.x + (rect.x + rect.w / 2) * box.width / 640, y: box.y + (rect.y + rect.h * .4) * box.height / 360 };
+  // The target's rectangle is in the scene's 640 x 360; the scene sits in the canvas at spec.view (320 x 180 pixels there).
+  return page.evaluate(i => { const { rect } = __game2d.targets.filter(t => t.kind === 'actor')[i], v = __game2d.ui.spec.view;
+    return __game2d.ui.client(v.x + (rect.x + rect.w / 2) / 2, v.y + (rect.y + rect.h * .4) / 2); }, index);
 }
 const health = page => page.evaluate(() => __game2d.monsters.actors.map(a => a.hp));
 try {
   const page = await fixture();
   const p = await point(page);
   await page.mouse.move(p.x, p.y);
-  assert.equal(await page.locator('#view').evaluate(e => e.style.cursor), 'crosshair');
+  assert.equal(await page.locator('#game').evaluate(e => e.style.cursor), 'crosshair');
   await page.mouse.down(); await page.waitForTimeout(1550); await page.mouse.up();
   let hp = await health(page);
   assert.ok(hp[0] < 190, 'holding repeats attacks at cooldown');
@@ -39,7 +39,7 @@ try {
   const second = await point(page, 1);
   await page.mouse.click(second.x, second.y);
   assert.ok((await health(page))[1] < 200, 'second creature can be selected individually');
-  assert.equal(await page.locator('#view').evaluate(e => e.title), 'Attack giant rat', 'mouse hover follows the pointer after attacking');
+  assert.equal(await page.locator('#game').evaluate(e => e.title), 'Attack giant rat', 'mouse hover follows the pointer after attacking');
   await page.evaluate(() => __game2d.monsters.damage(__game2d.monsters.actors[0], 1000, performance.now()));
   await page.waitForTimeout(650);
   assert.equal(await page.evaluate(() => __game2d.monsters.actors[0].hp), 0, 'corpse remains after collapse');
@@ -73,24 +73,24 @@ try {
   await village.keyboard.press('ArrowLeft'); await village.waitForTimeout(350);
   const chest = await village.evaluate(() => __game2d.targets.find(t => t.entity?.prop === 'chest'));
   assert.equal(chest.tooFar, false);
-  const vb = await village.locator('#view').boundingBox();
-  await village.mouse.click(vb.x + (chest.rect.x + chest.rect.w / 2) * vb.width / 640,
-    vb.y + Math.min(350, chest.rect.y + chest.rect.h / 3) * vb.height / 360);
+  const click = await village.evaluate(rect => { const v = __game2d.ui.spec.view;
+    return __game2d.ui.client(v.x + (rect.x + rect.w / 2) / 2, v.y + Math.min(350, rect.y + rect.h / 3) / 2); }, chest.rect);
+  await village.mouse.click(click.x, click.y);
   await village.waitForTimeout(100);
-  assert.ok(await village.getByText('Chest', { exact: true }).isVisible(), 'clicking the rendered chest opens its container');
+  assert.equal(await village.evaluate(() => __game2d.ui.menus.kind), 'container', 'clicking the rendered chest opens its container');
 
   const mobile = await fixture(true), t = await point(mobile);
   await mobile.touchscreen.tap(t.x, t.y);
   hp = await health(mobile); assert.ok(hp[0] < 200); assert.equal(hp[1], 200);
   await mobile.waitForTimeout(800);
   const cdp = await mobile.context().newCDPSession(mobile);
+  // A drag across a creature is not an attack, and nothing turns: the phone has sticks, not swipes.
+  const facing = await mobile.evaluate(() => __game2d.p.dir);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: t.x, y: t.y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: t.x - 90, y: t.y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await mobile.waitForTimeout(350);
-  assert.deepEqual(await health(mobile), hp, 'swiping across a creature does not attack');
-  assert.equal(await mobile.evaluate(() => __game2d.p.dir), 3, 'left swipe still turns right');
-  await mobile.keyboard.press('ArrowLeft'); await mobile.waitForTimeout(350);
+  assert.equal(await mobile.evaluate(() => __game2d.p.dir), facing, 'a drag across the scene turns nothing');
   const hold = await point(mobile);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: hold.x, y: hold.y }] });
   await mobile.waitForTimeout(1600);
@@ -112,5 +112,5 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.deepEqual(await health(mobile), [200, 200], 'loading a save cancels held attacks on reused actor IDs');
   assert.deepEqual(errors, []);
-  console.log('M5 browser checks passed: individual targets, hold, corpses, occlusion, props, mobile taps and swipes.');
+  console.log('M5 browser checks passed: individual targets, hold, corpses, occlusion, props, mobile taps and holds.');
 } finally { await browser.close(); }

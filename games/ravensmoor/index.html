@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=1, viewport-fit=cover">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Ravensmoor</title>
@@ -10,25 +10,17 @@
     :root { --bg: #08060c; --fg: #b8aecb; --dim: #6f6684; }
     html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); font: 13px/1.4 monospace; }
     body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; }
-    .frame { position: relative; box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
-    .frame canvas { display: block; image-rendering: pixelated; }
-    .log { position: absolute; left: 0; pointer-events: none; }
+    #game { box-shadow: 0 0 0 3px #2a2433, 0 0 40px #000; }
     .help { color: var(--dim); text-align: center; max-width: 960px; padding: 0 16px; }
     .help b { color: var(--fg); }
-    /* phones: see engine/core/touch.js, which sets html[data-layout] */
-    html[data-layout="portrait"] body, html[data-layout="landscape"] body { height: 100vh; height: 100dvh; overflow: hidden; }
-    html[data-layout="portrait"] body { justify-content: flex-start; gap: 0; }
-    html[data-layout="portrait"] .frame, html[data-layout="landscape"] .frame { box-shadow: none; }
-    html[data-layout="portrait"] .keys, html[data-layout="landscape"] .keys,
-    html[data-layout="landscape"] #status, html[data-layout="landscape"] #ui { display: none; }
-    html[data-layout="portrait"] #status { font-size: 10px; line-height: 1.3; padding: 6px 12px 0; }
+    /* the canvas is laid out and scaled by engine/ui/screen.js, which sets html[data-layout] to desktop, mobile or rotate */
+    html[data-layout="mobile"] body, html[data-layout="rotate"] body { height: 100vh; height: 100dvh; overflow: hidden; gap: 0; overscroll-behavior: none; }
+    html[data-layout="mobile"] #game { box-shadow: none; }
+    html[data-layout="mobile"] .keys, html[data-layout="mobile"] #status, html[data-fullscreen] .keys { display: none; }
   </style>
 </head>
 <body>
-  <div class="frame" id="frame">
-    <canvas id="view"></canvas>
-    <canvas id="ui"></canvas>
-  </div>
+  <canvas id="game"></canvas>
   <div class="help keys">
     <b>W/S</b> or <b>↑/↓</b> move · <b>A/D</b> strafe · <b>Q/E</b> or <b>←/→</b> turn · <b>Space</b> use · <b>F</b> full screen · <b>I</b> inventory · <b>P</b> character · <b>C</b> cast · <b>H</b> help · <b>J</b> journal · <b>L</b> message log · <b>O</b> slot outlines
   </div>
@@ -38,9 +30,7 @@
     import { campaign } from './campaign.js';
     startGame({
       ...campaign,
-      viewCanvas: document.getElementById('view'),
-      uiCanvas: document.getElementById('ui'),
-      frame: document.getElementById('frame'),
+      canvas: document.getElementById('game'),
       status: document.getElementById('status'),
     }).catch((e) => { document.getElementById('status').textContent = 'Error: ' + e.message; console.error(e); });
   </script>

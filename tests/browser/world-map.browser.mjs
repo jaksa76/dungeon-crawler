@@ -16,50 +16,40 @@ async function testMap(viewport, layout) {
     page.on('pageerror', error => issues.push(error.message));
     await page.goto(`${base}/games/ravensmoor/?level=village`);
     await page.waitForFunction(() => window.__game2d?.phase === 'playing');
-    const move = async (key, command) => {
-      if (isMobile) await page.locator(`[data-cmd="${command}"]`).tap();
-      else await page.keyboard.press(key);
-    };
-    const forward = () => move('KeyW', 'forward');
-    await forward();
-    await forward();
-    await move('KeyA', 'strafeLeft');
-    await move('KeyQ', 'left');
-    await forward();
-    const map = page.getByRole('dialog', { name: 'World map' });
-    await map.waitFor();
-    assert.equal(await map.getByRole('button', { name: 'Old Quarter, current location' }).isDisabled(), true);
-    assert.equal(await map.getByRole('button', { name: 'Greybridge' }).count(), 0);
-    assert.equal(await map.getByRole('button', { name: 'Undercrypt' }).count(), 0);
+    if (layout === 'portrait') { // held upright a phone shows the rotate overlay, not the game
+      assert.equal(await page.evaluate(() => __game2d.ui.layout), 'rotate');
+      assert.ok(await page.getByText('Rotate your device').isVisible());
+      return;
+    }
+    const key = async code => { await page.keyboard.press(code); await page.waitForTimeout(250); };
+    const kind = () => page.evaluate(() => __game2d.ui.menus.kind);
+    const marker = async title => (await page.evaluate(() => __game2d.ui.regions())).find(r => r.key.startsWith('map:') && r.title.startsWith(title));
+    const tap = async region => { const c = await page.evaluate(([x, y]) => __game2d.ui.client(x, y), [region.x + region.w / 2, region.y + region.h / 2]); await page.mouse.click(c.x, c.y); };
+    await key('KeyW'); await key('KeyW'); await key('KeyA'); await key('KeyQ'); await key('KeyW');
+    await page.waitForFunction(() => __game2d.ui.menus.kind === 'world-map');
+    await page.waitForTimeout(400);
+    assert.match((await marker('Old Quarter')).title, /you are here/);
+    assert.equal((await marker('Old Quarter')).disabled, true);
+    assert.equal(await marker('Greybridge'), undefined);
+    assert.equal(await marker('Undercrypt'), undefined);
 
-    await map.getByRole('button', { name: 'Close' }).click();
-    await move('KeyA', 'strafeLeft');
-    if (isMobile) await page.locator('[data-act="interact"]').tap();
-    else await page.keyboard.press('Space');
-    await move('KeyD', 'strafeRight');
-    await forward();
-    await map.waitFor();
-    await page.waitForFunction(() => document.querySelector('.rpg-world-map img')?.naturalWidth > 0);
-    const marker = map.getByRole('button', { name: 'Greybridge' });
-    const size = await marker.boundingBox();
-    assert.ok(size.width >= 44 && size.height >= 44);
-    if (process.env.SCREENSHOT_DIR) {
-      await page.screenshot({ path: join(process.env.SCREENSHOT_DIR, `world-map-${layout}.png`) });
-    }
-    if (isMobile) await marker.tap();
-    else await marker.click();
+    await key('Escape');
+    assert.equal(await kind(), null);
+    await key('KeyA'); await key('Space'); await key('KeyD'); await key('KeyW');
+    await page.waitForFunction(() => __game2d.ui.menus.kind === 'world-map');
+    await page.waitForTimeout(400);
+    const greybridge = await marker('Greybridge');
+    assert.ok(greybridge.w >= 16 && greybridge.h >= 12, 'a marker is big enough to tap');
+    if (process.env.SCREENSHOT_DIR) await page.locator('canvas').screenshot({ path: join(process.env.SCREENSHOT_DIR, `world-map-${layout}.png`) });
+    await tap(greybridge);
     await page.waitForFunction(() => window.__game2d?.session.levelId === 'market' && window.__game2d.phase === 'playing');
-    await map.waitFor({ state: 'hidden' });
+    assert.equal(await kind(), null, 'the map closes on arrival');
     assert.equal(await page.evaluate(() => __game2d.images.get('backdrop:N')?.naturalWidth > 0), true);
-    if (process.env.SCREENSHOT_DIR && !isMobile) {
-      await page.screenshot({ path: join(process.env.SCREENSHOT_DIR, 'greybridge-desktop.png') });
-    }
-    await move('KeyQ', 'left');
-    await move('KeyQ', 'left');
-    await forward();
-    const oldQuarter = map.getByRole('button', { name: 'Old Quarter' });
-    if (isMobile) await oldQuarter.tap();
-    else await oldQuarter.click();
+    if (process.env.SCREENSHOT_DIR && !isMobile) await page.locator('canvas').screenshot({ path: join(process.env.SCREENSHOT_DIR, 'greybridge-desktop.png') });
+    await key('KeyQ'); await key('KeyQ'); await key('KeyW');
+    await page.waitForFunction(() => __game2d.ui.menus.kind === 'world-map');
+    await page.waitForTimeout(400);
+    await tap(await marker('Old Quarter'));
     await page.waitForFunction(() => window.__game2d?.session.levelId === 'village' && window.__game2d.phase === 'playing');
   } finally { await context.close(); }
 }

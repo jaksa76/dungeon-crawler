@@ -12,13 +12,12 @@ pack and the saves stay `{ id, qty }`.
   works again when the item is picked up. Pressing it: an item with a `use` is used; a weapon or armour is worn (a worn
   one is lit gold, pressing it says it is already in use).
 - A spell slot shows its mana cost (red when there is not enough) and a shade that drains while the spell cools down.
-  Pressing it casts the spell at what is ahead, as the Cast button does, with the same floating numbers.
+  Pressing it casts the spell at what is ahead, as **C** does, with the same floating numbers. (There is no Cast button: the quick bar is where spells are cast from.)
 - Only things that do something can go on the bar: an item with `use` or `slot`, or a known spell. A key cannot.
 - The same thing is on the bar once. Putting it in a second slot moves it (swapping with what was there).
 
-The bar always has 8 entries (`quickSlots` in `createSession`, default `QUICK_SLOTS`). A phone shows the first six
-(`SHOWN_SMALL` in `ui/quickbar-hud.js`), so a save moves between devices without losing a slot; put the important
-things in slots 1–6.
+The bar always has 8 entries (`quickSlots` in `createSession`, default `QUICK_SLOTS`), and every layout shows all eight: in the
+bar under the scene on a desktop, in two columns of four in the right rail on a phone (see [ui.md](ui.md)).
 
 ## Putting things on it
 
@@ -47,11 +46,10 @@ does the same.
   `cooldown` 0–1, `cost`, `worn`, `enchant`), `quickDescribe(i)`, `quickSet(i, ref)`, `quickClear(i)`,
   `quickSwap(a, b)`, `quickActivate(i, cast?)`. Every change is a `quickbar` event. Auto-fill happens when a pack
   stack is taken from a container or pile, and when a spell is learned. `quickUse('hp' | 'mp')` is still there for bots.
-- `ui/panel-icons.js`: the desktop slots are drawn over the repainted strip of the painted panel (`panelOverlay`);
-  `quickSlotAt(x, y)` finds one from panel pixels. `core/game.js` redraws the panel when the bar's picture changes
-  (counts, mana, cooldowns), and owns the keys.
-- `ui/quickbar-hud.js`: the phone buttons, and `dragGesture`, the one press / hold / drag gesture the bar, the satchel
-  and the spell list share. The slot buttons are art canvases like every other icon (see [mobile-ui.md](mobile-ui.md)).
+- `ui/hud.js`: the slots (drawn every frame, so counts, mana and cooldowns are always current) and their regions: a tap uses, a
+  hold describes, a drag moves, swaps or (dragged off the bar) empties, and a slot takes a drop from the satchel or the spell list.
+  `core/game.js` owns the keys and the adapter the HUD and the menus use (`quickBar`: `activate`, `describe`, `has`, `toggle`, ...).
+  The drag gesture itself is `ui/input.js`, shared with the satchel and the spell list.
 
 ## Bots
 

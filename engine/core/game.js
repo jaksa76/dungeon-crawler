@@ -2,23 +2,22 @@ import { arrangeActors } from '../render/actor-layout.js';
 import { createSceneInput } from './scene-input.js';
 import { createView } from '../render/view.js';
 import { loadImage, loadSlotImages, createCompositor } from '../render/compositor.js';
-import { createUI } from '../ui/panel.js';
-import { uiLayout } from '../ui/panel-layout.js';
+import { createCanvasKit, THEME } from '../ui/canvas.js';
+import { createInput } from '../ui/input.js';
+import { createScreen, VIEW_W, VIEW_H } from '../ui/screen.js';
+import { createHud } from '../ui/hud.js';
+import { createMenus } from '../ui/menus.js';
 import { resolveLevel } from './levels.js';
 import { engineContent } from '../content/index.js';
 import { mergeContent } from '../content/catalog.js';
-import { createTouch, viewportSize } from './touch.js';
-import { createMobileHUD } from '../ui/mobile-hud.js';
 import { actorDirection } from '../rules/monsters.js';
-import { createGameOver } from '../ui/game-over.js';
 import { interactTarget } from '../rules/interaction.js';
 import { flat } from './world.js';
-import { withIcons, panelOverlay, quickSlotAt } from '../ui/panel-icons.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
-import { HEAD_X } from '../ui/head.js';
 import { deriveStats, FISTS } from '../rules/combat.js';
-import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
+import { motionFor, easeOut, drawTransition } from './transition.js';
 import { createSaveStore, peek } from './persistence.js';
+import { reloadFresh } from './reload.js';
 import { createSession, DIR_KEYS } from './session.js';
 import { createRng } from './rng.js';
 import { startAutosave, defaultAutosave } from './autosave.js';
@@ -31,13 +30,13 @@ import { createSound } from '../ui/sound.js';
 // composite of pre-painted slot images (see view.js). Movement is instant, softened by a very short, subtle
 // motion between the old and the new picture (transition.js); a swipe starts it before the finger lifts.
 // The rules (the hero, the world, fights, items, saving) are a session (session.js); this file draws it, loads its
-// art and turns input into session calls. The simulation (engine/sim/) drives the same session without a screen.
+// art and turns input into session calls. Everything is drawn on one canvas (ui/screen.js, ui/hud.js, ui/menus.js). The simulation (engine/sim/) drives the same session without a screen.
 
 // Start a campaign. `levels` maps level ids to level definitions (see levels.js) and `start` is the id of the first one;
 // `content` is the campaign's own content book (or a list of them), added to the engine's (see content/catalog.js).
 // `startingItems` is what the hero carries on a new game. Death returns the hero to `respawn` ({ level, spawn? },
-// by default the start of the first level; `place` names it on the defeat screen, `message` is said on waking). The page supplies the canvases: `viewCanvas`, `uiCanvas`, their `frame`, and
-// a `status` line for debugging.
+// by default the start of the first level; `place` names it on the defeat screen, `message` is said on waking). The page supplies the one
+// `canvas` and a `status` line for debugging.
 export async function startGame(options) {
   // The menus before the game stay up (showing "Loading...") until the first level is on screen.
   const screen = createTitleScreen({ title: options.title ?? 'Dungeon', ...options.menu });
@@ -46,7 +45,7 @@ export async function startGame(options) {
 }
 
 async function runGame({ levels, start, worldMap, content = [], startingItems = [], respawn = { level: start },
-  viewCanvas, uiCanvas, frame, status, inventorySize = 48, inventoryColumns = 8,
+  canvas, status, inventorySize = 48, inventoryColumns = 8,
   heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 },
   // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
   unarmed = FISTS,
@@ -132,14 +131,13 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     hooks: {
       travel: (exit, options) => travel(exit, options),
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
-      openContainer: box => bars.openContainer(box),
+      openContainer: box => menus.openContainer(box),
       openWorldMap: map => {
-        settleDrag();
-        bars.openWorldMap(map, session.travelToLocation);
+        menus.openWorldMap(map, session.travelToLocation);
       },
-      openShop: shop => bars.openShop(shop),
-      showDialogue: line => bars.showDialogue(line, () => session.dialogue.close()),
-      showEnding: ending => { bars.open(ending.title, ending.text, 'ending'); save(); },
+      openShop: shop => menus.openShop(shop),
+      showDialogue: line => menus.showDialogue(line, () => session.dialogue.close()),
+      showEnding: ending => { menus.open(ending.title, ending.text, 'ending'); save(); },
       canTarget: target => !!comp.target(target.id),
     } });
   const { world, hero, inventory, equipment, flags, persistence, messages, api, player: p } = session;
@@ -195,39 +193,22 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   let transitioning = false, loading = false;
   const isDead = () => session.dead;
 
-  // The view is composed in its own W x H coordinates but drawn into a canvas of INTERNAL times that size
-  // (320x180 for the default 640x360 view), and shown scaled up with nearest-neighbour sampling (the canvas
-  // CSS sets image-rendering: pixelated). A pixel view is built for one size (its art is baked at it), so it
-  // is drawn at that.
-  const INTERNAL = SHOWN > 1 ? 1 : 0.5;
+  // The scene is composed in its own W x H coordinates but drawn into a surface of INTERNAL times that size (320x180 for the
+  // default 640x360 view, and for a view built at 320x180) and copied onto the game's one canvas, at 1:1 (or enlarged without smoothing for a pixel view, which
+  // is built for one size: its art is baked at it). Everything else (the HUD, the menus, the log) is drawn straight onto the
+  // canvas, on the same pixel grid (see docs/engine/ui.md).
+  const INTERNAL = SHOWN > 1 ? 1 : VIEW_W / W; // 0.5 for the default 640 x 360 view, 1 once the art is baked at 320 x 180
   const cw = Math.round(W * INTERNAL), ch = Math.round(H * INTERNAL);
-  viewCanvas.width = cw; viewCanvas.height = ch;
+  const viewCanvas = document.createElement('canvas'); viewCanvas.width = cw; viewCanvas.height = ch;
   const g = viewCanvas.getContext('2d');
   const prev = document.createElement('canvas'); prev.width = cw; prev.height = ch;
   const next = document.createElement('canvas'); next.width = cw; next.height = ch;
-
-  // Overlays (the UI panel and the message log) are drawn at the view's pixel size, at least 320 wide, and
-  // use a bitmap font: a scalable one is too blurry at this size.
-  const PW = Math.max(cw, 320);
+  const screen2d = createScreen(canvas);
+  const main = canvas.getContext('2d');
+  const kit = createCanvasKit(main);
   const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle(), Object.values(books.icons), books.materials);
-  const panelImage = withIcons(await loadImage(new URL('../assets/ui/panel.png', import.meta.url).href), icons);
-  // The portrait is the head of the full-body pixel sprite, cropped to its frame and never scaled: one art pixel is one
-  // UI pixel. (The painted desktop panel draws its portrait cover-fitted, so it is given a picture that is exactly the
-  // window's size.)
+  // The hero's full-body pixel sprite (48 x 96): the satchel and the character screen show it whole, the HUD the head.
   const portraitImage = await loadImage(new URL('../assets/ui/hero-sprite.png', import.meta.url).href);
-  const portraitWindow = layout => {
-    const k = PW / panelImage.width, [, , w, h] = layout.portrait.map(v => Math.round(v * k));
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-    g.fillStyle = '#0d0b10'; g.fillRect(0, 0, w, h); // solid: the panel painting has its own portrait underneath
-    g.drawImage(portraitImage, Math.round(HEAD_X - w / 2), 0, w, h, 0, 0, w, h); // the head is at the top, centred on its column
-    return c;
-  };
-  const ui = createUI(uiCanvas, {
-    'ui/panel': { image: panelImage },
-    'ui/portrait-hero': { image: portraitWindow(uiLayout) },
-  }, uiLayout, { width: PW, font: FONT, overlay: panelOverlay(icons, { quick: () => session.quickView(), hot: () => quickHot, colourOf: type => books.damageTypes[type]?.colour ?? '#ffffff', font: FONT }) });
-  let quickHot = -1; // the quick slot a drag is over, lit on the desktop panel
 
   let sceneInput = null;
   const opts = { outlines: false };
@@ -235,7 +216,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
 
   for (const [id, def] of Object.entries(itemDefs)) if (!icons.has(def.icon)) throw new Error(`item "${id}" has no icon "${def.icon}" in the icon atlas or the campaign's icon sheets`);
   const { useItem: use, drop } = session;
-  const useItem = index => { const result = use(index); drawHud(); return result; };
+  const useItem = index => use(index);
   if (saved) {
     const { issues } = await session.load(saved); // the level's things, as saved
     for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
@@ -271,86 +252,74 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   };
   const debugMode = new URLSearchParams(location.search).has('debug');
   document.documentElement.toggleAttribute('data-debug', debugMode);
-  // The quick bar as the screens use it (ui/quickbar-hud.js). Pressing a spell casts it the way the Cast button does.
-  const uiPoint = ev => { const r = uiCanvas.getBoundingClientRect(); return [(ev.clientX - r.left) * panelImage.width / r.width, (ev.clientY - r.top) * panelImage.height / r.height]; };
+  // The quick bar as the HUD and the menus use it. Pressing a spell casts it the way the Cast button does.
   const quickBar = {
     size: session.quickbar.size, view: () => session.quickView(),
-    set: (i, ref) => { const ok = session.quickSet(i, ref); drawHud(); return ok; },
-    clear: i => { const ok = session.quickClear(i); drawHud(); return ok; },
-    swap: (a, b) => { const ok = session.quickSwap(a, b); drawHud(); return ok; },
+    set: (i, ref) => session.quickSet(i, ref),
+    clear: i => session.quickClear(i),
+    swap: (a, b) => session.quickSwap(a, b),
     activate(i) {
-      if (isDead() || transitioning || loading || bars.isOpen() || document.hidden) return null;
+      if (isDead() || transitioning || loading || menus.isOpen() || document.hidden) return null;
       const result = session.quickActivate(i, id => castSpell(id));
       if (!result.ok && result.reason === 'empty') say('An empty slot. Drag an item or a spell here.');
-      drawHud(); return result;
+      return result;
     },
     describe: i => session.quickDescribe(i),
-    // the desktop panel: which slot a client point is over, and lighting one
-    canvasSlotAt: (x, y) => { const r = uiCanvas.getBoundingClientRect(); if (x < r.left || x > r.right || y < r.top || y > r.bottom) return -1; return quickSlotAt(...uiPoint({ clientX: x, clientY: y })); },
-    setHot: i => { if (i !== quickHot) { quickHot = i; drawHud(); } },
+    has: ref => session.quickView().some(v => v && v.kind === ref.kind && v.id === ref.id),
+    // Put `ref` on the bar in the first free slot, or take it off when it is already there. Returns a line for the player.
+    toggle(ref, name) {
+      const view = session.quickView(), at = view.findIndex(v => v && v.kind === ref.kind && v.id === ref.id);
+      if (at >= 0) { session.quickClear(at); return `${name} is off the quick bar.`; }
+      const free = view.findIndex(v => !v);
+      if (free < 0) return 'The quick bar is full. Drag it onto a slot to replace one.';
+      return session.quickSet(free, ref) ? `${name} is on the quick bar, slot ${free + 1}.` : 'That cannot go on the quick bar.';
+    },
   };
-  const bars = createMobileHUD({ icons, setIconStyle: style => { saveIconStyle(style); location.reload(); }, portrait: portraitImage, world: mapView, hero, frame, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
+  const colourOf = type => books.damageTypes[type]?.colour ?? '#ffffff';
+  const hasMagic = Object.keys(books.spells).length > 0;
+  const menus = createMenus({ kit, icons, sprite: portraitImage, world: mapView, hero, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
     onEquip: session.equip, onUnequip: session.unequip, wouldChange: session.wouldChange, onSpend: session.spend, help, sound,
     wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, onTake: session.take, onTakeAll: session.takeAll,
-    magic: Object.keys(books.spells).length ? {
-      available: true, spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
+    magic: hasMagic ? {
+      spells: () => session.spells().map(s => ({ ...s, text: s.cooldown ? `Recovers in ${+(s.cooldown / 1000).toFixed(1)} s.` : '' })),
       cast: id => castSpell(id), setReady: id => session.setReadySpell(id), ready: () => session.readySpell,
-      effects: () => session.heroEffects.view(), effectName: id => books.effects[id]?.name ?? id,
+      effectName: id => books.effects[id]?.name ?? id,
     } : null, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
-  });
-  await bars.ready;
-  bars.setLevel(level);
-  // Desktop: the painted panel's icons (regions in the panel image's pixels) open the same menus as the phone buttons.
-  const hotspots = [
-    ...(Object.keys(books.spells).length ? [{ label: 'Spells', rect: [545 + 1 * 99, 20, 99, 92], run: () => bars.menu.spells() }] : []),
-    { label: 'Character', rect: uiLayout.portrait, run: () => bars.menu.character() },
-    ...[['Journal', 2, 'journal'], ['Inventory', 3, 'inventory'], ['Full screen', 4, 'fullscreen'], ['Settings', 5, 'settings']]
-      .map(([label, i, name]) => ({ label, rect: [545 + i * 99, 20, 99, 92], run: () => bars.menu[name]() })),
-  ];
-  const hotspotAt = ev => {
-    const r = uiCanvas.getBoundingClientRect();
-    const x = (ev.clientX - r.left) * panelImage.width / r.width, y = (ev.clientY - r.top) * panelImage.height / r.height;
-    return hotspots.find(({ rect: [rx, ry, rw, rh] }) => x >= rx && x < rx + rw && y >= ry && y < ry + rh);
-  };
-  uiCanvas.addEventListener('click', ev => { if (!isDead() && !transitioning) hotspotAt(ev)?.run(); });
-  // The quick slots of the painted panel: press, hold and drag like the phone's buttons (ui/quickbar-hud.js).
-  const slotUnder = ev => quickSlotAt(...uiPoint(ev));
-  uiCanvas.addEventListener('pointerdown', ev => { const i = slotUnder(ev); if (i >= 0 && !isDead() && !transitioning) bars.quick.press(ev, i); });
-  uiCanvas.addEventListener('contextmenu', ev => { const i = slotUnder(ev); if (i >= 0) { ev.preventDefault(); const d = session.quickDescribe(i); if (d) say(`${d.name}: ${d.text}`); } });
-  uiCanvas.addEventListener('mousemove', ev => {
-    const h = hotspotAt(ev), i = slotUnder(ev), v = i >= 0 ? session.quickView()[i] : null;
-    uiCanvas.style.cursor = h || i >= 0 ? 'pointer' : '';
-    uiCanvas.title = i >= 0 ? `${i + 1}${v ? `: ${v.name}` : ': empty slot'}` : h?.label ?? '';
-  });
-  const gameOver = createGameOver(frame, { place: respawn.place });
+    reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape() });
+  const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf,
+    wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, magic: hasMagic });
+  const input = createInput(canvas, kit, { toLogical: screen2d.toLogical, enabled: () => !screen2d.rotate,
+    cursor: (cursor, title) => { uiCursor.cursor = cursor; uiCursor.title = title; applyCursor(); } });
+  // The pointer's shape and hover text: what the menus and HUD say, else what the scene says.
+  const uiCursor = { cursor: null, title: '' }, sceneCursor = { cursor: '', title: '' };
+  function applyCursor() { canvas.style.cursor = uiCursor.cursor ?? sceneCursor.cursor; canvas.title = uiCursor.cursor ? uiCursor.title : sceneCursor.title; }
+  const gameOver = menus.gameOver;
 
-  window.__game2d = { view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session,
+  window.__game2d = { ui: { get layout() { return screen2d.name; }, get spec() { return screen2d.spec; }, get scale() { return screen2d.scale; }, rects: () => hud.rects(screen2d.spec, quickBar.size), regions: () => kit.regions(), menus, canvas,
+      // A point on the canvas, in logical pixels, as a point on the page.
+      client: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: r.left + x * r.width / canvas.width, y: r.top + y * r.height / canvas.height }; } },
+    view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session,
     get targets() { return comp.targets(); },
     get phase() { return isDead() ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => session.delayMonsters(monsters.stepMs));
 
   // Log: messages over the bottom-left of the view, fading out.
   const LOG_LINES = 4, LOG_PITCH = FONT.h + 1, LOG_PAD = 2;
-  const logCanvas = document.createElement('canvas');
-  logCanvas.className = 'log';
-  logCanvas.width = PW; logCanvas.height = LOG_LINES * LOG_PITCH + LOG_PAD;
-  frame.appendChild(logCanvas);
-  const lg = logCanvas.getContext('2d');
-  const maxChars = Math.floor((PW - 2 * LOG_PAD) / FONT.w);
+  const maxChars = Math.floor((VIEW_W - 2 * LOG_PAD) / FONT.w);
   const log = [];
-  // The on-screen log wraps a long message over several lines; the notice and the history keep it whole.
+  // The on-screen log wraps a long message over several lines; the history keeps it whole.
   function wrap(text) {
     const lines = [];
     let line = '';
-    for (const word of text.split(' ')) {
+    for (const word of kit.plain(text).split(' ')) {
       if (line && line.length + 1 + word.length > maxChars) { lines.push(line); line = word; }
       else line = line ? `${line} ${word}` : word;
     }
     return line ? [...lines, line] : lines;
   }
   session.on('message', ({ text }) => {
-    bars.notice(text);
+    menus.toast(text);
     const t = performance.now();
     for (const line of wrap(text)) log.push({ text: line, t });
     while (log.length > LOG_LINES) log.shift();
@@ -377,66 +346,27 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       picking: target === next, targetId: sceneInput?.targetId });
   }
 
-  // Messages stay for 7 s, then fade out over 1 s. Redrawn only when something changed.
-  let logKey = '';
-  function drawLog(now) {
-    const alphas = log.map((m) => Math.min(1, Math.max(0, 1 - (now - m.t - 7000) / 1000)));
-    const key = log.map((m, i) => `${m.text}@${alphas[i].toFixed(2)}`).join('|');
-    if (key === logKey) return;
-    logKey = key;
-    lg.clearRect(0, 0, logCanvas.width, logCanvas.height);
+  // Messages stay for 7 s, then fade out over 1 s. They sit over the bottom of the scene, as text you can read on any picture.
+  function drawLog(now, view) {
+    if (menus.isOpen() || gameOver.active) return;
     log.forEach((m, i) => {
-      if (alphas[i] <= 0) return;
-      lg.globalAlpha = alphas[i];
-      const y = logCanvas.height - LOG_PAD - (log.length - i) * LOG_PITCH;
-      drawText(lg, FONT, m.text.slice(0, maxChars), LOG_PAD, y, '#f0e4c8', { outline: '#000' });
+      const alpha = Math.min(1, Math.max(0, 1 - (now - m.t - 7000) / 1000));
+      if (alpha <= 0) return;
+      main.globalAlpha = alpha;
+      kit.origin(view.x, view.y);
+      kit.text(m.text.slice(0, maxChars), LOG_PAD, VIEW_H - LOG_PAD - 1 - (log.length - i) * LOG_PITCH, '#f0e4c8', { shadow: true });
     });
-    lg.globalAlpha = 1;
+    main.globalAlpha = 1; kit.origin(0, 0);
   }
 
-  // What is on screen. Idle: the settled picture in `next`. After a move: `anim` carries the picture it came
-  // from to the one in `next`. While a swipe is going: `drag` shows the first part of the move it would make.
-  // A swipe let go of early settles back in `release`. At most one of the three is set.
-  let anim = null, drag = null, release = null;
-
-  const plan = cmd => session.plan(cmd);
-
-  // The view the player would see in `st`, drawn without moving them. Kept per command while a swipe lasts.
-  const peeks = new Map();
-  let peekKey = '';
-  function peekFor(cmd) {
-    const st = plan(cmd);
-    if (!st) return null;
-    const key = `${levelId}:${monsters.version}:${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
-    if (key !== peekKey) { peeks.clear(); peekKey = key; }
-    if (!peeks.has(cmd)) {
-      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
-      const here = { ...p };
-      Object.assign(p, st); // render() reads where the player is
-      try { render(c); } finally { Object.assign(p, here); }
-      peeks.set(cmd, c);
-    }
-    return peeks.get(cmd);
-  }
-
-  function onSwipe(phase, cmd, amount) {
-    if (phase !== 'move' || bars.isOpen() || transitioning || loading || isDead()) { settleDrag(); return; }
-    anim = null; release = null; // the picture in `next` is the settled one; start from it
-    if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
-    else drag.amount = amount;
-  }
-
-  // Let go of a swipe that did not count: the half-made move eases back.
-  function settleDrag() {
-    if (!drag) return;
-    release = { ...drag, from: drag.amount, t0: performance.now() };
-    drag = null;
-  }
+  // What is on screen. Idle: the settled picture in `next`. After a move: `anim` carries the picture it came from to the
+  // one in `next`.
+  let anim = null;
 
   // The minimap slides and turns to the player's new position over MAP_MS instead of jumping.
-  const MAP_MS = 220, MAP_ZOOM = 1.7;
+  const MAP_MS = 220;
   let mapShown = { x: p.x, z: p.z, yaw: -p.dir * Math.PI / 2 }, mapFrom = null, mapStart = 0;
-  function drawHud(now = performance.now()) {
+  function mapAt(now) {
     const to = { x: p.x, z: p.z, yaw: -p.dir * Math.PI / 2 };
     if (mapFrom) {
       const k = Math.min(1, (now - mapStart) / MAP_MS), e = 1 - (1 - k) * (1 - k);
@@ -444,12 +374,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       mapShown = { x: mapFrom.x + (to.x - mapFrom.x) * e, z: mapFrom.z + (to.z - mapFrom.z) * e, yaw: mapFrom.yaw + turn * e };
       if (k >= 1) { mapFrom = null; mapShown = to; }
     } else mapShown = to;
-    const hud = { world: mapView, hero, tileX: mapShown.x, tileZ: mapShown.z, yaw: mapShown.yaw, zoom: MAP_ZOOM };
-    ui.draw(hud);
-    bars.draw(hud);
+    return { tileX: mapShown.x, tileZ: mapShown.z, yaw: mapShown.yaw };
   }
-  session.on('spend', () => drawHud());
-  session.on('level-up', () => drawHud());
   // Start sliding from wherever the map is now (the player moved or turned, or changed level: then jump).
   function moveMap(jump) {
     if (jump) { mapFrom = null; return; }
@@ -460,24 +386,19 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   function show(cmd) {
     exploration.reveal(p);
     const motion = cmd ? motionFor(cmd) : null;
-    const continuing = !!drag && drag.cmd === cmd; // the swipe that made this move already showed its first part
-    // The picture to move away from: what is on screen right now, unless a swipe was already showing the
-    // settled one transformed, in which case the clean picture in `next`.
-    prev.getContext('2d').drawImage(continuing || !(anim || drag || release) ? next : viewCanvas, 0, 0);
+    // The picture to move away from: what is on screen right now, unless it was settled.
+    prev.getContext('2d').drawImage(anim ? viewCanvas : next, 0, 0);
     render(next);
-    const u0 = continuing ? drag.amount * PEEK : 0;
-    drag = release = null;
-    anim = motion ? { motion, u0, t0: performance.now(), ms: motion.ms * (1 - u0) } : null;
+    anim = motion ? { motion, t0: performance.now(), ms: motion.ms } : null;
     moveMap(!cmd); // a step or turn slides the minimap; anything else (start, new level, respawn) jumps
-    drawHud();
     updateStatus();
   }
 
   async function travel(exit, { respawn = false } = {}) {
     sceneInput?.cancel();
     transitioning = true;
-    anim = drag = release = null;
-    frame.setAttribute('aria-busy', 'true');
+    anim = null;
+    canvas.setAttribute('aria-busy', 'true');
     say('Opening the passage...');
     try {
       const journey = exit.travelTime ? new Promise(resolve => window.setTimeout(resolve, exit.travelTime)) : null;
@@ -500,7 +421,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       return false;
     } finally {
       transitioning = false;
-      frame.removeAttribute('aria-busy');
+      canvas.removeAttribute('aria-busy');
     }
   }
 
@@ -512,10 +433,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     sound?.setLevel(level.sound);
     sound?.effect('door');
     Object.assign(window.__game2d, { levelId, level, view, images, monsters });
-    peeks.clear(); peekKey = '';
-    bars.setLevel(level);
     document.title = `${level.shortName ?? level.name} · ${title}`;
-    log.length = 0; logKey = '';
+    log.length = 0;
     show();
   });
   if (sound) {
@@ -532,14 +451,14 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const target = peek(snapshot, 'engine.player')?.levelId;
     if (!Object.hasOwn(definitions, target)) { say('That save is from a level that no longer exists.'); return false; }
     loading = true;
-    sceneInput?.cancel(); touch.cancel();
-    anim = drag = release = null;
+    sceneInput?.cancel(); input.cancel();
+    anim = null;
     try {
       const { issues } = await session.load(snapshot, { respawn });
       for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
       if (issues.some(issue => issue.section === 'engine.player' && issue.problem === 'failed')) return false;
-      peeks.clear(); peekKey = ''; log.length = 0; logKey = '';
-      bars.setLevel(level); show(); look();
+      log.length = 0;
+      show(); look();
       return true;
     } catch (error) { say(error.message); return false; }
     finally { loading = false; }
@@ -548,13 +467,13 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   // Death (the session says when): the defeat screen, then the hero wakes, healed, at the respawn point (by default the
   // start of the first level); the creatures start over. Nothing is saved.
   async function die() {
-    anim = drag = release = null;
-    sceneInput?.cancel(); touch.cancel();
+    anim = null;
+    sceneInput?.cancel(); input.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
-    peeks.clear(); peekKey = ''; show();
+    show();
     let retry = false;
     while (session.dead) {
-      await gameOver.wait(retry);
+      await gameOver.wait(retry, respawn.place);
       if (await session.revive()) { gameOver.close(); return; }
       retry = true;
     }
@@ -567,7 +486,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   let hurtFlash = 0;
   const float = (text, color, x = cw / 2, y = ch * .42) => floaters.push({ text, color, x, y, t0: performance.now() });
   function attack(targetId = null) {
-    if (isDead() || transitioning || loading || bars.isOpen() || document.hidden) return false;
+    if (isDead() || transitioning || loading || menus.isOpen() || document.hidden) return false;
     const result = session.attack(targetId);
     if (result.waiting) return true;
     if (!result.ok) return false;
@@ -575,7 +494,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const fx = rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2;
     const fy = rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42;
     if (!result.hit) float('Miss', '#d8d0c0', fx, fy); else float(`-${result.damage}`, '#ffe08a', fx, fy);
-    peeks.clear(); peekKey = ''; render(next);
+    render(next);
     return target.hp > 0;
   }
   // Cast the ready spell (or `id`): the session does it; floating numbers show what it did, in the colour of its magic.
@@ -588,14 +507,13 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       const rect = comp.target(t.target.id)?.rect;
       float(t.immune ? 'Immune' : `-${t.damage}`, colour, rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2, rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42);
     }
-    peeks.clear(); peekKey = ''; render(next); drawHud();
+    render(next);
     return result;
   }
   // A creature's blow, as the session dealt it.
   function struckBy({ hit, damage }, now) {
     if (!hit) { float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
     hurtFlash = now + 300; float(`-${damage}`, '#ff6a5a', cw / 2, ch * .8);
-    drawHud();
   }
   function drawEffects(now) {
     session.heroEffects.view().forEach((e, i) => { // status effects on the hero, top left, in the colour of their magic
@@ -611,7 +529,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   }
 
   function act(cmd) {
-    if (bars.isOpen() || transitioning || loading || isDead()) return;
+    if (menus.isOpen() || transitioning || loading || isDead() || screen2d.rotate) return;
     if (cmd === 'attack') { attack(); return; }
     if (cmd === 'cast') { castSpell(); return; }
     if (cmd === 'interact') { session.interact(); return; }
@@ -619,49 +537,48 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     // The session moves the player and says what they see; the picture is shown before that is said.
     const result = session.move(cmd, { before: () => show(cmd) });
     if (result.exit) { void session.travel(result.exit); return; }
-    if (result.blocked) settleDrag();
   }
 
   const keymap = {
     KeyW: 'forward', ArrowUp: 'forward', KeyS: 'back', ArrowDown: 'back', KeyA: 'strafeLeft', KeyD: 'strafeRight',
     KeyQ: 'left', ArrowLeft: 'left', KeyE: 'right', ArrowRight: 'right',
   };
-  const touch = createTouch({
-    onCommand: act, onSwipe, swipeEl: viewCanvas, mount: bars.controls,
-    action: [{ label: 'Attack', cmd: 'attack' }, ...(Object.keys(books.spells).length ? [{ label: 'Cast', cmd: 'cast' }] : []), { label: 'Use', cmd: 'interact' }],
-    extras: debugMode ? [{ label: 'Slot outlines', code: 'KeyO' }] : [],
-    sideBars: { left: bars.left, right: bars.right },
-  });
-  sceneInput = createSceneInput(viewCanvas, {
-    hit: (x, y) => { const r = viewCanvas.getBoundingClientRect(); return comp.hitAt((x - r.left) * W / r.width, (y - r.top) * H / r.height); },
+  sceneInput = createSceneInput(canvas, {
+    // A pointer position (client pixels) in the scene's own coordinates, or null when it is not over the scene.
+    hit: (clientX, clientY) => {
+      const q = screen2d.toLogical(clientX, clientY), v = screen2d.spec.view;
+      if (q.x < v.x || q.y < v.y || q.x >= v.x + VIEW_W || q.y >= v.y + VIEW_H) return null;
+      return comp.hitAt((q.x - v.x) * W / VIEW_W, (q.y - v.y) * H / VIEW_H);
+    },
     getTarget: id => comp.target(id),
-    blocked: () => isDead() || transitioning || loading || bars.isOpen() || document.hidden || !!(anim || drag || release),
+    blocked: () => isDead() || transitioning || loading || menus.isOpen() || document.hidden || screen2d.rotate || !!anim,
     attack, interact: target => interactTarget(target, { say, game: api }),
-    changed: () => render(next), cancelGesture: () => touch.cancel(),
+    changed: () => render(next), cancelGesture: () => {},
+    cursor: (cursor, title) => { sceneCursor.cursor = cursor; sceneCursor.title = title; applyCursor(); },
   });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) {
       heldKeys.add(ev.code);
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
-    if (bars.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && bars.isLogOpen()))) { ev.preventDefault(); bars.close(); return; }
-    if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void bars.menu.fullscreen(); return; }
-    if (ev.code === 'KeyJ' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.journal(); return; } // the journal, like I for the satchel
-    if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.inventory(); return; } // opens, or closes when already open
-    if (isDead() || transitioning || loading || bars.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
+    if (menus.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && menus.isLogOpen()))) { ev.preventDefault(); menus.close(); return; }
+    if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void menus.menu.fullscreen(); return; }
+    if (ev.code === 'KeyJ' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.journal(); return; } // the journal, like I for the satchel
+    if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.inventory(); return; } // opens, or closes when already open
+    if (isDead() || transitioning || loading || menus.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;
     if (keymap[ev.code]) { ev.preventDefault(); act(keymap[ev.code]); return; }
-    if (ev.code === 'KeyP' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.character(); return; } // the character screen
-    if ((ev.code === 'KeyH' || ev.code === 'F1') && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); bars.menu.help(); return; } // help
+    if (ev.code === 'KeyP' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.character(); return; } // the character screen
+    if ((ev.code === 'KeyH' || ev.code === 'F1') && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.help(); return; } // help
     if (ev.code === 'KeyC' && !ev.repeat && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); act('cast'); return; } // the ready spell
-    if (ev.code === 'KeyB' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && Object.keys(books.spells).length) { ev.preventDefault(); bars.menu.spells(); return; } // the spell book
+    if (ev.code === 'KeyB' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName) && Object.keys(books.spells).length) { ev.preventDefault(); menus.menu.spells(); return; } // the spell book
     if (ev.code === 'KeyX' || ev.code === 'Enter') { ev.preventDefault(); if (!ev.repeat) act('attack'); return; }
     if (/^Digit[1-9]$/.test(ev.code) && +ev.code.slice(5) <= quickBar.size) { ev.preventDefault(); if (!ev.repeat) quickBar.activate(+ev.code.slice(5) - 1); return; } // the quick bar
     if (ev.code === 'Space') { ev.preventDefault(); if (!ev.repeat) act('interact'); return; }
-    if (ev.code === 'KeyL') { ev.preventDefault(); bars.openLog(); return; }
+    if (ev.code === 'KeyL') { ev.preventDefault(); menus.openLog(); return; }
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
   window.addEventListener('keyup', ev => { heldKeys.delete(ev.code); blockedKeys.delete(ev.code); });
-  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); sceneInput.cancel(); touch.cancel(); });
+  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); sceneInput.cancel(); input.cancel(); });
 
   function updateStatus() {
     const missing = view.compose(relCell).filter(it => !(it.actor && !it.actor.art) && !comp.imageFor(it));
@@ -670,40 +587,10 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       + (missing.length ? ` · missing here: ${missing.map((m) => `${m.type}/${m.slot.id}`).join(', ')}` : '');
   }
 
-  // Desktop keeps the original canvas panel. Mobile uses a separate DOM dashboard
-  // in portrait and thumb-friendly rails in landscape, preserving the scene's aspect ratio.
-  function resize() {
-    const mode = touch.layout();
-    const vp = viewportSize();
-    // Full screen (the API, or the browser's own F11): drop the shortcut line and frame, and fill the screen.
-    const full = !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches;
-    document.documentElement.toggleAttribute('data-fullscreen', full);
-    const DW = W * SHOWN, DH = H * SHOWN;
-    // Reserve room for the landscape rails before fitting the scene.
-    const barW = bars.setLayout(mode, vp.w);
-    const avail = mode === 'portrait' ? vp.w / DW
-      : mode === 'landscape' ? Math.min((vp.w - 2 * barW) / DW, vp.h / DH)
-      : Math.min(vp.w / DW, (vp.h - (full ? 0 : 70)) / (DH + ui.height));
-    const scale = mode === 'desktop' && avail >= 1 && !full ? Math.floor(avail * 4) / 4 : avail;
-    // Compare with the actual internal canvas, not the nominal 640px view.
-    // A 532px phone view enlarges 320px art and should keep its pixel edges.
-    viewCanvas.style.imageRendering = DW * scale < cw ? 'auto' : 'pixelated';
-    uiCanvas.style.imageRendering = DW * scale < uiCanvas.width ? 'auto' : 'pixelated';
-    viewCanvas.style.width = uiCanvas.style.width = frame.style.width = `${DW * scale}px`;
-    viewCanvas.style.height = `${DH * scale}px`;
-    uiCanvas.style.height = `${ui.height * scale}px`;
-    // The font is 8 pixels tall: the canvas panel shows each UI pixel this many screen pixels wide (3 at 960px); phones use 2.
-    bars.setView(`${DH * scale}px`, mode === 'desktop' ? Math.max(2, Math.round(DW * scale / PW)) : 2);
-    logCanvas.style.width = `${DW * scale}px`;
-    logCanvas.style.height = `${logCanvas.height * DW * scale / PW}px`;
-    if (mode !== 'desktop') {
-      logCanvas.style.top = '32px'; logCanvas.style.bottom = 'auto';
-    } else { logCanvas.style.top = 'auto'; logCanvas.style.bottom = `${ui.height * scale}px`; }
-  }
-  window.addEventListener('resize', resize);
-  document.addEventListener('fullscreenchange', resize);
-  matchMedia('(display-mode: fullscreen)').addEventListener('change', resize);
-  resize();
+  // The canvas keeps its logical size (320x240 on a desktop, 400x180 on a phone held sideways) and is shown at a whole number of
+  // device pixels per pixel (ui/screen.js); a change of layout drops whatever the fingers were doing.
+  screen2d.onChange(() => input.cancel());
+  screen2d.resize();
 
   document.title = `${level.shortName ?? level.name} · ${title}`;
   session.begin({ loaded: !!saved }); // instances made so far get their onCreate (a new game's first level), the level its onEnter
@@ -712,43 +599,36 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   look();
 
   function updateMonsters(now) {
-    const paused = isDead() || transitioning || loading || bars.isOpen() || document.hidden;
+    const paused = isDead() || transitioning || loading || menus.isOpen() || document.hidden || screen2d.rotate;
     const { changed, struck } = session.update(now, { paused });
     sound?.update(p, monsters.actors, paused);
     for (const blow of struck) struckBy(blow, now);
-    if (changed) {
-      // Update moving creatures without interrupting a player's current motion.
-      peeks.clear(); peekKey = ''; render(next);
-      if (drag) drag.peek = peekFor(drag.cmd);
-      if (release) release.peek = peekFor(release.cmd);
-    }
+    if (changed) render(next); // moving creatures, without interrupting a player's current motion
   }
 
-  // The quick bar changes with the pack, the mana and the spells' cooldowns, so the panel is redrawn when it does.
-  let quickSig = '';
-  const quickSignature = () => session.quickView().map(v => (v ? `${v.id}|${v.count ?? ''}|${v.reason ?? ''}|${Math.round(v.cooldown * 20) || ''}|${v.worn ? 1 : 0}` : '')).join(',') + quickHot;
   function loop(now) {
+    requestAnimationFrame(loop);
+    if (screen2d.rotate) { updateMonsters(now); return; } // held upright: the overlay says rotate, the game waits
+    const layout = screen2d.spec, view = layout.view;
     updateMonsters(now);
-    const sig = quickSignature();
-    if (sig !== quickSig) { quickSig = sig; drawHud(now); }
     sceneInput.update(now);
-    if (mapFrom) drawHud(now);
-    if (drag) {
-      drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);
-    } else if (release) {
-      const k = Math.min(1, (now - release.t0) / RELEASE_MS);
-      drawTransition(g, next, release.peek, release.motion, release.from * PEEK * (1 - easeOut(k)));
-      if (k >= 1) release = null;
-    } else if (anim) {
+    if (anim) {
       const k = Math.min(1, (now - anim.t0) / anim.ms);
-      drawTransition(g, prev, next, anim.motion, anim.u0 + (1 - anim.u0) * easeOut(k));
+      drawTransition(g, prev, next, anim.motion, easeOut(k));
       if (k >= 1) anim = null;
     } else {
       g.drawImage(next, 0, 0);
     }
     drawEffects(now);
-    drawLog(now);
-    requestAnimationFrame(loop);
+    // Everything else is drawn straight onto the one canvas, over the scene.
+    kit.begin();
+    main.imageSmoothingEnabled = false;
+    main.fillStyle = THEME.bg; main.fillRect(0, 0, canvas.width, canvas.height);
+    main.drawImage(viewCanvas, view.x, view.y, VIEW_W, VIEW_H);
+    drawLog(now, view);
+    hud.draw(mapAt(now), layout);
+    menus.draw(view, now);
+    input.drawDrag();
   }
   requestAnimationFrame(loop);
   return { persistence, flags, save, getState: label => persistence.snapshot({ label }), loadState: loadGame };

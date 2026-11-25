@@ -1,73 +1,27 @@
-# Demo two mobile interface
+# The phone interface
 
-The 2D demo keeps its original canvas HUD on desktop. On phones it uses a
-separate DOM dashboard: character and the quick bar on the left, map and menus
-on the right, with movement and turning controls within thumb reach. Portrait
-stacks these panels below the scene. The scene retains its original aspect ratio.
+A phone held sideways shows the **400 x 180** layout of the one canvas: the 320 x 180 scene between two 40 x 180 rails. Held
+upright it shows a **Rotate your device** overlay. How the canvas is sized and scaled, the HUD, the menus and the drawing kit are in
+[ui.md](ui.md); this page is what the player does on a phone.
 
-The stone-and-bronze skin is in `engine/ui/mobile-hud.css`; reusable generated
-frame art is in `engine/assets/ui`. Existing portrait and item art is reused.
-A shared 5×8 bitmap font, 24×24 item icons, a 40×40 portrait, 12×12 control
-icons, and a 64×64 panel texture keep the chrome close to the scene’s pixel
-scale. Native buttons, labelled meters, keyboard focus indicators, and one panel over the scene
-(for every menu, the message log and the game-over screen) keep controls accessible independently of the painted art.
+## Controls
 
-## One pixel size
+- **Move stick** (bottom of the left rail): put a finger on it and push. Up steps forward, down steps back, left and right strafe. Slide the
+  finger to change direction without lifting; hold to keep going (after a short pause it repeats, like a held key).
+- **Turn pill** (bottom of the right rail): put a finger on its left or right half, or slide along it, to turn. Holding repeats.
+- **Tap the scene** to attack a creature (hold to keep swinging) or to use an object. There are no Attack, Cast or Use buttons and no swipes.
+- **Quick slots** (the right rail, eight of them in two columns): tap to use, press and hold for what it is, drag to move, swap or (dragged off the
+  bar) empty a slot. Spells live here: the first spell you learn takes the first free slot. See [quickbar.md](quickbar.md).
+- **Menu buttons** (the left rail, six in two columns): character, spells (help when the game has no spells), journal, satchel, full screen, settings.
+  Tapping the head opens the character screen too; a gold plus on it means unspent skill points.
+- **Full screen** also asks Android Chrome to lock the screen to landscape. iPhone Safari has no full screen for pages; the overlay asks
+  for the rotation there, and the player turns off their orientation lock if it is on.
 
-`--rpg-px` on `<html>` is the number of screen pixels per UI pixel: 3 for the desktop panel at
-960px wide, 2 on phones. `engine/core/game.js` sets it on every resize, and everything reads that one
-value: the 8-pixel font is `8px × --rpg-px`, borders are `--rpg-px` wide, and every art canvas is
-drawn at `size / --rpg-px` logical pixels and shown at exactly that many times `--rpg-px`.
+## Sizes
 
-Art canvases (quick items, menu icons, portrait, minimap, inventory icons) go through `addArt` in
-`engine/ui/mobile-hud.js`. Ask it for an on-screen size in CSS pixels; it chooses the resolution, so
-the same icon can be 48px or 72px without ever being scaled by a fraction. Do not size an art canvas
-in CSS. `node tools/check-pixels.mjs` measures every art canvas in five layouts and fails on a
-fractional scale (needs Playwright and Chromium).
+Everything is drawn on one pixel grid, shown at a whole number of device pixels per pixel: a Pixel 7a (2400 x 1080 device pixels) shows
+it at 6x with no border; an iPhone 12 to 14 at 6x with a thin border at the sides; an iPhone SE at 3x. A touch target is a whole number of
+canvas pixels, so its size on screen follows the scale: the 18-pixel quick slots and menu buttons are about 41 CSS pixels on a Pixel 7a, the
+move stick 82, the turn pill 82 x 55. On the smallest phones (3x or less) they get small; the layout is built for 6x.
 
-## Controls and scope
-
-- Step/strafe with the movement pad; turn with the curved arrows. Hold a
-  movement button to repeat, or drag the scene: down moves forward, up moves
-  backward, left turns right, and right turns left.
-- The quick bar has six slots here (eight on the desktop panel): tap to use, press and hold to read about one, drag to move it, swap it or take it off. See [quickbar.md](quickbar.md). The Bag opens the real pack (a grid of stacks you can
-  drop); see [inventory.md](inventory.md).
-- Journal describes the current exploration demo and has a Message log button. The minimap is always on screen.
-- **Use** (above the turn buttons; **Space** on a keyboard) acts on what you face. See [interaction.md](interaction.md).
-- On desktop the painted panel's Journal, Bag, Full screen and Settings icons and the eight quick slots (drawn over the panel, see [quickbar.md](quickbar.md)) are clickable. The icon next to Settings toggles full screen (its glyph replaces the painted scroll, drawn by `engine/ui/panel-icons.js`).
-- On desktop, full screen (the panel's full screen icon, **F**, or the browser's F11) hides the shortcut line and the frame shadow, and scales the game to the largest size that fits, so it touches the top and bottom edges.
-- Settings has buttons for the Save, Load and Help screens, a cache-free reload, and slot outlines. Full screen has its own button. The portrait (on the rail, or in the painted panel) and **P** open the character screen; **H** opens help. See [screens.md](screens.md).
-- Ravensmoor's eastern village door connects to the Undercrypt; see
-  [dungeon-level.md](../ravensmoor/undercrypt.md) for travel, visibility and art authoring.
-- **Reload without cache** in Settings clears this project's Cache Storage and
-  service worker registrations, refreshes loaded game assets from the network,
-  and reloads the page at a unique URL. Browsers do not expose a page API for
-  clearing their entire HTTP cache. Saved data is retained.
-- `?debug` reveals the development status and touch shortcut. **O** still toggles
-  slot outlines. Normal play hides coordinates and asset counts.
-
-## Verification
-
-Serve the repository root (`python3 -m http.server 8000`) and open `/games/ravensmoor/`.
-Check portrait at 320×568 and 390×844; landscape at 568×320, 667×375, 844×390,
-and 1024×768. Movement targets should be at least 44 CSS pixels in each
-dimension, all controls should stay onscreen, and there should be no horizontal
-overflow. Rotate in both directions and verify the same six controls move
-between the dashboard and rails without duplication.
-
-Open Inventory from the starting position. Confirm the panel covers only the scene (rails and
-controls stay visible), blocks movement, closes with Escape or Close, and restores
-keyboard movement. Its text should have the same pixel size as the UI around it. Check
-all four quick items and the Inventory, Journal, Full screen, and Settings buttons.
-Toggle slot outlines, move, and confirm the minimap follows the player. Check
-desktop `/games/ravensmoor/` and the pixel slice `/experiments/pixel-slice/index.html`, and smoke-check demos
-one and three since they share touch control code.
-
-Browser emulation covers layout and interactions; device-specific safe areas
-and fullscreen behavior should also be checked on an actual phone.
-
-## Minimap
-
-The minimap shows about six tiles across, on the phone rails and on the desktop panel (`MAP_ZOOM` in `engine/core/game.js`). When the
-player steps or turns, the map slides and rotates to the new position over 220 ms instead of jumping; a new level or a
-respawn jumps. The map is redrawn every frame only while it is sliding.
+`?layout=mobile` shows this layout in a desktop browser (with the window held wider than tall), to try it without a phone.

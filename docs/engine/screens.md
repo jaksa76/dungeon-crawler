@@ -1,11 +1,10 @@
 # Character, help, save and load screens
 
-The menu screens that open over the scene (the same panel as the satchel and the journal). `engine/ui/mobile-hud.js`
-builds the panel; the content of the two new screens is in their own modules.
+The menu screens that open over the scene (the same 320 x 180 panel as the satchel and the journal, drawn on the game's one canvas: see [ui.md](ui.md)). `engine/ui/menus.js` is the frame round them; the content of each screen is in its own module.
 
 ## Character screen
 
-Press **P**, or click the hero's portrait (in the painted panel on the desktop, on the rail on a phone). It shows:
+Press **P**, or tap the hero's head or the character button in the bar or the rail. It shows:
 
 - the hero's figure and name, their level and a bar to the next level;
 - the four attributes with `-` and `+`, and how many **skill points** there are to spend (earned by levelling,
@@ -16,7 +15,7 @@ Press **P**, or click the hero's portrait (in the painted panel on the desktop, 
 Points are chosen first and applied together: pressing `+` changes the numbers in the stats column to show what the
 point would give (`+5` mana), nothing is spent until **Apply**, and **Reset** or closing the screen drops the choice.
 
-It is its own module (`engine/ui/character-screen.js`, `renderCharacter(body, { hero, damageTypes, onSpend })`), apart from
+It is its own module (`engine/ui/character-screen.js`, `createCharacterScreen({ kit, sprite, hero, damageTypes, onSpend })`), apart from
 character creation (`engine/ui/title-screen.js`): creation is the one-time choice of a name and a few starting points; this is
 the hero as they are for the rest of the game. Each has its own list of attribute descriptions, so either can change
 without the other. A future class or skill tree belongs here. The satchel shows the level and a *Character* button.

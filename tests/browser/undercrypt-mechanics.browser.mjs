@@ -39,12 +39,14 @@ try {
     await page.screenshot({ path: join(process.env.SCREENSHOT_DIR, 'undercrypt-secret-passage.png') });
   }
 
-  const hud = await page.locator('#ui').boundingBox();
-  await page.mouse.click(hud.x + hud.width * 1090 / 1448, hud.y + hud.height * 66 / 241);
-  const sound = page.getByRole('button', { name: 'Sound', exact: true });
-  assert.equal(await sound.getAttribute('aria-pressed'), 'true');
-  await sound.click();
-  assert.equal(await sound.getAttribute('aria-pressed'), 'false');
+  const centreOf = r => page.evaluate(([x, y]) => __game2d.ui.client(x, y), [r.x + r.w / 2, r.y + r.h / 2]);
+  const regionWith = async title => (await page.evaluate(() => __game2d.ui.regions())).find(r => r.title.startsWith(title));
+  const settings = (await page.evaluate(() => __game2d.ui.rects())).buttons[5]; // the sixth menu button
+  let c = await centreOf(settings); await page.mouse.click(c.x, c.y); await page.waitForTimeout(250);
+  const sound = await regionWith('Sound');
+  assert.equal(sound.title, 'Sound: on');
+  c = await centreOf(sound); await page.mouse.click(c.x, c.y); await page.waitForTimeout(250);
+  assert.equal((await regionWith('Sound')).title, 'Sound: off');
   assert.equal(await page.evaluate(() => localStorage.getItem('ravensmoor.muted')), 'true');
   assert.deepEqual(errors, []);
   console.log('undercrypt secret passage and sound: ok');

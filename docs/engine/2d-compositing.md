@@ -72,7 +72,7 @@ Movement is instant with a short crossfade.
  depth 0       S@S
 ```
 
-Geometry lives in `engine/render/view.js` (`DEFAULT_VIEW`): 640×360 view, 50° vertical
+Geometry lives in `engine/render/view.js` (`DEFAULT_VIEW`): 640×360 view (drawn onto the game's canvas at 320×180, see [ui.md](ui.md); the art is shrunk by half until it is rebaked at 320×180, see [rebake.md](../art/rebake.md)), 50° vertical
 field of view, eye at 0.55 tiles, drawn depth 3. With these settings each wall type
 needs **16 images** and each prop **24–27** (14 for the stall, which is too wide to
 stand beside a side wall). A prop slot that is partly off screen reuses the image of

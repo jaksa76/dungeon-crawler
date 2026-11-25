@@ -25,28 +25,22 @@ the target has room, otherwise swapped.
 
 The pack has `inventorySize` slots (48) in `inventoryColumns` columns (8), engine defaults that a campaign
 may override in `startGame`. **12 columns by 10 rows (120 slots) is too much**: the satchel sits on a
-16:9 scene that is only 299 pixels tall on a phone held sideways, so cells would be
-about 20px, too small to see an icon or to drag. Rows are what is scarce. 8 by 4 gives
-roughly 35px cells on a phone and 62px on desktop. A taller grid is possible if the
-satchel is allowed to scroll, which it already does in portrait.
+scene that is only 180 canvas pixels tall, so cells would be about 10px, too small to see an icon or to
+drag. Rows are what is scarce: 8 by 6 gives 20-pixel cells (an icon is 16). A taller grid scrolls.
 
 ## The satchel screen
 
 Press **I** (or tap the bag icon) to open it; press **I** again, or **Escape**, to close.
 
-- **Left:** a tall niche for the hero. It currently shows the portrait as a placeholder.
-  It is a full-height alcove so that a full-body picture can go here later, with
-  equipment slots placed on the figure.
+- **Left:** a tall niche with the hero's full figure and the equipment slots on it.
 - **Right:** the pack as a grid. Tap a stack to select it. Drag a stack onto another slot
   to move, merge or swap; the icon follows the pointer and the slot it would land on lights
   up. Works with a mouse and with touch.
-- **Description bar:** the selected item's name, quantity and description, with **Use**
-  (greyed out when the item has no `use`), **Drop one** and **Drop all**. With nothing
-  selected it shows a hint. **Close** is in the bar underneath.
+- **Description box** (under the grid): the selected item's name, quantity, numbers and description (two lines, it
+  scrolls); in the column to its right the buttons **Use** (greyed out when the item has no `use`), **Equip**, **Take off**, **Drop one**,
+  **Drop all** and **Quick bar**. With nothing selected it shows a hint. **Close** is in the title bar.
 - Using a potion restores health or mana and uses one up. If it would be wasted ("Your
   health is already full.") it is kept.
-- Portrait phones are too short for this layout: there the painting is dropped, the hero is
-  hidden, and the satchel scrolls with the description above the grid.
 
 ## Equipment
 
@@ -60,11 +54,10 @@ takes it off. In the satchel the slots sit under the figure: select a pack item 
 or drag it onto a slot; select a worn item and press **Take off**, or drag it onto a pack slot.
 The figure itself never changes. It is true 48x96 pixel art, `engine/assets/ui/hero-sprite.png`, shown at the
 same pixel size as the portrait and every other UI picture (one art pixel is one UI pixel, so it does not fill the panel height), with the slots lying over it in two even columns
-along its sides (head, amulet, weapon, ring left; armour, gloves, shield, ring right) and the boots between at the feet (`SLOT_SPOTS` in `mobile-hud.js`). It was painted by Codex from the portrait
+along its sides (head, amulet, weapon, ring left; armour, gloves, shield, ring right) and the boots between at the feet (`SPOTS` in `ui/satchel.js`). It was painted by Codex from the portrait
 (`experiments/game-1/assets/ui/portrait-hero.png`, attached with `-i`) with a prompt asking for the same adventurer,
 full-length, front-facing, unarmed, plain clothes, as 48x96 pixel art enlarged to hard 12x12 blocks on flat
 magenta. `node tools/hero-sprite.mjs painted.png` then samples the blocks back to a real 48x96 PNG with transparency.
-On portrait phones the figure is hidden but the slots remain, in a row.
 
 The hero starts with no equipment; the village chest holds a rusty sword and the crate by the villager a rusty mail shirt.
 `node --test tests/equipment.test.mjs` covers it.
@@ -104,12 +97,14 @@ later milestone.
 
 ## The background painting
 
+The satchel no longer has a painted background: its frames are drawn by the canvas kit (see [ui.md](ui.md)). `engine/assets/ui/inventory-bg.png`
+is unused (see [rebake.md](../art/rebake.md)); the prompt that made it is kept below for the record.
+
+
 `engine/assets/ui/inventory-bg.png` (1280×720, 16:9) is the satchel's background. It was
 painted by Codex from the prompt below, with `experiments/game-1/assets/ui/panel.png` as the style
 reference, and it contains only frames: no slots, text or figure. The software draws the
-slots, text and buttons on top, and the layout in `engine/ui/mobile-hud.css` (`.rpg-bag-panel`)
-follows the painting's frames as percentages. If you repaint it, measure where the new frames
-are and update those column and row percentages.
+slots, text and buttons on top.
 
 ```
 codex exec -C <work dir> -s workspace-write --skip-git-repo-check -i style-panel.png - < prompt.txt
@@ -145,7 +140,7 @@ file to appear. Nothing but the image is kept from the run.
 
 `node --test tests/inventory.test.mjs` covers stacking, overflow, drag moves, take
 and take all, loot rolls, behaviour wiring, and that every village container names real
-items. `node tools/check-pixels.mjs` includes the satchel's icons and hero. In a browser:
+items. `tests/browser/quickbar.browser.mjs` drags a stack from the satchel onto the quick bar. In a browser:
 open the chest and take everything, press I, drag a stack, select a potion and use it
 (set `__game2d.hero.hp` lower first to see it heal), drop one, use on the floor to pick it
 up, and check the chest now reads "Nothing left."
