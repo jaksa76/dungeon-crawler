@@ -42,8 +42,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 
 ## Polish and content
 
-- [ ] TODO-21 - Regenerate the world map as pixel art
+- [x] TODO-21 - Regenerate the world map as pixel art
   - As a player, I want the world map drawn in the same pixel-art style as the rest of the canvas game. The map screen should be 320x180.
+  - Note: **Iteration note**
+  - Note: "The map screen should be 320x180" was read as: the picture is 320x180 and fills the whole menu panel, with the title bar and Close drawn over it (the old map sat in a 310x155 box below the title). That costs the top 18 rows of the picture (most of the compass rose).
+  - Note: The old map was 3:2; the new one is 16:9, so the three markers moved a few percent. Codex followed "320x180 art pixels in the 16:9 band, magenta outside, at most 32 colours" closely on the first try; tools/pixelate.mjs reduces it exactly. Worth recording in the pixel-art skill (TODO-48).
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-22 - Title screen background
   - As a player, I want a painted background behind the title screen and main menu.

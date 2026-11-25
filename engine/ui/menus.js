@@ -157,6 +157,7 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
         kit.origin(view.x, view.y);
         kit.window(0, 0, 320, 180);
         kit.hit(0, 0, 320, 180, { key: 'menu:panel' }); // the panel is solid: a press on it does not reach the scene (and everything below sits above it)
+        current.backdrop?.(); // a screen's picture under the title bar (the world map)
         kit.frame(5, 5, 310, 13, { fill: THEME.well, edge: THEME.frameLo });
         kit.text(fitText(current.title, 150), 9, 8, THEME.select);
         kit.button(277, 6, 36, 11, 'Close', { tap: close, key: 'menu:close' });

@@ -1,0 +1,14 @@
+$imagegen Paint a fantasy world map as true PIXEL ART and save it as world-map-px.png in this directory.
+
+Attached: reference-map.png (the current painted map: keep its geography) and style-game.png (a screenshot of the game: match its pixel-art look, crisp chunky pixels, limited earthy palette, dark outlines).
+
+Requirements:
+- Canvas 1536x1024. The map fills ONLY the 16:9 band from y=80 to y=944 (full width); paint the strips above and below flat solid magenta (#ff00ff).
+- The map is low-resolution pixel art: 320x180 art pixels, each enlarged to a hard square block about 4.8 screen pixels wide. No smooth gradients, no anti-aliasing, no blur, no painterly texture, flat colour per block, a palette of at most 32 colours.
+- Seen from above at a slight angle, like the reference: parchment-toned edges, dense oak and pine forest, a winding blue river from the top left down to the bottom centre, grey rocky mountains in the top right, farm fields in the bottom right, dirt roads joining the places.
+- Three places, at these positions as percent of the band's width and height (they must be there, clearly readable at small size):
+  1. Old Quarter (26%, 59%): a small walled village with a church tower.
+  2. Undercrypt (60%, 30%): a dark stone crypt entrance set into a rocky hillside in the forest.
+  3. Greybridge (77%, 64%): a larger walled market town with red roofs and market stalls, by the fields.
+- A small compass rose in the top left corner, below the top 12% of the band (the game's title bar covers that strip).
+- NO text, labels, names, letters, numbers, markers, borders or UI. Just the map.

@@ -124,7 +124,7 @@ the game pauses while it is. The panel's title bar has a line of news (what was 
 | Settings, saves | save, load (two presses to overwrite), help, sound, full screen, reload, slot outlines |
 | Shop, container | a scrolling list of rows with Buy / Sell / Take, and Take all |
 | Dialogue | the text, then one button per choice |
-| World map | the painted map with a marker per known place; tap one to travel |
+| World map | the campaign's map across the whole panel, under the title bar, with a marker per known place; tap one to travel |
 | Defeat | covers the scene until the way back has opened; only its button (or three seconds) continues |
 
 The detailed icon style (`?icons=hd`) still loads, but there is no longer a setting for it: at 16 pixels a painted icon is

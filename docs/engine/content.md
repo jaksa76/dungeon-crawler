@@ -48,7 +48,10 @@ Behaviour is code on the same objects: an item's `use`, an NPC's `interact`, a c
 
 ### World travel
 
-A campaign can provide `worldMap: { image, locations }`, with a 3:2 painted image URL and a list of destinations.
+A campaign can provide `worldMap: { image, locations }`, with an image URL and a list of destinations. A 320 × 180
+image fills the map screen and is drawn crisp, pixel for pixel, under the title bar; any other size is fitted and smoothed.
+Ravensmoor's was painted by Codex as pixel art enlarged to blocks (the prompt and the painting are in
+`art/ravensmoor/painted/world-map.*`) and reduced to 320 × 180 with `node tools/pixelate.mjs <painting> <out> 320 180`.
 Each destination names an `id`, a `name`, its map position as `x` and `y` percentages from the top left,
 and its destination `level`. Arrival defaults to that level's start. Set `spawn: { x, z, dir }` for a different
 arrival tile, or `travelTime` in milliseconds for a journey that takes time.

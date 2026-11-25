@@ -39,12 +39,6 @@ Today's sizes are the smallest and largest file in the folder.
 
 That is **609 files**. One level loads a subset: the Undercrypt loads 299.
 
-### Not slot art, but drawn on the canvas
-
-| Art | Where | Today | Wanted | Notes |
-|---|---|---|---|---|
-| World map | `games/ravensmoor/assets/world-map.png` | 1536 × 1024 | 232 × 155 | the map screen fits it inside 310 × 155 and draws it **smoothed**, the one picture that is; at 232 × 155 it could be drawn crisp (turn smoothing off in `ui/world-map.js`) and the markers adjusted |
-
 ### Already native, leave alone
 
 | Art | Where | Notes |
@@ -52,6 +46,7 @@ That is **609 files**. One level loads a subset: the Undercrypt loads 299.
 | Hero sprite | `engine/assets/ui/hero-sprite.png`, 48 × 96 | drawn 1:1 in the satchel and the character screen; the HUD head is a crop of its top |
 | Icons | `engine/assets/icons/atlas.png` (768 × 768, 12 columns) | 16 × 16 pixel art, enlarged 4× inside 64 × 64 tiles and drawn back at 16 × 16 (`"native"` in `atlas.json`). Repacking at 16 × 16 tiles would shrink the file to 192 × 192; optional, and `icons.js` would need the tile size changed |
 | Font | `engine/ui/font-5x8.js` | 5 × 8 bitmap |
+| World map | `games/ravensmoor/assets/world-map.png`, 320 × 180 | pixel art, drawn 1:1 across the map screen (`ui/world-map.js`) |
 
 ### No longer used by the game
 
