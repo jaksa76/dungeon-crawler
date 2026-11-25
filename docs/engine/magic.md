@@ -59,7 +59,9 @@ with the game (`engine.magic`). Learning with skill points is not built: the att
 **Casting.** `session.cast(id?, targetId?)`; without an id the *ready* spell. On the desktop: the **C** key casts the ready
 spell and **B** (or the star in the painted panel) opens the spell book, where each spell has *Cast* and *Make ready*. On a
 phone there is a *Cast* button beside *Attack* and a *Spells* menu button. Floating numbers show the damage in the colour
-of the magic; effects on the hero show top left of the view (and on the phone's rail) with their time left.
+of the magic; effects on the hero show top left of the view (and on the phone's rail) with their time left. Effects on
+the creature in the hero's sights show above its head the same way: the creature pointed at (hovered, or tapped on a
+phone), else the nearest one up to three tiles down the line ahead (`session.targeted(pointedId?)`).
 
 Events: `learn`, `cast { spell, targets, mana }`, `effect { target, effect, tier, result }`, `effect-end`.
 
@@ -98,5 +100,5 @@ creatures still win.
 
 ## Not yet
 
-Effects shown on the targeted creature, the spell list showing what a spell would do to the creature in front, spells
+The spell list showing what a spell would do to the creature in front, spells
 that creatures cast. (Spells on the quick bar: see [quickbar.md](quickbar.md).)

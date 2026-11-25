@@ -553,11 +553,30 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     if (!hit) { float('Miss', '#d8d0c0', cw / 2, ch * .8); return; }
     hurtFlash = now + 300; float(`-${damage}`, '#ff6a5a', cw / 2, ch * .8);
   }
-  function drawEffects(now) {
-    session.heroEffects.view().forEach((e, i) => { // status effects on the hero, top left, in the colour of their magic
-      const colour = books.damageTypes[e.magicType]?.colour ?? '#ffffff';
-      drawText(g, FONT, `${e.name.toUpperCase()} ${Math.ceil(e.left / 1000)}`, 3, 3 + i * (FONT.h + 2), colour, { outline: '#000' });
+  // A status effect as the view shows it, in the colour of its magic: "BURNING 3" (seconds left).
+  const effectLabel = e => ({ text: `${e.name.toUpperCase()} ${Math.ceil(e.left / 1000)}`, colour: books.damageTypes[e.magicType]?.colour ?? '#ffffff' });
+  // Status effects on the creature in the hero's sights (session.targeted: the one pointed at, else the nearest ahead),
+  // stacked above its head, or just under its name plate when it is pointed at (scene-targets.js draws the plate). Not
+  // while the view slides, nor when the creature is not drawn.
+  function drawTargetEffects() {
+    if (anim || drag || release) return;
+    const foe = session.targeted(sceneInput?.targetId), list = foe?.fx?.view() ?? [];
+    const rect = list.length && comp.target(foe.id)?.rect;
+    if (!rect) return;
+    const pitch = FONT.h + 2, plate = comp.plate();
+    const y = plate?.id === foe.id ? plate.y + plate.h + 1 : Math.max(2, Math.round(rect.y * INTERNAL) - 1 - list.length * pitch);
+    const cx = (rect.x + rect.w / 2) * INTERNAL;
+    list.forEach((e, i) => {
+      const { text, colour } = effectLabel(e), w = text.length * FONT.w;
+      drawText(g, FONT, text, Math.round(Math.min(cw - w - 2, Math.max(2, cx - w / 2))), y + i * pitch, colour, { outline: '#000' });
     });
+  }
+  function drawEffects(now) {
+    session.heroEffects.view().forEach((e, i) => { // status effects on the hero, top left
+      const { text, colour } = effectLabel(e);
+      drawText(g, FONT, text, 3, 3 + i * (FONT.h + 2), colour, { outline: '#000' });
+    });
+    drawTargetEffects();
     if (hurtFlash > now) { g.fillStyle = `rgba(190,20,20,${.4 * (hurtFlash - now) / 300})`; g.fillRect(0, 0, cw, ch); }
     for (let i = floaters.length - 1; i >= 0; i--) {
       const f = floaters[i], k = (now - f.t0) / 800;

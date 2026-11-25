@@ -34,8 +34,11 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - [x] Upgrade path: rusty sword → iron mace → steel (smithy, loot from level 3) → mithril (one sword at the smithy, mail in the Undercrypt's knight's strongbox). Mithril is never dropped, enchanted or not.
   - Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure.
 
-- [ ] TODO-10 - M8.1 — Magic and status effects (docs/engine/magic.md)
-  - [ ] Show status effects on the targeted monster
+- [x] TODO-10 - M8.1 — Magic and status effects (docs/engine/magic.md)
+  - [x] Show status effects on the targeted monster (above its head: the creature pointed at, else the nearest within three tiles ahead)
+  - Note: **Iteration note**
+  - Note: The first screenshots only showed creatures that were not pointed at; the review found the labels drew over the hover name plate, which scene-targets.js places from the creature's topmost pixel, not its rect. A screenshot with the pointer on the creature would have caught it. The plate's position is now exposed (compositor `plate()`).
+  - Note: _Posted by microfactory implement-next._
 
 ## Polish and content
 

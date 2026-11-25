@@ -10,6 +10,7 @@ const CODE_STEP = 0x9E3779; // odd, so codes are distinct for every index below 
 export function createSceneTargets(W, H) {
   const canvas = document.createElement('canvas'), overlay = document.createElement('canvas');
   let g, pixels, regions = [], visible = new Set(), sx = 1, sy = 1;
+  let plate = null; // where the last feedback drew a creature's name plate: { id, y, h } in canvas pixels
   const masks = new WeakMap(), colour = document.createElement('canvas'), codes = new Map();
   const codeOf = index => index ? (index * CODE_STEP) & 0xffffff || 1 : 0;
   function mask(image, source, w, h, flip) {
@@ -63,6 +64,7 @@ export function createSceneTargets(W, H) {
     const i = (y * canvas.width + x) * 4; return codes.get(pixels[i] | pixels[i + 1] << 8 | pixels[i + 2] << 16) ?? 0;
   };
   function feedback(targetId) {
+    plate = null;
     const index = regions.findIndex((r, i) => r.id === targetId && visible.has(i + 1)) + 1;
     if (!index) return null;
     const target = regions[index - 1]; overlay.width = canvas.width; overlay.height = canvas.height;
@@ -82,7 +84,7 @@ export function createSceneTargets(W, H) {
       const width = Math.min(canvas.width - 8, 156, Math.max(46, label.length * FONT.w, right - left + 8));
       const x = Math.max(2, Math.min(canvas.width - width - 2, Math.round((left + right - width) / 2)));
       const y = Math.max(1, top - 15), actor = target.actor;
-      cg.fillStyle = '#100c12e8'; cg.fillRect(x - 2, y, width + 4, 14);
+      cg.fillStyle = '#100c12e8'; cg.fillRect(x - 2, y, width + 4, 14); plate = { id: targetId, y, h: 14 };
       const name = label.slice(0, Math.floor(width / FONT.w));
       drawText(cg, FONT, name, x, y, '#ffe5ae');
       cg.fillStyle = '#43252b'; cg.fillRect(x, y + 10, width, 3);
@@ -90,7 +92,7 @@ export function createSceneTargets(W, H) {
     }
     return overlay;
   }
-  return { begin, stamp, block, finish, feedback,
+  return { begin, stamp, block, finish, feedback, plate: () => plate,
     at: (x, y) => regions[indexAt(Math.floor(x * sx), Math.floor(y * sy)) - 1] ?? null,
     get: id => regions.find((r, i) => r.id === id && visible.has(i + 1)) ?? null,
     all: () => regions.filter((_, i) => visible.has(i + 1)),

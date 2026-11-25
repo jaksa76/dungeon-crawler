@@ -76,6 +76,7 @@ export const EVENTS = {
   ending: '{ title, text }: the campaign chapter is complete',
 };
 
+const TARGET_RANGE = 3; // how far down the line ahead the hero picks out a creature without pointing at it (session.targeted)
 const describe = monster => ({ id: monster.id, kind: monster.kind, name: monster.name });
 
 // Props and NPCs stand against a side of their tile; seen from a player facing `dir`, a side is the far, right, near or
@@ -518,6 +519,13 @@ export function createSession({ levels: definitions, start, books, startingItems
     }
     return found;
   }
+  // The creature the hero has in their sights, whose status effects the view shows: the one pointed at (`pointedId`,
+  // when it is alive and may be targeted), else the nearest in the line ahead, up to TARGET_RANGE tiles. Null if none.
+  function targeted(pointedId = null) {
+    const pointed = pointedId && active.monsters.actors.find(a => a.id === pointedId && alive(a));
+    if (pointed && (hooks.canTarget ?? defaultCanTarget)(pointed)) return pointed;
+    return foesInLine(TARGET_RANGE)[0] ?? null;
+  }
   // The quick bar (rules/quickbar.js): slots that name an item or a spell. This is what each one stands for right now.
   const quickbar = createQuickBar({ size: quickSlots, itemDefs, spells: books.spells, canonical: id => canonicalId(itemDefs, id) });
   const quickChanged = () => emit('quickbar', { slots: quickbar.slots });
@@ -867,7 +875,7 @@ export function createSession({ levels: definitions, start, books, startingItems
     contextOf: context,
     on(type, fn) { if (!listeners.has(type)) listeners.set(type, new Set()); listeners.get(type).add(fn); return () => listeners.get(type).delete(fn); },
     emit, say, look, relCell, plan, move, interact, useItem, quickUse, drop, take, takeAll: takeEverything, equip, unequip, wouldChange, spend, learn, cast, applyEffect,
-    attack, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
+    attack, targeted, struckBy, update, delayMonsters, enter, travel, revive, load, begin, exitAhead, openContainer, openPile,
     worldMapView, travelToLocation,
   };
   quickSeed(); // a new game's bar, from the starting items and spells

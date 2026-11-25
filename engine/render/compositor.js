@@ -195,5 +195,5 @@ export function createCompositor(view, images) {
     if (stroke) { g.strokeStyle = stroke; g.lineWidth = 1; g.stroke(); }
   }
 
-  return { draw, imageFor, hitAt: targets.at, target: targets.get, targets: targets.all };
+  return { draw, imageFor, hitAt: targets.at, target: targets.get, targets: targets.all, plate: targets.plate };
 }

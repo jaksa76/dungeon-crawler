@@ -324,3 +324,26 @@ test('the engine predefines the kinds of magic and the common effects, and its c
   assert.equal(books.monsters.skeleton.resist.blunt, 1.5); assert.equal(books.monsters.skeleton.resist.holy, 1.5);
   assert.deepEqual(books.monsters.skeleton.immune, ['poison']);
 });
+
+test('the creature in the hero’s sights is the one pointed at, else the nearest in the line ahead', async () => {
+  const { sim, foe } = await arena('goblin', { at: { x: 1, z: 3 } });
+  assert.equal(sim.session.targeted(), foe(), 'two tiles down the line ahead');
+  assert.equal(sim.session.targeted('nobody'), foe(), 'a pointer at nothing falls back to the line ahead');
+  sim.session.applyEffect(foe(), 'burning', 1);
+  assert.deepEqual(sim.session.targeted().fx.view().map(e => e.id), ['burning']);
+  const near = { ...foe(), id: 'near', z: 2, fx: null };
+  sim.session.monsters.actors.push(near);
+  assert.equal(sim.session.targeted(), near, 'the nearest in the line ahead');
+  assert.equal(sim.session.targeted('foe'), near, 'by default only a creature on or next to the hero may be pointed at');
+  near.z = 1; foe().z = 2;
+  assert.equal(sim.session.targeted('foe'), foe(), 'the creature pointed at wins over a nearer one');
+  sim.session.monsters.actors.splice(sim.session.monsters.actors.indexOf(near), 1); foe().z = 3;
+  sim.session.player.dir = 0; // turned away
+  assert.equal(sim.session.targeted(), null);
+  assert.equal(sim.session.targeted('foe'), null, 'pointing needs a creature that may be targeted');
+  Object.assign(sim.session.player, { x: 1, z: 15, dir: 1 }); // the long corridor, facing east
+  Object.assign(foe(), { x: 4, z: 15 });
+  assert.equal(sim.session.targeted(), foe(), 'three tiles ahead');
+  foe().x = 5;
+  assert.equal(sim.session.targeted(), null, 'beyond three tiles nothing is in the hero’s sights');
+});
