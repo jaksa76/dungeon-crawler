@@ -81,12 +81,16 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The first version gave the big widgets rectangular press areas reaching 6 px into the scene over its whole height, so taps on bare scene beside the ring moved the hero; the browser test only pressed inside the drawn ring. The review caught it: the overflow press area is now a strip on the drawn shape, and the test taps beside it too.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-48 - Pixel art skill for Codex
+- [x] TODO-48 - Pixel art skill for Codex
   - As a campaign designer, I want a project skill (`.claude/skills/pixel-art/`) that tells an agent how to generate pixel art with Codex for this engine, so new art matches the existing style and fits the canvas without trial and error.
   - One main skill with the shared workflow: palette, canvas resolutions (320×240 desktop, 400×180 phone), view slots and sizes, prompting Codex, cleaning up and checking the result (tools/check-pixels.mjs and friends), and where the files go (art/ for sources, assets/ for runtime art, per docs/engine/content.md).
   - Sub-skills per asset type, each with its sizes, views, prompt templates and pitfalls: building facades, NPCs, monsters (directions and animation frames), items and icons. Add more (environments, portraits, story images) as they come up.
   - Self-improving: every art session ends by recording what worked and what failed (prompts, settings, fixes) in a "Lessons learned" section of the sub-skill it used, and promoting lessons that apply to all asset types into the main skill. The skill says this in its own instructions.
   - Start from what is already known: docs/art/ (art-prompts-2d.md, rebake.md, local-image-generation.md), docs/engine/icons.md, docs/ravensmoor/snake.md and the art tools in tools/.
+  - Note: **Iteration note**
+  - Note: The issue's list missed two asset kinds the repo already makes with Codex: monster animation key poses (portrait 1024 x 1536 transparent sheets the bake needs for every creature) and the hero sprite (portrait canvas, 12 px blocks). The first draft wrongly said key poses were not Codex's; the review caught it, and both now have sections (monsters.md, ui.md).
+  - Note: The old art docs assumed a ChatGPT conversation (preamble, then sheets); with `codex exec` the preamble goes into every prompt. And painted sheets were not kept before; the skill now keeps the painting and the prompt under art/*/painted/.
+  - Note: _Posted by microfactory implement-next._
 
 - [x] TODO-27 - Strafe-only buttons with swipe movement on mobile
   - As a player on a phone, I want a setting that shows only the strafe buttons and leaves forward, back and turning to swipes.

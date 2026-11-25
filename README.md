@@ -23,7 +23,7 @@ repeatable.
 Bots play the game without a screen, for balancing: `node tools/play.mjs --bot fighter --scenario undercrypt --runs 200`
 (see [docs/engine/bots.md](docs/engine/bots.md)).
 
-Everything on screen is drawn on one canvas on one pixel grid: 320×240 on a desktop, 400×180 on a phone held sideways (see [docs/engine/ui.md](docs/engine/ui.md); the art still to be rebaked for it is in [docs/art/rebake.md](docs/art/rebake.md)).
+Everything on screen is drawn on one canvas on one pixel grid: 320×240 on a desktop, 400×180 on a phone held sideways (see [docs/engine/ui.md](docs/engine/ui.md); the art still to be rebaked for it is in [docs/art/rebake.md](docs/art/rebake.md)). New art is painted with Codex following the project skill [.claude/skills/pixel-art](.claude/skills/pixel-art/SKILL.md), which records what each art session learns.
 
 Tests: `node --test tests/engine/*.test.mjs tests/ravensmoor/*.test.mjs`. The browser tests need Playwright and a
 running server: `node tests/browser/m5.browser.mjs` (TEST_URL, CHROMIUM_PATH) and `node tests/browser/monster-art.browser.mjs`.
