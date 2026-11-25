@@ -10,11 +10,13 @@ const alchemistDialogue = {
 
 export const alchemist = {
   id: 'alchemist', prop: 'stall', name: 'the alchemist’s stall',
-  portrait: new URL('../assets/portraits/alchemist.png', import.meta.url).href, // who answers when you talk to the stall
+  // The merchant behind the stall's counter, as the stall sprite shows him: his portrait and the shop picture are cut from
+  // engine/assets/props/stall/prop-far-d0-l0.png with tools/sprite-crop.mjs, so they match the scene.
+  portrait: new URL('../assets/portraits/alchemist.png', import.meta.url).href,
   behavior: { type: 'talk', dialogue: alchemistDialogue },
   merchant: {
     title: 'Alchemist’s stall',
-    image: new URL('../assets/shops/alchemist.png', import.meta.url).href, // 120 x 150, painted by Codex (art/ravensmoor/painted/shop-*)
+    image: new URL('../assets/shops/alchemist.png', import.meta.url).href, // 120 x 150
     text: 'Healing and mana draughts; torches.',
     stock: {
       'health-potion': { qty: 8, price: 10 },
@@ -29,7 +31,7 @@ export const smithy = {
   behavior: { type: 'shop' },
   merchant: {
     title: 'Greybridge smithy',
-    image: new URL('../assets/shops/smithy.png', import.meta.url).href,
+    image: new URL('../assets/shops/smithy.png', import.meta.url).href, // the smith is drawn with the villager sprite: cut from it
     text: 'Iron, some steel, one mithril blade.',
     stock: {
       'iron-sword': { qty: 2, price: 26 },

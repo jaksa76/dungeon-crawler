@@ -1,3 +1,5 @@
+(Only columns 1-3 are used: the guard, villager and hooded stranger. Column 4, the alchemist, did not match the stall's merchant in the game; his portrait is cut from the stall sprite instead.)
+
 $imagegen Paint four character portraits for a dark-fantasy dungeon crawler, as true PIXEL ART, on one sheet, and save it as npc-portraits.png in this directory.
 
 Attached: style.png (a finished shop picture from the game: match its pixel-art look and palette exactly: crisp chunky pixels, limited warm-and-dusky palette, dark outlines, warm light from the left), and the four people as they appear in the game: ref-guard.png, ref-villager.png, ref-hooded.png (seen from behind in the game), ref-alchemist.png. Keep each person's clothes and colours.
