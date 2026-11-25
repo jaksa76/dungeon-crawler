@@ -30,16 +30,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 
 ## Open in finished milestones
 
-- [>] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md)
-  - `[x]` Upgrade path: rusty sword → iron mace → steel (smithy, loot from level 3) → mithril (one sword at the smithy, mail in the Undercrypt's knight's strongbox). Mithril is never dropped, enchanted or not.
+- [x] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md)
+  - [x] Upgrade path: rusty sword → iron mace → steel (smithy, loot from level 3) → mithril (one sword at the smithy, mail in the Undercrypt's knight's strongbox). Mithril is never dropped, enchanted or not.
   - Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure.
 
-- [ ] TODO-9 - M8 — Loot, XP and progression (docs/engine/progression.md)
-  - `[ ]` Monster respawn (needs a per-level state scope)
-  - `[ ]` Retune the Undercrypt: a fighter bot still dies there (Balancing in docs/engine/bots.md)
-
 - [ ] TODO-10 - M8.1 — Magic and status effects (docs/engine/magic.md)
-  - `[ ]` Show status effects on the targeted monster
+  - [ ] Show status effects on the targeted monster
 
 ## Polish and content
 
