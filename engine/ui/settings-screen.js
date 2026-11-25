@@ -6,7 +6,8 @@
 // saves: { max, current(), list() -> [{ slot, savedAt, label }], save(slot) -> bool, load(slot) -> Promise<bool> }, or null to hide
 // Save and Load. `go`: { settings(), help(), saves(mode) } opens another screen. `close()` closes the menu. `mainMenu()`
 // leaves the game for the main menu (it saves first when the game is saving), or returns { ok: false, message } to stay;
-// null hides the button. It takes two presses. `controls`: { big(), setBig(on), shown() } for Big controls (phone only), or null.
+// null hides the button. It takes two presses. `controls`: { big(), setBig(on), swipe(), setSwipe(on), shown() } for Big controls and Swipe to
+// move (phone only; Big controls is hidden while swiping), or null.
 
 import { THEME, fitText } from './canvas.js';
 
@@ -24,7 +25,8 @@ export function createSettingsScreens({ kit, saves = null, sound = null, debug =
         ['Help', () => go.help()],
         sound && [`Sound: ${sound.muted ? 'off' : 'on'}`, () => sound.setMuted(!sound.muted)],
         ['Full screen', () => fullscreen()],
-        controls?.shown() && [`Big controls: ${controls.big() ? 'on' : 'off'}`, () => controls.setBig(!controls.big())],
+        controls?.shown() && [`Swipe to move: ${controls.swipe() ? 'on' : 'off'}`, () => controls.setSwipe(!controls.swipe())],
+        controls?.shown() && !controls.swipe() && [`Big controls: ${controls.big() ? 'on' : 'off'}`, () => controls.setBig(!controls.big())],
         [reloading ? 'Refreshing game files...' : 'Reload without cache', async () => { if (reloading) return; reloading = true; await reload(); }],
         debug && [`Slot outlines: ${debug.get() ? 'on' : 'off'}`, () => debug.set(!debug.get())],
         mainMenu && [leaving() ? (saves ? 'Save and leave?' : 'Leave unsaved?') : 'Main menu', () => {

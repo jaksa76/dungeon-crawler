@@ -1,9 +1,9 @@
 // The HUD, drawn on the game's one canvas (see docs/engine/ui.md). On the desktop it is a 320x60 bar under the scene:
 // the hero's head, health, mana and experience, six menu buttons, the quick bar, the minimap. On a phone held sideways the
 // same things sit in two 40x180 rails on either side of the scene, and the d-pad is a pair of drag widgets: a stick that
-// steps and strafes, and a pill that turns.
+// steps and strafes, and a pill that turns (or, with Swipe to move, a strafe button in each rail and swipes for the rest).
 //
-//   const hud = createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf, wallet, magic, bigControls })
+//   const hud = createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf, wallet, magic, bigControls, swipeControls })
 //   hud.draw(state, layout)   // state: { tileX, tileZ, yaw } (the minimap's, which slides); layout: LAYOUTS.desktop | .mobile
 //   hud.rects(layout)         // where everything is, in canvas pixels (for tests)
 
@@ -20,9 +20,14 @@ const HOLD_MS = 350, REPEAT_MS = 220, DEAD = 5; // a stick repeats like a held b
 // Settings -> Big controls, kept in the browser (like the icon style): a larger move stick and turn pill on a phone.
 export function savedBigControls() { try { return localStorage.getItem('bigControls') === 'true'; } catch { return false; } }
 export function saveBigControls(on) { try { localStorage.setItem('bigControls', String(on)); } catch { /* lasts until reload */ } }
+// Settings -> Swipe to move, kept the same way: the rails show only a strafe button each, and swipes do the rest.
+export function savedSwipeControls() { try { return localStorage.getItem('swipeControls') === 'true'; } catch { return false; } }
+export function saveSwipeControls(on) { try { localStorage.setItem('swipeControls', String(on)); } catch { /* lasts until reload */ } }
 
 // `big` (Settings -> Big controls, phone only): the move stick and the turn pill grow and reach a few pixels into the scene.
-export function hudRects(layout, slotCount = 8, { big = false } = {}) {
+// `swipe` (Settings -> Swipe to move, phone only): a strafe button in each rail (`strafeLeft`, `strafeRight`) instead of the
+// stick and the pill; `big` does not apply then.
+export function hudRects(layout, slotCount = 8, { big = false, swipe = false } = {}) {
   if (layout.name === 'mobile') {
     // Each rail has 38 pixels inside its rim (x 0-37 and 362-399). Everything in it fills the same 37-pixel column, one pixel
     // from the canvas edge and against the rim: two 18-pixel buttons or slots with a 1-pixel gap, the head, the bars, the minimap.
@@ -35,10 +40,14 @@ export function hudRects(layout, slotCount = 8, { big = false } = {}) {
       minimap: { x: COL.right, y: 2, w: COL.w, h: COL.w }, // square, one pixel above the first row of slots
       // The widgets, centred on the columns: the stick's ring radius `r`, the pill's size `pw` x `ph`. Big ones overflow the rails.
       // A big widget's press area is its rail plus `over`, the strip where its shape reaches into the scene (and no more).
+      ...(swipe ? {
+        strafeLeft: { x: COL.left, y: 124, w: COL.w, h: 52 }, strafeRight: { x: COL.right, y: 124, w: COL.w, h: 52 },
+      } : {
       move: big ? { x: 0, y: 120, w: 40, h: 60, cx: COL.left + 21, cy: 150, r: 21, over: { x: 40, y: 139, w: 4, h: 23 } }
         : { x: 0, y: 122, w: 40, h: 58, cx: COL.left + 18, cy: 150, r: 17 },
       turn: big ? { x: 360, y: 120, w: 40, h: 60, cx: COL.right + 15, cy: 150, pw: 44, ph: 30, over: { x: 355, y: 135, w: 5, h: 31 } }
         : { x: 360, y: 122, w: 40, h: 58, cx: COL.right + 18, cy: 150, pw: 36, ph: 24 },
+      }),
       numbers: false,
     };
   }
@@ -55,7 +64,7 @@ export function hudRects(layout, slotCount = 8, { big = false } = {}) {
   };
 }
 
-export function createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf = () => THEME.white, wallet = null, magic = false, bigControls = () => false }) {
+export function createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf = () => THEME.white, wallet = null, magic = false, bigControls = () => false, swipeControls = () => false }) {
   const g = kit.g;
   // The six menu buttons, in order. Without spells the second shows the help instead.
   const buttons = [
@@ -98,10 +107,11 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
 
   // ---- the sticks: the move stick steps and strafes, the pill turns. Pressing one takes the pointer over until it lifts.
   // The direction is where the finger is from the widget's centre; it repeats like a held button.
-  const stickState = { move: null, turn: null }; // { dx, dy } while pressed
+  const stickState = { move: null, turn: null, strafeLeft: null, strafeRight: null }; // { dx, dy } while pressed
+  const STICK_TITLES = { move: 'Step and strafe', turn: 'Turn', strafeLeft: 'Strafe left', strafeRight: 'Strafe right' };
   function makeStick(name, rect, commandFor) {
     for (const box of [rect, rect.over].filter(Boolean)) kit.hit(box.x, box.y, box.w, box.h, {
-      key: `stick:${name}`, title: name === 'move' ? 'Step and strafe' : 'Turn',
+      key: `stick:${name}`, title: STICK_TITLES[name],
       press: pt => {
         let current = null, hold = 0, repeat = 0;
         const stop = () => { clearTimeout(hold); clearInterval(repeat); hold = repeat = 0; };
@@ -119,6 +129,15 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
         return { move: update, up: () => { stop(); stickState[name] = null; } };
       },
     });
+  }
+  // A strafe button (Swipe to move): pressed, it is a stick that always means one thing, so it steps and repeats the same way.
+  function drawStrafe(r, cmd) {
+    const down = !!stickState[cmd];
+    kit.frame(r.x, r.y, r.w, r.h, { fill: down ? '#4a3a44' : '#120d16', edge: down ? THEME.frameHi : THEME.frame });
+    const cx = r.x + (r.w >> 1), cy = r.y + (r.h >> 1), d = cmd === 'strafeLeft' ? -1 : 1; // an arrow: a shaft and a head
+    kit.fill(cx - 6, cy - 1, 13, 3, THEME.frameHi);
+    for (let i = 0; i < 6; i++) kit.fill(cx + d * (7 - i), cy - i, 1, 2 * i + 1, THEME.frameHi);
+    makeStick(cmd, r, () => cmd);
   }
   const moveCommand = (dx, dy) => (Math.hypot(dx, dy) < DEAD ? null : Math.abs(dx) > Math.abs(dy) ? (dx < 0 ? 'strafeLeft' : 'strafeRight') : (dy < 0 ? 'forward' : 'back'));
   const turnCommand = dx => (Math.abs(dx) < 4 ? null : dx < 0 ? 'left' : 'right');
@@ -186,9 +205,9 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
   }
 
   return {
-    rects: (layout, slotCount = quick.size) => hudRects(layout, slotCount, { big: bigControls() }),
+    rects: (layout, slotCount = quick.size) => hudRects(layout, slotCount, { big: bigControls(), swipe: swipeControls() }),
     draw(state, layout) {
-      const rects = hudRects(layout, quick.size, { big: bigControls() });
+      const rects = hudRects(layout, quick.size, { big: bigControls(), swipe: swipeControls() });
       kit.origin(0, 0);
       if (layout.name === 'mobile') {
         for (const x of [0, 360]) { kit.fill(x, 0, 40, 180, THEME.panel); }
@@ -205,7 +224,8 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
       rects.slots.forEach((r, i) => { drawSlot(r, i, view[i] ?? null); slotRegion(r, i, view[i] ?? null); });
       if (rects.numbers) rects.slots.forEach((r, i) => kit.text(String(i + 1), r.x + r.w / 2, r.y + r.h + 2, THEME.dim, { align: 'center' }));
       drawMinimap(rects.minimap, state);
-      if (layout.name === 'mobile') drawSticks(rects);
+      if (rects.strafeLeft) { drawStrafe(rects.strafeLeft, 'strafeLeft'); drawStrafe(rects.strafeRight, 'strafeRight'); }
+      else if (layout.name === 'mobile') drawSticks(rects);
     },
   };
 }

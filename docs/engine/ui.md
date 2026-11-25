@@ -102,6 +102,10 @@ a held key (after 350 ms, then every 220 ms). The game steps one tile at a time,
 stick (ring radius 21 instead of 17) and the pill (44 × 30 instead of 36 × 24) larger: they reach a few pixels over the
 scene's edge, and a press there goes to them, not to the scene.
 
+**Settings → Swipe to move** (phone only, saved the same way) replaces the stick and the pill with a strafe button in each
+rail (left and right; a press steps, holding repeats like the stick). Forward, back and turning are swipes on the scene
+(`ui/swipe.js`). Big controls is hidden while it is on.
+
 Taps in the scene attack a creature or use an object (`rules/interaction.js`), as with the mouse. **There are no
 Attack, Cast or Use buttons**: attacking and using are taps in the scene, and a spell is cast from a
 quick slot (the first spell learned lands in the first free slot) or with **C**.
@@ -128,7 +132,7 @@ the game pauses while it is. The panel's title bar has a line of news (what was 
 | Character | the figure, level and experience, the attribute points (Apply and Reset), stats with the change a point would make, resistances |
 | Spells | a list and the chosen spell: Cast, Make ready, Quick bar; drag the icon to a quick slot |
 | Journal, message log, help | scrolling text |
-| Settings, saves | save, load (two presses to overwrite), help, sound, full screen, big controls (phone), reload, slot outlines, main menu (two presses; saves first) |
+| Settings, saves | save, load (two presses to overwrite), help, sound, full screen, swipe to move and big controls (phone), reload, slot outlines, main menu (two presses; saves first) |
 | Shop, container | a scrolling list of rows with Buy / Sell / Take, and Take all |
 | Dialogue | the text, then one button per choice |
 | World map | the campaign's map across the whole panel, under the title bar, with a marker per known place; tap one to travel |

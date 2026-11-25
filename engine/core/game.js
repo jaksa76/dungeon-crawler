@@ -6,7 +6,7 @@ import { THEME } from '../ui/canvas.js';
 import { createStage } from '../ui/stage.js';
 import { createSwipe } from '../ui/swipe.js';
 import { VIEW_W, VIEW_H } from '../ui/screen.js';
-import { createHud, savedBigControls, saveBigControls } from '../ui/hud.js';
+import { createHud, savedBigControls, saveBigControls, savedSwipeControls, saveSwipeControls } from '../ui/hud.js';
 import { createMenus } from '../ui/menus.js';
 import { resolveLevel } from './levels.js';
 import { engineContent } from '../content/index.js';
@@ -293,6 +293,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   };
   // Settings -> Big controls (phone): a larger move stick and turn pill. Saved in the browser for every game, like the icon style.
   let bigControls = savedBigControls();
+  // Settings -> Swipe to move (phone): strafe buttons in the rails, and swipes on the scene for the rest.
+  let swipeControls = savedSwipeControls();
   const colourOf = type => books.damageTypes[type]?.colour ?? '#ffffff';
   const hasMagic = Object.keys(books.spells).length > 0;
   const menus = createMenus({ kit, icons, sprite: portraitImage, world: mapView, hero, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
@@ -305,8 +307,9 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     } : null, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
     reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape(), mainMenu: leaveForMainMenu,
-    controls: { big: () => bigControls, setBig: on => { bigControls = on; saveBigControls(on); }, shown: () => screen2d.name === 'mobile' } });
-  const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf, bigControls: () => bigControls,
+    controls: { big: () => bigControls, setBig: on => { bigControls = on; saveBigControls(on); },
+      swipe: () => swipeControls, setSwipe: on => { swipeControls = on; saveSwipeControls(on); }, shown: () => screen2d.name === 'mobile' } });
+  const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf, bigControls: () => bigControls, swipeControls: () => swipeControls,
     wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, magic: hasMagic });
   const gameOver = menus.gameOver;
 
@@ -363,7 +366,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   // Messages stay for 7 s, then fade out over 1 s. They sit over the bottom of the scene, as text you can read on any picture.
   function drawLog(now, view) {
     if (menus.isOpen() || gameOver.active) return;
-    const logLeft = LOG_PAD + (bigControls && screen2d.name === 'mobile' ? 4 : 0); // clear of a big stick's ring
+    const logLeft = LOG_PAD + (bigControls && !swipeControls && screen2d.name === 'mobile' ? 4 : 0); // clear of a big stick's ring
     log.forEach((m, i) => {
       const alpha = Math.min(1, Math.max(0, 1 - (now - m.t - 7000) / 1000));
       if (alpha <= 0) return;
@@ -632,7 +635,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     changed: () => render(next), cancelGesture: () => swipe.cancel(),
     cursor: (shape, title) => { stage.cursor.scene = { shape, title }; stage.cursor.apply(); },
   });
-  // A finger dragged across the scene moves the hero; a stick in a rail does the same (ui/hud.js).
+  // A finger dragged across the scene moves the hero; a stick in a rail does the same, or a strafe button with Swipe to move (ui/hud.js).
   const swipe = createSwipe(canvas, { toLogical: screen2d.toLogical, view: () => screen2d.spec.view, kit, enabled: () => screen2d.name === 'mobile' && !screen2d.rotate,
     onCommand: act, onSwipe });
   window.addEventListener('keydown', (ev) => {

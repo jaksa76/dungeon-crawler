@@ -97,6 +97,17 @@ test('Big controls: on a phone the stick and the pill grow and reach a few pixel
   assert.deepEqual(hudRects(LAYOUTS.desktop, 8, { big: true }), hudRects(LAYOUTS.desktop, 8), 'the desktop has no sticks');
 });
 
+test('Swipe to move: a strafe button in each rail instead of the stick and the pill, in the rails\' columns', () => {
+  const m = hudRects(LAYOUTS.mobile, 8, { swipe: true, big: true });
+  assert.equal(m.move, undefined); assert.equal(m.turn, undefined);
+  assert.deepEqual([m.strafeLeft.x, m.strafeLeft.x + m.strafeLeft.w], [m.buttons[0].x, m.buttons[1].x + m.buttons[1].w], 'the left one fills the left column');
+  assert.deepEqual([m.strafeRight.x, m.strafeRight.x + m.strafeRight.w], [m.slots[0].x, m.slots[1].x + m.slots[1].w], 'the right one fills the right column');
+  for (const b of [m.strafeLeft, m.strafeRight]) {
+    assert.ok(b.y + b.h <= 180 && b.h >= 40, 'tall enough to hit, on the canvas');
+    for (const other of [...m.buttons, ...m.slots]) assert.ok(!overlap(b, other));
+  }
+});
+
 test('text the bitmap font cannot draw becomes something it can, and wraps to the width', () => {
   assert.equal(plain('Fire × 2 – café “quoted”'), 'Fire x 2 - cafe "quoted"');
   assert.equal(plain('☃'), '?');

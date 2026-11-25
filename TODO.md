@@ -81,8 +81,11 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The first version gave the big widgets rectangular press areas reaching 6 px into the scene over its whole height, so taps on bare scene beside the ring moved the hero; the browser test only pressed inside the drawn ring. The review caught it: the overflow press area is now a strip on the drawn shape, and the test taps beside it too.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-27 - Strafe-only buttons with swipe movement on mobile
+- [x] TODO-27 - Strafe-only buttons with swipe movement on mobile
   - As a player on a phone, I want a setting that shows only the strafe buttons and leaves forward, back and turning to swipes.
+  - Note: **Iteration note**
+  - Note: The swipe code dropped a swipe in progress whenever any other finger touched the canvas; harmless with the sticks, but this mode is meant for two thumbs (strafe with one, swipe with the other). The review found it; a swipe now ignores other fingers.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-28 - Full-screen story images with text
   - As a player, I want story moments shown as a full-screen image with text that I advance, triggered by events, dialogue or quests.

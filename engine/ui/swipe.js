@@ -1,6 +1,7 @@
 // Swipes on the scene, for a phone: drag the world and it moves. Drag it down to step forward, up to step back, left to turn
 // right and right to turn left; the finger shows the first part of the move while it is down, and a drag far enough counts
-// when it lifts. The sticks in the rails (ui/hud.js) do the same with a finger on a widget; this is for a finger on the picture.
+// when it lifts. The sticks in the rails (ui/hud.js) do the same with a finger on a widget (with Swipe to move the rails have
+// only strafe buttons, and this does the rest); this is for a finger on the picture.
 //
 //   createSwipe(canvas, { toLogical, view, kit, enabled, onCommand, onSwipe }) -> { cancel() }
 //
@@ -22,6 +23,7 @@ export function createSwipe(canvas, { toLogical, view, kit, enabled = () => true
     return { cmd, amount: Math.min(1, dist / SWIPE_PX) };
   };
   canvas.addEventListener('pointerdown', ev => {
+    if (start && ev.pointerId !== start.id) return; // another finger (a strafe button, say) leaves the swipe going
     start = null;
     if (ev.pointerType !== 'touch' || !enabled()) return;
     const pt = toLogical(ev.clientX, ev.clientY), v = view();
