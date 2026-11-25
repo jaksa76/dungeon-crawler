@@ -49,7 +49,7 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The old map was 3:2; the new one is 16:9, so the three markers moved a few percent. Codex followed "320x180 art pixels in the 16:9 band, magenta outside, at most 32 colours" closely on the first try; tools/pixelate.mjs reduces it exactly. Worth recording in the pixel-art skill (TODO-48).
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-22 - Title screen background
+- [x] TODO-22 - Title screen background
   - As a player, I want a painted background behind the title screen and main menu.
 
 - [ ] TODO-23 - Main menu button in the settings screen

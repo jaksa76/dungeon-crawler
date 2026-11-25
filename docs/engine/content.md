@@ -36,6 +36,7 @@ export const campaign = {
   unarmed: { name: 'fists', damage: [1, 3], speed: 600, damageType: 'blunt' }, // bare hands (optional)
   progression: { pointsPerLevel: 2, maxLevel: 10 },  // levels and skill points (optional: progression.md)
   loot: { dropChance: 0.6 },                         // the loot budget rules (optional: progression.md)
+  menu: { background: new URL('./assets/title-background.png', import.meta.url).href }, // main menu art: { logo?, background? } (optional: ui.md)
 };
 ```
 

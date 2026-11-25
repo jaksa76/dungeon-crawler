@@ -64,9 +64,13 @@ These were the old DOM and painted-panel UI. Nothing loads them any more; delete
 ### The screens before the game
 
 The main menu, saves list and character creation are drawn on the canvas now, in a 320 × 180 area. What art they use: the hero sprite
-(native), and the campaign's optional `menu.logo` and `menu.background`. **Ravensmoor gives neither**, so its menu is text on a dark
-background. A logo is drawn at most 240 × 56 (enlarged only by a whole number, smoothed otherwise); a background is cover-fitted to the
-canvas (320 × 240 or 400 × 180) and darkened, so paint it at 400 × 240 to cover both.
+(native), and the campaign's optional `menu.logo` and `menu.background`. Ravensmoor gives a background
+(`games/ravensmoor/assets/title-background.png`, 400 × 240 pixel art, painted by Codex and reduced with `tools/pixelate.mjs`; the
+painting and prompt are in `art/ravensmoor/painted/title-background.*`) and no logo, so its title is set in the pixel font. A logo is
+drawn at most 240 × 56 (enlarged only by a whole number, smoothed otherwise); a background is cover-fitted to the canvas (320 × 240 or
+400 × 180) and lightly darkened, so paint it at 400 × 240 to cover both: it is then drawn at scale 1, crisp. Keep the middle of a
+background (the title and the three buttons, about the centre 60% across and 25–85% down) calm and dark; the darkening alone does not
+make text readable over a bright or busy picture.
 
 ## Optional: the HUD as art
 

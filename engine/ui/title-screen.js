@@ -62,11 +62,11 @@ export function createTitleScreen({ stage, title, logo = null, background = null
 
   function backdrop() {
     const W = canvas.width, H = canvas.height;
-    if (images.background) { // cover-fitted, and darkened so the text reads
+    if (images.background) { // cover-fitted (crisp when that is a whole-number scale, as 400 x 240 is), and darkened so the text reads
       const img = images.background, k = Math.max(W / img.width, H / img.height);
-      g.save(); g.imageSmoothingEnabled = true; g.imageSmoothingQuality = 'high';
+      g.save(); g.imageSmoothingEnabled = k !== Math.floor(k); g.imageSmoothingQuality = 'high';
       g.drawImage(img, (W - img.width * k) / 2, (H - img.height * k) / 2, img.width * k, img.height * k); g.restore();
-      const shade = g.createLinearGradient(0, 0, 0, H); shade.addColorStop(0, 'rgba(8,6,12,0.45)'); shade.addColorStop(1, 'rgba(8,6,16,0.8)');
+      const shade = g.createLinearGradient(0, 0, 0, H); shade.addColorStop(0, 'rgba(8,6,12,0.3)'); shade.addColorStop(1, 'rgba(8,6,16,0.6)');
       g.fillStyle = shade; g.fillRect(0, 0, W, H);
     } else {
       const glow = g.createRadialGradient(W / 2, H * 0.35, 0, W / 2, H * 0.35, Math.max(W, H) * 0.7);

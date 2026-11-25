@@ -11,6 +11,8 @@ export const campaign = {
   title: 'Ravensmoor',
   saveKey: 'ravensmoor',
   content, quests, worldMap,
+  // The main menu's background: 400 x 240 pixel art, so it covers the desktop (320 x 240) and phone (400 x 180) canvases crisp.
+  menu: { background: new URL('./assets/title-background.png', import.meta.url).href },
   levels: { village, dungeon: undercrypt, market },
   start: 'village',
   respawn: { level: 'village', place: 'the village', message: 'You awaken safely in the village.' },

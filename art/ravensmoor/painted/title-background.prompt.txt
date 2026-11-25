@@ -1,0 +1,11 @@
+$imagegen Paint the title-screen background for a dark-fantasy dungeon crawler called Ravensmoor, as true PIXEL ART, and save it as title-bg-px.png in this directory.
+
+Attached: style-game.png (a screenshot of the game) and style-map.png (the game's world map, 320x180 pixel art). Match their pixel-art look: crisp chunky pixels, a limited palette, dark outlines.
+
+Requirements:
+- Canvas 1536x1024. The picture fills ONLY the 5:3 band from y=51 to y=972 (full width); paint the strips above and below flat solid magenta (#ff00ff).
+- Low-resolution pixel art: 400x240 art pixels, each enlarged to a hard square block about 3.84 screen pixels wide. No smooth gradients, no anti-aliasing, no blur, no painterly texture, flat colour per block, at most 40 colours.
+- Scene: the old town of Ravensmoor at dusk, seen from a moor outside it. A dark walled town of steep roofs and a church tower on a low hill in the middle distance, a few warm lit windows; a ruined crypt gate half-sunk in the heath in the foreground left; a dead tree on the right with ravens perched; more ravens circling against a cold violet-blue sky with a pale moon and thin clouds; mist lying low over the moor.
+- The middle of the picture (where the game writes its title and three menu buttons, roughly the centre 60% of the width and from 25% to 85% of the height) must stay calm and fairly dark: sky, mist and distant silhouettes only, no bright details there. Put the interesting details towards the edges and the bottom.
+- The outer 10% on the left and right, and 12% at the top and bottom, may be cropped on some screens: nothing important there.
+- NO text, letters, logo, UI, borders or frames.
