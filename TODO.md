@@ -81,6 +81,13 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The first version gave the big widgets rectangular press areas reaching 6 px into the scene over its whole height, so taps on bare scene beside the ring moved the hero; the browser test only pressed inside the drawn ring. The review caught it: the overflow press area is now a strip on the drawn shape, and the test taps beside it too.
   - Note: _Posted by microfactory implement-next._
 
+- [ ] TODO-48 - Pixel art skill for Codex
+  - As a campaign designer, I want a project skill (`.claude/skills/pixel-art/`) that tells an agent how to generate pixel art with Codex for this engine, so new art matches the existing style and fits the canvas without trial and error.
+  - One main skill with the shared workflow: palette, canvas resolutions (320×240 desktop, 400×180 phone), view slots and sizes, prompting Codex, cleaning up and checking the result (tools/check-pixels.mjs and friends), and where the files go (art/ for sources, assets/ for runtime art, per docs/engine/content.md).
+  - Sub-skills per asset type, each with its sizes, views, prompt templates and pitfalls: building facades, NPCs, monsters (directions and animation frames), items and icons. Add more (environments, portraits, story images) as they come up.
+  - Self-improving: every art session ends by recording what worked and what failed (prompts, settings, fixes) in a "Lessons learned" section of the sub-skill it used, and promoting lessons that apply to all asset types into the main skill. The skill says this in its own instructions.
+  - Start from what is already known: docs/art/ (art-prompts-2d.md, rebake.md, local-image-generation.md), docs/engine/icons.md, docs/ravensmoor/snake.md and the art tools in tools/.
+
 - [ ] TODO-27 - Strafe-only buttons with swipe movement on mobile
   - As a player on a phone, I want a setting that shows only the strafe buttons and leaves forward, back and turning to swipes.
 
@@ -149,13 +156,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [ ] TODO-47 - Campaign developer guide
   - As a campaign designer, I want one guide (docs/campaign-guide.md) that takes me from an empty folder to a playable campaign: the campaign file, levels, content books and art, NPCs and dialogue, quests and flags, shops, the world map, sound, saving and testing with bots. It links to the engine docs instead of repeating them.
   - Includes advice on validating a campaign (the engine leaves validation to the campaign): run checks on the loaded level and dialogue objects rather than the source files, so generated content is checked too; what to check (dialogue targets, flags set but never read, unknown ids, unreachable tiles, missing art); how to make the checks tests.
-
-- [ ] TODO-48 - Pixel art skill for Codex
-  - As a campaign designer, I want a project skill (`.claude/skills/pixel-art/`) that tells an agent how to generate pixel art with Codex for this engine, so new art matches the existing style and fits the canvas without trial and error.
-  - One main skill with the shared workflow: palette, canvas resolutions (320×240 desktop, 400×180 phone), view slots and sizes, prompting Codex, cleaning up and checking the result (tools/check-pixels.mjs and friends), and where the files go (art/ for sources, assets/ for runtime art, per docs/engine/content.md).
-  - Sub-skills per asset type, each with its sizes, views, prompt templates and pitfalls: building facades, NPCs, monsters (directions and animation frames), items and icons. Add more (environments, portraits, story images) as they come up.
-  - Self-improving: every art session ends by recording what worked and what failed (prompts, settings, fixes) in a "Lessons learned" section of the sub-skill it used, and promoting lessons that apply to all asset types into the main skill. The skill says this in its own instructions.
-  - Start from what is already known: docs/art/ (art-prompts-2d.md, rebake.md, local-image-generation.md), docs/engine/icons.md, docs/ravensmoor/snake.md and the art tools in tools/.
 
 - [ ] TODO-51 - Map viewer
   - As a campaign designer, I want to see any level as a top-down map, drawn from its loaded definition: tiles, doors, entities, monsters, traps, triggers and exits, with their ids on hover, so I can check a level (hand-written or generated) without walking it.
