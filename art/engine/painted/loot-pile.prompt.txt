@@ -1,0 +1,11 @@
+$imagegen Paint one small game sprite as true PIXEL ART and save it as loot-pile.png in this directory.
+
+Attached: style.png (a finished sprite sheet from the game: match its pixel-art look exactly: early-1990s CRPG, chunky visible pixels, crisp dark outlines, rich limited palette, light from the top left; do NOT copy its subject or layout) and style-game.png (the game's scene).
+
+The sprite: a small pile of loot left on a dungeon floor where a creature fell: a bulging, tied brown leather pouch lying on its side, a few gold coins spilled in front of it, the hilt of a short blade and a small corked red potion poking out beside it. Seen from standing eye height, slightly from above, the base flat on the ground.
+
+Requirements:
+- Canvas 1536x1024, the whole background flat solid magenta (#ff00ff): no gradient, no ground, no shadow, no glow. Never use magenta or hot pink in the sprite.
+- The sprite is 48 art pixels wide and about 30 tall, each art pixel a hard 16x16 block (so about 768x480 screen pixels), centred on the canvas, its base on one flat line.
+- No smooth gradients, no anti-aliasing, no blur, flat colour per block, at most 24 colours.
+- Only the one sprite. NO text, letters, borders, frames or extra objects.

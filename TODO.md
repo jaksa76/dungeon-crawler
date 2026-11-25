@@ -123,10 +123,13 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-33 - Portraits in dialogue
   - As a player, I want to see the portrait of the person I'm talking to in dialogue.
   - Note: (Earlier, before implementing:) Findings so far: the dialogue screen is `showDialogue` in engine/ui/menus.js (text in a scroll area, choices as buttons); a line knows its speaker only through `dialogue.talk(speaker, tree)` in engine/core/dialogue.js (speaker = the entity, with `npc`/`art`/`assets`). Plan: an NPC content entry declares a portrait (e.g. 64 x 64 pixel art at `<assets>/portrait.png`), a tree may override it (`tree.portrait`), the line carries it, and the dialogue draws it at the left with the text beside it. Speakers: guard, villager, hooded (engine NPCs) and the alchemist's stall (campaign). Paint the four on one Codex sheet (4 columns, magenta), crop each column and reduce with tools/pixelate.mjs (see .claude/skills/pixel-art/pictures.md).
-  
-- [ ] TODO-34 - The sprite for the loot dropped by monsters is missing
   - Note: **Iteration note**
   - Note: The review found that an inherited `portrait` resolved against the overriding book's art folder: a campaign repainting an engine NPC (experiments/pixel-slice does) would have asked for a portrait that is not there. mergeContent now resolves it against the book that names it.
+  - Note: _Posted by microfactory implement-next._
+
+- [x] TODO-34 - The sprite for the loot dropped by monsters is missing
+  - Note: **Iteration note**
+  - Note: Not a missing file: piles (creature loot and dropped items) were never drawn at all (inventory.md said so). They are now a sack billboard in the middle of the tile, drawn through the creature path (hp 0, not pickable) with one 48 x 30 sprite.
   - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-30 - Regenerate art at the correct resolution

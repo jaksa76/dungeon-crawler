@@ -176,7 +176,7 @@ export function createCompositor(view, images) {
         g.save(); g.globalAlpha = opacity;
         drawFlipped(g, shade(image, it.d + .35, fog), rect.x, rect.y, rect.w, rect.h, false, source);
         g.restore();
-        if (picking) targets.stamp(image, source, rect, it.actor.hp > 0 && !it.actor.dyingUntil
+        if (picking && it.actor.pickable !== false) targets.stamp(image, source, rect, it.actor.hp > 0 && !it.actor.dyingUntil
           ? { kind: 'actor', id: it.actor.id, actor: it.actor } : null, false, opacity);
       } else if (kind === 'prop') {
         if (shadows && !bare) shadow(g, r.full);

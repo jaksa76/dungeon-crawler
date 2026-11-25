@@ -90,7 +90,8 @@ chest holds an iron mace, an iron shield and two potions.
 Dropping puts items in a pile on the tile you stand on, remembered per level. Standing on
 a pile, **Use** opens it like any container, unless a container is in reach. A person with
 nothing to do does not block it. Entering a tile with a pile says "Something lies on the
-floor here." Piles are not drawn in the scene yet.
+floor here." A pile is drawn as a small sack in the middle of its tile (`engine/assets/loot/pile.png`, 48 × 30 pixel
+art painted by Codex; a little behind anyone standing there, and never a target).
 
 State (opened containers, piles, the pack) lasts for the page session; saving comes in a
 later milestone.

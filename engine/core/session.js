@@ -279,6 +279,7 @@ export function createSession({ levels: definitions, start, books, startingItems
       x, z,
       props: (c.entities ?? []).map(e => ({ ...flat(e), type: e.prop, anchor: anchorOf(e.side, at.dir), entity: e })),
       monsters: active.monsters.at(x, z),
+      pile: !!piles.get(`${active.id}:${x},${z}`)?.length, // things on the floor here (what creatures left, what was dropped)
     };
   }
   const exitAhead = () => active.level.exits?.find(exit => exit.x === p.x && exit.z === p.z && exit.dir === p.dir) ?? null;

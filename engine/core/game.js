@@ -26,6 +26,7 @@ import { createTitleScreen } from '../ui/title-screen.js';
 import { drawText } from '../ui/bitmapfont.js';
 import { font5x8 as FONT } from '../ui/font-5x8.js';
 import { createSound } from '../ui/sound.js';
+import { ART_DEPTH } from '../render/far-slots.js';
 
 // Grid crawler drawn by 2D compositing: every step and turn shows a new
 // composite of pre-painted slot images (see view.js). Movement is instant, softened by a very short, subtle
@@ -153,6 +154,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   let levelId = session.levelId;
   const say = text => session.say(text);
   const cache = new Map();
+  const pileArt = loadImage(new URL('../assets/loot/pile.png', import.meta.url).href); // what lies on the floor (relCell)
   async function prepare(id) {
     if (!Object.hasOwn(definitions, id)) throw new Error(`Unknown level: ${id}`);
     if (!cache.has(id)) {
@@ -161,6 +163,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
         const rules = session.contextOf(id);
         const art = artOf(id), loaded = new Set();
         const images = await loadSlotImages(view, { environment: def.environment, ...art });
+        const pile = await pileArt;
+        if (pile) for (let d = 0; d <= ART_DEPTH; d++) images.set(`monsters:loot-pile:front:d${d}`, pile); // one sprite, scaled by distance
         for (const thing of [...art.walls, ...art.props, ...art.actors]) loaded.add(thing.art);
         // Required dungeon art must be complete before replacing the active scene.
         if (def.level.atmosphere && (!images.has('floor') || art.walls.some(({ art }) =>
@@ -347,14 +351,16 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
 
   // The cell `d` ahead and `l` to the right of the player as view.compose expects it: the session's, with its creatures
   // laid out to be drawn.
+  // A pile on the floor (loot a creature left, things the hero dropped) is a small billboard in the middle of the cell,
+  // a little behind anyone standing there, never a target (Use on the tile opens it). One sprite, engine/assets/loot/.
+  // `pickable: false`: clicks pass through it to what stands behind (the compositor leaves it out of the picking map).
+  const PILE = { art: 'loot-pile', w: 0.42, h: 0.42 * 30 / 48, direction: 'front', hp: 0, pickable: false, offsetDepth: 0.2 };
   const relCell = (l, d) => {
     const c = session.relCell(l, d);
     if (!c || c.wall) return c;
-    return {
-      props: c.props,
-      actors: arrangeActors(c.monsters.map(actor => ({ ...flat(actor), direction: actorDirection(actor.dir, p.dir),
-        animation: monsters.animation(actor, performance.now()) }))),
-    };
+    const actors = arrangeActors(c.monsters.map(actor => ({ ...flat(actor), direction: actorDirection(actor.dir, p.dir),
+      animation: monsters.animation(actor, performance.now()) })));
+    return { props: c.props, actors: c.pile ? [{ ...PILE, id: `pile:${c.x},${c.z}` }, ...actors] : actors };
   };
 
   function render(target) {
