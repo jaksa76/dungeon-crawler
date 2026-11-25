@@ -9,7 +9,7 @@ upright it shows a **Rotate your device** overlay. How the canvas is sized and s
 - **Move stick** (bottom of the left rail): put a finger on it and push. Up steps forward, down steps back, left and right strafe. Slide the
   finger to change direction without lifting; hold to keep going (after a short pause it repeats, like a held key).
 - **Turn pill** (bottom of the right rail): put a finger on its left or right half, or slide along it, to turn. Holding repeats.
-- **Tap the scene** to attack a creature (hold to keep swinging) or to use an object. There are no Attack, Cast or Use buttons and no swipes.
+- **Tap the scene** to attack a creature (hold to keep swinging) or to use an object. **Drag across the scene** to move, as an alternative to the sticks: drag down to step forward, up to step back, left to turn right, right to turn left. The picture follows your finger and the move counts when you lift, if the drag went far enough. There are no Attack, Cast or Use buttons.
 - **Quick slots** (the right rail, eight of them in two columns): tap to use, press and hold for what it is, drag to move, swap or (dragged off the
   bar) empty a slot. Spells live here: the first spell you learn takes the first free slot. See [quickbar.md](quickbar.md).
 - **Menu buttons** (the left rail, six in two columns): character, spells (help when the game has no spells), journal, satchel, full screen, settings.

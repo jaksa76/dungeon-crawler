@@ -47,6 +47,7 @@ a layout on the other kind of device. A phone in full screen is locked to landsc
 | `ui/screen.js` | the layouts, which one to use, the scale, the rotate overlay, pointer → canvas pixels |
 | `ui/canvas.js` | the drawing kit: pixel text, frames, buttons, bars, icons, scroll areas, and the hit regions they register |
 | `ui/input.js` | one pointer controller: taps, holds, drag and drop, scrolling, widgets that take a finger over |
+| `ui/swipe.js` | a finger dragged across the scene moves the hero (phone only), with the first part of the move shown while the finger is down |
 | `ui/hud.js` | the bar and the rails: head, bars, six menu buttons, the quick bar, the minimap, the two drag widgets |
 | `ui/menus.js` | the frame round every menu (window, title bar, Close, news line), the small screens, the defeat screen |
 | `ui/satchel.js`, `character-screen.js`, `spell-screen.js`, `settings-screen.js`, `help-screen.js`, `shop-screen.js`, `world-map.js` | the screens |
@@ -92,8 +93,8 @@ The stick and the pill are widgets you drag, like a joystick: the direction is w
 (up forward, down back, left and right strafe; the pill turns), a change of direction acts at once, and holding repeats like
 a held key (after 350 ms, then every 220 ms). The game steps one tile at a time, so a widget picks a direction; it has no speed.
 
-Taps in the scene attack a creature or use an object (`rules/interaction.js`), as with the mouse. **There is no swipe,
-and there are no Attack, Cast or Use buttons**: attacking and using are taps in the scene, and a spell is cast from a
+Taps in the scene attack a creature or use an object (`rules/interaction.js`), as with the mouse. **There are no
+Attack, Cast or Use buttons**: attacking and using are taps in the scene, and a spell is cast from a
 quick slot (the first spell learned lands in the first free slot) or with **C**.
 
 ## Menus

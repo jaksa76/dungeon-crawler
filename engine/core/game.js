@@ -4,6 +4,7 @@ import { createView } from '../render/view.js';
 import { loadImage, loadSlotImages, createCompositor } from '../render/compositor.js';
 import { createCanvasKit, THEME } from '../ui/canvas.js';
 import { createInput } from '../ui/input.js';
+import { createSwipe } from '../ui/swipe.js';
 import { createScreen, VIEW_W, VIEW_H } from '../ui/screen.js';
 import { createHud } from '../ui/hud.js';
 import { createMenus } from '../ui/menus.js';
@@ -15,7 +16,7 @@ import { interactTarget } from '../rules/interaction.js';
 import { flat } from './world.js';
 import { loadIcons, savedIconStyle, saveIconStyle } from '../ui/icons.js';
 import { deriveStats, FISTS } from '../rules/combat.js';
-import { motionFor, easeOut, drawTransition } from './transition.js';
+import { PEEK, RELEASE_MS, motionFor, easeOut, drawTransition } from './transition.js';
 import { createSaveStore, peek } from './persistence.js';
 import { reloadFresh } from './reload.js';
 import { createSession, DIR_KEYS } from './session.js';
@@ -133,6 +134,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       ensureArt: async id => { const context = cache.has(id) ? await cache.get(id).catch(() => null) : null; if (context) await ensureArt(context); },
       openContainer: box => menus.openContainer(box),
       openWorldMap: map => {
+        settleDrag();
         menus.openWorldMap(map, session.travelToLocation);
       },
       openShop: shop => menus.openShop(shop),
@@ -359,9 +361,44 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     main.globalAlpha = 1; kit.origin(0, 0);
   }
 
-  // What is on screen. Idle: the settled picture in `next`. After a move: `anim` carries the picture it came from to the
-  // one in `next`.
-  let anim = null;
+  // What is on screen. Idle: the settled picture in `next`. After a move: `anim` carries the picture it came
+  // from to the one in `next`. While a swipe is going: `drag` shows the first part of the move it would make.
+  // A swipe let go of early settles back in `release`. At most one of the three is set.
+  let anim = null, drag = null, release = null;
+
+  const plan = cmd => session.plan(cmd);
+
+  // The view the player would see in `st`, drawn without moving them. Kept per command while a swipe lasts.
+  const peeks = new Map();
+  let peekKey = '';
+  function peekFor(cmd) {
+    const st = plan(cmd);
+    if (!st) return null;
+    const key = `${levelId}:${monsters.version}:${p.x},${p.z},${p.dir},${p.steps},${opts.outlines}`;
+    if (key !== peekKey) { peeks.clear(); peekKey = key; }
+    if (!peeks.has(cmd)) {
+      const c = document.createElement('canvas'); c.width = cw; c.height = ch;
+      const here = { ...p };
+      Object.assign(p, st); // render() reads where the player is
+      try { render(c); } finally { Object.assign(p, here); }
+      peeks.set(cmd, c);
+    }
+    return peeks.get(cmd);
+  }
+
+  function onSwipe(phase, cmd, amount) {
+    if (phase !== 'move' || menus.isOpen() || transitioning || loading || isDead()) { settleDrag(); return; }
+    anim = null; release = null; // the picture in `next` is the settled one; start from it
+    if (!drag || drag.cmd !== cmd) drag = { cmd, motion: motionFor(cmd), peek: peekFor(cmd), amount };
+    else drag.amount = amount;
+  }
+
+  // Let go of a swipe that did not count: the half-made move eases back.
+  function settleDrag() {
+    if (!drag) return;
+    release = { ...drag, from: drag.amount, t0: performance.now() };
+    drag = null;
+  }
 
   // The minimap slides and turns to the player's new position over MAP_MS instead of jumping.
   const MAP_MS = 220;
@@ -386,10 +423,14 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   function show(cmd) {
     exploration.reveal(p);
     const motion = cmd ? motionFor(cmd) : null;
-    // The picture to move away from: what is on screen right now, unless it was settled.
-    prev.getContext('2d').drawImage(anim ? viewCanvas : next, 0, 0);
+    const continuing = !!drag && drag.cmd === cmd; // the swipe that made this move already showed its first part
+    // The picture to move away from: what is on screen right now, unless a swipe was already showing the
+    // settled one transformed, in which case the clean picture in `next`.
+    prev.getContext('2d').drawImage(continuing || !(anim || drag || release) ? next : viewCanvas, 0, 0);
     render(next);
-    anim = motion ? { motion, t0: performance.now(), ms: motion.ms } : null;
+    const u0 = continuing ? drag.amount * PEEK : 0;
+    drag = release = null;
+    anim = motion ? { motion, u0, t0: performance.now(), ms: motion.ms * (1 - u0) } : null;
     moveMap(!cmd); // a step or turn slides the minimap; anything else (start, new level, respawn) jumps
     updateStatus();
   }
@@ -397,7 +438,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   async function travel(exit, { respawn = false } = {}) {
     sceneInput?.cancel();
     transitioning = true;
-    anim = null;
+    anim = drag = release = null;
     canvas.setAttribute('aria-busy', 'true');
     say('Opening the passage...');
     try {
@@ -433,6 +474,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     sound?.setLevel(level.sound);
     sound?.effect('door');
     Object.assign(window.__game2d, { levelId, level, view, images, monsters });
+    peeks.clear(); peekKey = '';
     document.title = `${level.shortName ?? level.name} · ${title}`;
     log.length = 0;
     show();
@@ -451,13 +493,13 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const target = peek(snapshot, 'engine.player')?.levelId;
     if (!Object.hasOwn(definitions, target)) { say('That save is from a level that no longer exists.'); return false; }
     loading = true;
-    sceneInput?.cancel(); input.cancel();
-    anim = null;
+    sceneInput?.cancel(); input.cancel(); swipe.cancel();
+    anim = drag = release = null;
     try {
       const { issues } = await session.load(snapshot, { respawn });
       for (const issue of issues) console.warn(`save: ${issue.section}: ${issue.message}`);
       if (issues.some(issue => issue.section === 'engine.player' && issue.problem === 'failed')) return false;
-      log.length = 0;
+      peeks.clear(); peekKey = ''; log.length = 0;
       show(); look();
       return true;
     } catch (error) { say(error.message); return false; }
@@ -467,10 +509,10 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   // Death (the session says when): the defeat screen, then the hero wakes, healed, at the respawn point (by default the
   // start of the first level); the creatures start over. Nothing is saved.
   async function die() {
-    anim = null;
-    sceneInput?.cancel(); input.cancel();
+    anim = drag = release = null;
+    sceneInput?.cancel(); input.cancel(); swipe.cancel();
     for (const code of heldKeys) blockedKeys.add(code);
-    show();
+    peeks.clear(); peekKey = ''; show();
     let retry = false;
     while (session.dead) {
       await gameOver.wait(retry, respawn.place);
@@ -494,7 +536,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const fx = rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2;
     const fy = rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42;
     if (!result.hit) float('Miss', '#d8d0c0', fx, fy); else float(`-${result.damage}`, '#ffe08a', fx, fy);
-    render(next);
+    peeks.clear(); peekKey = ''; render(next);
     return target.hp > 0;
   }
   // Cast the ready spell (or `id`): the session does it; floating numbers show what it did, in the colour of its magic.
@@ -507,7 +549,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       const rect = comp.target(t.target.id)?.rect;
       float(t.immune ? 'Immune' : `-${t.damage}`, colour, rect ? (rect.x + rect.w / 2) * INTERNAL : cw / 2, rect ? (rect.y + rect.h * .35) * INTERNAL : ch * .42);
     }
-    render(next);
+    peeks.clear(); peekKey = ''; render(next);
     return result;
   }
   // A creature's blow, as the session dealt it.
@@ -537,6 +579,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     // The session moves the player and says what they see; the picture is shown before that is said.
     const result = session.move(cmd, { before: () => show(cmd) });
     if (result.exit) { void session.travel(result.exit); return; }
+    if (result.blocked) settleDrag();
   }
 
   const keymap = {
@@ -551,11 +594,14 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       return comp.hitAt((q.x - v.x) * W / VIEW_W, (q.y - v.y) * H / VIEW_H);
     },
     getTarget: id => comp.target(id),
-    blocked: () => isDead() || transitioning || loading || menus.isOpen() || document.hidden || screen2d.rotate || !!anim,
+    blocked: () => isDead() || transitioning || loading || menus.isOpen() || document.hidden || screen2d.rotate || !!(anim || drag || release),
     attack, interact: target => interactTarget(target, { say, game: api }),
-    changed: () => render(next), cancelGesture: () => {},
+    changed: () => render(next), cancelGesture: () => swipe.cancel(),
     cursor: (cursor, title) => { sceneCursor.cursor = cursor; sceneCursor.title = title; applyCursor(); },
   });
+  // A finger dragged across the scene moves the hero; a stick in a rail does the same (ui/hud.js).
+  const swipe = createSwipe(canvas, { toLogical: screen2d.toLogical, view: () => screen2d.spec.view, kit, enabled: () => screen2d.name === 'mobile' && !screen2d.rotate,
+    onCommand: act, onSwipe });
   window.addEventListener('keydown', (ev) => {
     if (keymap[ev.code]) {
       heldKeys.add(ev.code);
@@ -578,7 +624,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     if (ev.code === 'KeyO') { opts.outlines = !opts.outlines; say(`Slot outlines: ${opts.outlines ? 'on' : 'off'}`); show(); }
   });
   window.addEventListener('keyup', ev => { heldKeys.delete(ev.code); blockedKeys.delete(ev.code); });
-  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); sceneInput.cancel(); input.cancel(); });
+  window.addEventListener('blur', () => { heldKeys.clear(); blockedKeys.clear(); sceneInput.cancel(); input.cancel(); swipe.cancel(); });
 
   function updateStatus() {
     const missing = view.compose(relCell).filter(it => !(it.actor && !it.actor.art) && !comp.imageFor(it));
@@ -603,7 +649,12 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const { changed, struck } = session.update(now, { paused });
     sound?.update(p, monsters.actors, paused);
     for (const blow of struck) struckBy(blow, now);
-    if (changed) render(next); // moving creatures, without interrupting a player's current motion
+    if (changed) {
+      // Update moving creatures without interrupting a player's current motion.
+      peeks.clear(); peekKey = ''; render(next);
+      if (drag) drag.peek = peekFor(drag.cmd);
+      if (release) release.peek = peekFor(release.cmd);
+    }
   }
 
   function loop(now) {
@@ -612,9 +663,15 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     const layout = screen2d.spec, view = layout.view;
     updateMonsters(now);
     sceneInput.update(now);
-    if (anim) {
+    if (drag) {
+      drawTransition(g, next, drag.peek, drag.motion, drag.amount * PEEK);
+    } else if (release) {
+      const k = Math.min(1, (now - release.t0) / RELEASE_MS);
+      drawTransition(g, next, release.peek, release.motion, release.from * PEEK * (1 - easeOut(k)));
+      if (k >= 1) release = null;
+    } else if (anim) {
       const k = Math.min(1, (now - anim.t0) / anim.ms);
-      drawTransition(g, prev, next, anim.motion, easeOut(k));
+      drawTransition(g, prev, next, anim.motion, anim.u0 + (1 - anim.u0) * easeOut(k));
       if (k >= 1) anim = null;
     } else {
       g.drawImage(next, 0, 0);

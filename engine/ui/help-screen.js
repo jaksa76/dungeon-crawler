@@ -9,7 +9,7 @@ import { THEME } from './canvas.js';
 export function helpSections({ magic = false, extra = [] } = {}) {
   const sections = [
     { title: 'Moving', text: ['On a keyboard: W and S step forward and back, A and D step sideways, Q and E (or the left and right arrows) turn.',
-      'On a phone (held sideways): drag on the round stick on the left to step and strafe, and on the slider on the right to turn; hold to keep going. Stepping forward into a doorway or passage takes you through it.'] },
+      'On a phone (held sideways): drag on the round stick on the left to step and strafe, and on the slider on the right to turn; hold to keep going. You can also drag across the picture: down steps forward, up steps back, left turns right and right turns left. Stepping forward into a doorway or passage takes you through it.'] },
     { title: 'Using things', text: ['Face a chest, a door or a person and press Space to use what is in front of you. You can also click or tap the thing itself.',
       'Containers open as a list: take one item, or Take all. Things you drop lie on the floor of your tile: use them again to pick them up.'] },
     { title: 'Fighting', text: ['Click or tap a creature to hit it, and hold to keep swinging. With the keyboard, face it and press X or Enter. How fast you swing depends on your weapon.',

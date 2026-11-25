@@ -84,13 +84,15 @@ try {
   hp = await health(mobile); assert.ok(hp[0] < 200); assert.equal(hp[1], 200);
   await mobile.waitForTimeout(800);
   const cdp = await mobile.context().newCDPSession(mobile);
-  // A drag across a creature is not an attack, and nothing turns: the phone has sticks, not swipes.
+  // A drag across a creature is a swipe, not an attack: swiping left turns right.
   const facing = await mobile.evaluate(() => __game2d.p.dir);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: t.x, y: t.y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: t.x - 90, y: t.y }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await mobile.waitForTimeout(350);
-  assert.equal(await mobile.evaluate(() => __game2d.p.dir), facing, 'a drag across the scene turns nothing');
+  assert.deepEqual(await health(mobile), hp, 'swiping across a creature does not attack');
+  assert.equal(await mobile.evaluate(() => __game2d.p.dir), (facing + 1) % 4, 'left swipe still turns right');
+  await mobile.keyboard.press('ArrowLeft'); await mobile.waitForTimeout(350);
   const hold = await point(mobile);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: hold.x, y: hold.y }] });
   await mobile.waitForTimeout(1600);
@@ -112,5 +114,5 @@ try {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   assert.deepEqual(await health(mobile), [200, 200], 'loading a save cancels held attacks on reused actor IDs');
   assert.deepEqual(errors, []);
-  console.log('M5 browser checks passed: individual targets, hold, corpses, occlusion, props, mobile taps and holds.');
+  console.log('M5 browser checks passed: individual targets, hold, corpses, occlusion, props, mobile taps, holds and swipes.');
 } finally { await browser.close(); }
