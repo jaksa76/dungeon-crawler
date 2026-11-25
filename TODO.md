@@ -148,9 +148,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [ ] TODO-44 - Environment: Sewer
   - As a campaign designer, I want sewers, with brick tunnels, water channels and grates, so I can build levels there.
 
-- [ ] TODO-45 - Environment: Tavern interior
-  - As a campaign designer, I want a tavern interior, with timber walls, tables, a bar and a hearth, so I can build levels there.
-
 ## Campaign authoring
 
 - [ ] TODO-47 - Campaign developer guide
