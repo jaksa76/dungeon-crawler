@@ -122,6 +122,7 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 
 - [ ] TODO-33 - Portraits in dialogue
   - As a player, I want to see the portrait of the person I'm talking to in dialogue.
+  - Note: Started and stopped before any code (usage limit). Findings so far: the dialogue screen is `showDialogue` in engine/ui/menus.js (text in a scroll area, choices as buttons); a line knows its speaker only through `dialogue.talk(speaker, tree)` in engine/core/dialogue.js (speaker = the entity, with `npc`/`art`/`assets`). Plan: an NPC content entry declares a portrait (e.g. 64 x 64 pixel art at `<assets>/portrait.png`), a tree may override it (`tree.portrait`), the line carries it, and the dialogue draws it at the left with the text beside it. Speakers: guard, villager, hooded (engine NPCs) and the alchemist's stall (campaign). Paint the four on one Codex sheet (4 columns, magenta), crop each column and reduce with tools/pixelate.mjs (see .claude/skills/pixel-art/pictures.md).
   
 - [ ] TODO-34 - The sprite for the loot dropped by monsters is missing
 
