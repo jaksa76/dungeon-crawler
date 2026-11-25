@@ -84,11 +84,77 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   
 - [ ] TODO-34 - The sprite for the loot dropped by monsters is missing
 
+## Engine polish
+
+- [ ] TODO-35 - Level transitions
+  - As a player, I want a short fade (or similar) when I change level, open the world map or switch screens, so the game never jumps from one scene to the next.
+
+- [ ] TODO-36 - Audio-visual feedback for game events
+  - As a player, I want a sound and a visible cue when I level up, a quest starts, advances or completes, I gain gold and I take damage, so I notice them without reading the message log.
+
+- [ ] TODO-37 - Music and sound effects volume
+  - As a player, I want separate volume settings for music and sound effects, saved between sessions.
+
+- [ ] TODO-38 - Key rebinding screen
+  - As a player on desktop, I want a screen where I can see and change the key for every action, saved between sessions, with a reset to defaults.
+
+- [ ] TODO-39 - Credits screen
+  - As a player, I want a credits screen reached from the main menu and after the ending. The campaign supplies its own credits; the engine adds its own.
+
+## Environments
+
+*Each one is an engine environment (walls, floor, props, sky or ceiling) that any campaign can use, at the canvas resolution.*
+
+- [ ] TODO-40 - Environment: Forest road
+  - As a campaign designer, I want a forest road between villages, with trees, undergrowth and an open sky, so I can build levels there.
+
+- [ ] TODO-41 - Environment: Cave
+  - As a campaign designer, I want natural caves, with rough rock walls, stalagmites and water, so I can build levels there.
+
+- [ ] TODO-42 - Environment: Catacomb
+  - As a campaign designer, I want catacombs, with bone-lined niches, sarcophagi and candles, so I can build levels there.
+
+- [ ] TODO-43 - Environment: Castle interior
+  - As a campaign designer, I want a castle interior, with dressed stone, banners, tapestries and torches, so I can build levels there.
+
+- [ ] TODO-44 - Environment: Sewer
+  - As a campaign designer, I want sewers, with brick tunnels, water channels and grates, so I can build levels there.
+
+- [ ] TODO-45 - Environment: Tavern interior
+  - As a campaign designer, I want a tavern interior, with timber walls, tables, a bar and a hearth, so I can build levels there.
+
+## Campaign authoring
+
+- [ ] TODO-47 - Campaign developer guide
+  - As a campaign designer, I want one guide (docs/campaign-guide.md) that takes me from an empty folder to a playable campaign: the campaign file, levels, content books and art, NPCs and dialogue, quests and flags, shops, the world map, sound, saving and testing with bots. It links to the engine docs instead of repeating them.
+  - Includes advice on validating a campaign (the engine leaves validation to the campaign): run checks on the loaded level and dialogue objects rather than the source files, so generated content is checked too; what to check (dialogue targets, flags set but never read, unknown ids, unreachable tiles, missing art); how to make the checks tests.
+
+- [ ] TODO-48 - Pixel art skill for Codex
+  - As a campaign designer, I want a project skill (`.claude/skills/pixel-art/`) that tells an agent how to generate pixel art with Codex for this engine, so new art matches the existing style and fits the canvas without trial and error.
+  - One main skill with the shared workflow: palette, canvas resolutions (320×240 desktop, 400×180 phone), view slots and sizes, prompting Codex, cleaning up and checking the result (tools/check-pixels.mjs and friends), and where the files go (art/ for sources, assets/ for runtime art, per docs/engine/content.md).
+  - Sub-skills per asset type, each with its sizes, views, prompt templates and pitfalls: building facades, NPCs, monsters (directions and animation frames), items and icons. Add more (environments, portraits, story images) as they come up.
+  - Self-improving: every art session ends by recording what worked and what failed (prompts, settings, fixes) in a "Lessons learned" section of the sub-skill it used, and promoting lessons that apply to all asset types into the main skill. The skill says this in its own instructions.
+  - Start from what is already known: docs/art/ (art-prompts-2d.md, rebake.md, local-image-generation.md), docs/engine/icons.md, docs/ravensmoor/snake.md and the art tools in tools/.
+
+- [ ] TODO-51 - Map viewer
+  - As a campaign designer, I want to see any level as a top-down map, drawn from its loaded definition: tiles, doors, entities, monsters, traps, triggers and exits, with their ids on hover, so I can check a level (hand-written or generated) without walking it.
+  - Reads the level object the engine resolves, so it works for any level a campaign produces. Dev-only, in the browser.
+  - Clicking a tile can start the game there (with TODO-50's scenario loading, once it exists).
+
+- [ ] TODO-49 - Whole-campaign bot with checkpoint saves
+  - As a campaign designer, I want a bot that plays the main quest from a new game to the ending in the test suite, so a change that breaks progression (a key behind its own door, a renamed flag) fails a test.
+  - The campaign declares its milestones (e.g. "accepted the seal quest", "has the warden's key", "seal returned"); the bot writes a checkpoint save at each one. Checkpoints are reachable by construction and are rebuilt whenever content changes; a failure names the milestone the bot could not reach.
+  - Builds on the M6 bot API (docs/engine/bots.md). Side quests and alternative routes get their own short scripts when they matter.
+
+- [ ] TODO-50 - Scenario builder from checkpoints
+  - As a campaign designer, I want to start a test or a play session from a checkpoint (TODO-49) with a few changes (level, gold, items, flags, position), so I can test a specific situation without replaying everything before it.
+  - Generated states are checked against consistency rules a real state always obeys: quest stage matches its flags, a unique item is not in two places, a defeated boss's loot is not still in its container. The campaign supplies the rules.
+  - Usable from tests, from bots and in the browser (e.g. a dev-only URL parameter or menu that loads a scenario). Replaces the hand-built setups in games/ravensmoor/scenarios.js where they overlap.
+
 ## Later — art pipeline and toolkit
 
 *Not required by any game story. Pick up when the game needs more art or other people start making levels.*
 
 - `[ ]` Experiment 3: full AI-generated screens per cell/direction, mixable per area
-- `[ ]` Level data validation (unreachable cells, bad exits, missing art) as one command
 - `[ ]` Visual level editor (tile map, entities, exits)
 - `[ ]` Dialogue and quest editor
