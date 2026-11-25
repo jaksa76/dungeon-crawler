@@ -105,8 +105,13 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The review found two stories asked for at once replaced each other, and a held Escape that skipped a story then closed the menu under it; both fixed (stories queue; a held Escape closes nothing). Pictures load when the story opens, so the first frame is text on black.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-31 - Increase view distance
+- [x] TODO-31 - Increase view distance
   - As a player, I want to see further down streets in villages. Not needed for dungeons.
+  - Note: **Iteration note**
+  - Note: Expected new art for the farther rows (every slot is a painted image); instead the rows beyond the painted three are made at load from the painted ones (one-point perspective: fronts scale, sides remap column by column, billboards scale), so no repaint was needed.
+  - Note: The Old Quarter is a 3x3 square and never shows past row 3; only Greybridge (5x5) changes today. Both have maxDepth 6.
+  - Note: The village level's view also drives the art studio's sheet plan, so raising its maxDepth silently re-planned the painted sheets; the review caught it and the studio is now pinned to the painted depth. That coupling was undocumented.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-32 - Better shops
   - As a player, I want shops that have depth and show the NPC inside them.

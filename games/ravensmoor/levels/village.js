@@ -9,6 +9,7 @@ export const village = {
   shortName: 'Old Quarter',
   journal: 'Explore Ravensmoor’s Old Quarter. The eastern door beside the chest leads to the Undercrypt. The west gate leads to the roads of Ravensmoor.',
   environment: 'town',
+  view: { maxDepth: 6 }, // see down the streets: rows beyond the painted three are made from them (engine/render/far-slots.js)
   sound: { track: new URL('../assets/music/old-quarter.mp3', import.meta.url).href, music: [55, 62, 64, null, 62, 59, 57, null], windTone: 460, windVolume: .07, interval: 1.7 },
   legend: { '.': 'floor', H: 'house-a', J: 'house-b', D: 'house-door', A: 'shop-alchemist', B: 'shop-smith', '#': 'stone-wall' },
   tiles: [

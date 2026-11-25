@@ -14,6 +14,7 @@
 
 import * as THREE from 'three';
 import { createView } from '../../engine/render/view.js';
+import { ART_DEPTH } from '../../engine/render/far-slots.js';
 import { loadSlotImages, createCompositor } from '../../engine/render/compositor.js';
 import { loadAssets } from '../../experiments/game-1/engine/assets.js';
 import { buildBackdrop } from '../../experiments/game-1/engine/backdrop.js';
@@ -35,7 +36,9 @@ const FOG = { color: '#1e1838', near: 1.5, far: 8 };
 // folder from the content books (the pixel slice's own art in px mode).
 const books = mergeContent(engineContent, content, ...(PX ? [pixelContent] : []));
 const courtyard = resolveLevel('village', PX ? quarterPx : village, books);
-const view = createView(courtyard.level.view);
+// Art is painted for the rows up to ART_DEPTH, whatever the level sees (farther rows are made from it at load,
+// engine/render/far-slots.js): the sheets are planned for those rows only, so they stay as painted.
+const view = createView({ ...courtyard.level.view, maxDepth: Math.min(ART_DEPTH, courtyard.level.view?.maxDepth ?? ART_DEPTH) });
 const { W, H } = view.V;
 const walls = [...new Map(Object.values(courtyard.tileTypes).filter((t) => t.wall).map((t) => [t.art, t])).values()];
 const wallArts = walls.map((t) => t.art);

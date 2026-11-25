@@ -1,4 +1,5 @@
 import test from 'node:test';
+import { ART_DEPTH } from '../../engine/render/far-slots.js';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { levels } from '../support.mjs';
@@ -62,7 +63,8 @@ test('discovery stops at walls and keeps previously explored corridors', () => {
 
 test('every wall, floor and sky the campaign’s levels use has baked artwork', () => {
   for (const def of Object.values(levels)) {
-    for (const tile of Object.values(def.tileTypes).filter(t => t.wall)) for (const slot of createView(def.level.view).wallSlots) {
+    // Painted up to ART_DEPTH; rows beyond are made from those at load (engine/render/far-slots.js, tests/browser/far-view).
+    for (const tile of Object.values(def.tileTypes).filter(t => t.wall)) for (const slot of createView(def.level.view).wallSlots.filter(s => s.d <= ART_DEPTH)) {
       const data = fs.readFileSync(new URL(`${slot.id}.png`, tile.assets));
       assert.equal(data.toString('ascii', 1, 4), 'PNG');
       assert(data.readUInt32BE(16) > 0 && data.readUInt32BE(20) > 0);

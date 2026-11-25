@@ -82,8 +82,14 @@ as it shows.
 
 ### Map rules
 
-- Lines of sight stay short, so walls close every view within the drawn depth
-  (`maxDepth` 3). Anything beyond shows the backdrop.
+- Art is painted for rows up to depth 3 (`ART_DEPTH`, `engine/render/far-slots.js`). A level may see further with
+  `view: { maxDepth: 6 }` (Ravensmoor's town levels do, so a street or a square is closed by its far houses, not the
+  backdrop). The farther rows need no art: their wall fronts are the painted fronts scaled, their side faces are remapped
+  column by column from the painted sides (perspective-correct), and props, NPCs and creatures there are the deepest painted
+  image, smaller. The painted near rows are cut off at the top of the screen, so a far face drawn from them lacks the very
+  top of its card (chimney tops, a roof's ridge). Dungeons keep 3: the dark ends the view anyway. Anything beyond
+  `maxDepth` shows the backdrop. The art studio (`tools/studio2d`) plans its sheets for the painted rows only, whatever
+  the village's `maxDepth`, so the sheets stay as painted.
 - Wall types are cheap to add (16 images each), so variety comes from many
   types, not from rules.
 - `games/ravensmoor/levels/village.js` is a 3×3 courtyard (nine walkable cells) inside a ring of

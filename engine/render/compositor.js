@@ -1,5 +1,6 @@
 import { FRAME_LAYOUT, FRAME_COLUMNS, FRAME_PADDING, FRAME_WIDTH_SCALE, DIRECTIONS } from './monster-animation.js';
 import { createSceneTargets } from './scene-targets.js';
+import { ART_DEPTH, farWallImages } from './far-slots.js';
 // Draws a view from slot images: backdrop, floor, then wall faces and props far
 // to near. Missing images are drawn as flat polygons so gaps in the art are obvious.
 
@@ -28,15 +29,21 @@ export async function loadSlotImages(view, { environment, walls = [], props = []
     for (const dir of 'NESW') want(`backdrop:${dir}`, environment.assets, `backdrop-${dir}.png`);
   }
   if (environment) want('floor', environment.assets, 'floor.png');
-  for (const w of walls) for (const s of view.wallSlots) want(`walls:${w.art}:${s.id}`, w.assets, `${s.id}.png`);
+  // Art is painted for rows up to ART_DEPTH; farther wall faces are made from it below, farther props and creatures
+  // borrow the deepest painted image (lookup).
+  for (const w of walls) for (const s of view.wallSlots) if (s.d <= ART_DEPTH) want(`walls:${w.art}:${s.id}`, w.assets, `${s.id}.png`);
   for (const p of props) for (const s of view.propSlots(p.w, p.h, p.sideW).list) {
-    if (!s.borrows) want(`props:${p.art}:${s.id}`, p.assets, `${s.id}.png`);
+    if (!s.borrows && s.d <= ART_DEPTH) want(`props:${p.art}:${s.id}`, p.assets, `${s.id}.png`);
   }
-  for (const a of actors) for (let d = 0; d <= view.V.maxDepth; d++) {
+  for (const a of actors) for (let d = 0; d <= Math.min(ART_DEPTH, view.V.maxDepth); d++) {
     for (const direction of ['front', 'back', 'left', 'right']) want(`monsters:${a.art}:${direction}:d${d}`, a.assets, `${direction}-d${d}.png`);
     if (a.animated) want(`animation:${a.art}:d${d}`, a.assets, `animation-d${d}.png`);
   }
   await Promise.all(jobs);
+  if (view.V.maxDepth > ART_DEPTH) for (const w of walls) {
+    const far = farWallImages(view, slot => images.get(`walls:${w.art}:${slot.id}`));
+    for (const [id, img] of Object.entries(far)) images.set(`walls:${w.art}:${id}`, img);
+  }
   return images;
 }
 
@@ -95,13 +102,14 @@ export function createCompositor(view, images) {
   // its own image borrows the nearest one in the same row (see view.propChain).
   function lookup(it) {
     if (it.slot.kind === 'actor') {
-      const atlas = images.get(`animation:${it.actor.art}:d${it.d}`), sample = it.actor.animation;
+      const d = Math.min(it.d, ART_DEPTH); // beyond the painted rows: the deepest frame, drawn smaller
+      const atlas = images.get(`animation:${it.actor.art}:d${d}`), sample = it.actor.animation;
       if (atlas && sample) {
         const layout = FRAME_LAYOUT[sample.state], w = atlas.width / FRAME_COLUMNS, h = atlas.height / DIRECTIONS.length;
         return { img: atlas, flip: false, source: [(layout.column + Math.min(layout.frames - 1, sample.frame)) * w,
           Math.max(0, DIRECTIONS.indexOf(it.actor.direction)) * h, w, h] };
       }
-      const img = images.get(`monsters:${it.actor.art}:${it.actor.direction}:d${it.d}`);
+      const img = images.get(`monsters:${it.actor.art}:${it.actor.direction}:d${d}`);
       return img ? { img, flip: false } : null;
     }
     if (it.slot.kind !== 'prop') {
@@ -111,6 +119,13 @@ export function createCompositor(view, images) {
     for (const c of view.propChain(it.slot)) {
       const img = images.get(`props:${it.prop.art}:${c.id}`);
       if (img) return { img, flip: it.mirror !== c.flip };
+    }
+    // Beyond the painted rows: the same prop from the deepest painted row (a billboard looks the same, only smaller).
+    if (it.slot.d > ART_DEPTH) for (let l = it.slot.l; l >= 0; l--) {
+      for (const c of view.propChain({ ...it.slot, d: ART_DEPTH, l })) {
+        const img = images.get(`props:${it.prop.art}:${c.id}`);
+        if (img) return { img, flip: it.mirror !== c.flip };
+      }
     }
     return null;
   }
