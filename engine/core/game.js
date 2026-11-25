@@ -6,7 +6,7 @@ import { THEME } from '../ui/canvas.js';
 import { createStage } from '../ui/stage.js';
 import { createSwipe } from '../ui/swipe.js';
 import { VIEW_W, VIEW_H } from '../ui/screen.js';
-import { createHud } from '../ui/hud.js';
+import { createHud, savedBigControls, saveBigControls } from '../ui/hud.js';
 import { createMenus } from '../ui/menus.js';
 import { resolveLevel } from './levels.js';
 import { engineContent } from '../content/index.js';
@@ -291,6 +291,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       return session.quickSet(free, ref) ? `${name} is on the quick bar, slot ${free + 1}.` : 'That cannot go on the quick bar.';
     },
   };
+  // Settings -> Big controls (phone): a larger move stick and turn pill. Saved in the browser for every game, like the icon style.
+  let bigControls = savedBigControls();
   const colourOf = type => books.damageTypes[type]?.colour ?? '#ffffff';
   const hasMagic = Object.keys(books.spells).length > 0;
   const menus = createMenus({ kit, icons, sprite: portraitImage, world: mapView, hero, messages, inventory, equipment, inventoryColumns, itemDefs, say, drop, onUse: useItem, saves: saveMenu, quick: quickBar,
@@ -302,8 +304,9 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       effectName: id => books.effects[id]?.name ?? id,
     } : null, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
-    reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape(), mainMenu: leaveForMainMenu });
-  const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf,
+    reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape(), mainMenu: leaveForMainMenu,
+    controls: { big: () => bigControls, setBig: on => { bigControls = on; saveBigControls(on); }, shown: () => screen2d.name === 'mobile' } });
+  const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf, bigControls: () => bigControls,
     wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, magic: hasMagic });
   const gameOver = menus.gameOver;
 
@@ -360,12 +363,13 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   // Messages stay for 7 s, then fade out over 1 s. They sit over the bottom of the scene, as text you can read on any picture.
   function drawLog(now, view) {
     if (menus.isOpen() || gameOver.active) return;
+    const logLeft = LOG_PAD + (bigControls && screen2d.name === 'mobile' ? 4 : 0); // clear of a big stick's ring
     log.forEach((m, i) => {
       const alpha = Math.min(1, Math.max(0, 1 - (now - m.t - 7000) / 1000));
       if (alpha <= 0) return;
       main.globalAlpha = alpha;
       kit.origin(view.x, view.y);
-      kit.text(m.text.slice(0, maxChars), LOG_PAD, VIEW_H - LOG_PAD - 1 - (log.length - i) * LOG_PITCH, '#f0e4c8', { shadow: true });
+      kit.text(m.text.slice(0, maxChars), logLeft, VIEW_H - LOG_PAD - 1 - (log.length - i) * LOG_PITCH, '#f0e4c8', { shadow: true });
     });
     main.globalAlpha = 1; kit.origin(0, 0);
   }
@@ -619,6 +623,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     hit: (clientX, clientY) => {
       const q = screen2d.toLogical(clientX, clientY), v = screen2d.spec.view;
       if (q.x < v.x || q.y < v.y || q.x >= v.x + VIEW_W || q.y >= v.y + VIEW_H) return null;
+      if (kit.at(q.x, q.y)) return null; // a control that reaches over the scene (Big controls) takes the press
       return comp.hitAt((q.x - v.x) * W / VIEW_W, (q.y - v.y) * H / VIEW_H);
     },
     getTarget: id => comp.target(id),

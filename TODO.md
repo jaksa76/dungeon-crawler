@@ -75,8 +75,11 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The review found damage events were shared by blows, spells and status-effect ticks, so poison and burns would have played the sword sounds; `damage-taken` now carries `effect` for ticks, and the hit sound follows the `attack` event.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-26 - Larger movement controls option on mobile
+- [x] TODO-26 - Larger movement controls option on mobile
   - As a player on a phone, I want a setting that makes the movement controls slightly larger, overflowing their panel, so they are easier to hit.
+  - Note: **Iteration note**
+  - Note: The first version gave the big widgets rectangular press areas reaching 6 px into the scene over its whole height, so taps on bare scene beside the ring moved the hero; the browser test only pressed inside the drawn ring. The review caught it: the overflow press area is now a strip on the drawn shape, and the test taps beside it too.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-27 - Strafe-only buttons with swipe movement on mobile
   - As a player on a phone, I want a setting that shows only the strafe buttons and leaves forward, back and turning to swipes.

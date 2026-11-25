@@ -82,6 +82,21 @@ test('the HUD lines up: one top line and even margins on the desktop bar, one co
   assert.equal(m.buttons[0].x, 400 - right(m.slots[1]), 'the rails mirror each other');
 });
 
+test('Big controls: on a phone the stick and the pill grow and reach a few pixels into the scene, clear of everything else', () => {
+  const small = hudRects(LAYOUTS.mobile, 8), big = hudRects(LAYOUTS.mobile, 8, { big: true });
+  assert.ok(big.move.r > small.move.r && big.turn.pw > small.turn.pw && big.turn.ph > small.turn.ph, 'larger');
+  const ring = { x: big.move.cx - big.move.r, w: 2 * big.move.r + 1 }, pill = { x: big.turn.cx - (big.turn.pw >> 1), w: big.turn.pw };
+  assert.ok(ring.x >= 0 && ring.x + ring.w > 40 && ring.x + ring.w <= 46, 'the stick overflows the left rail by a few pixels');
+  assert.ok(pill.x < 360 && pill.x >= 354 && pill.x + pill.w <= 400, 'the pill overflows the right rail by a few pixels');
+  for (const box of [...big.buttons, ...big.slots]) for (const w of [big.move, big.turn]) assert.ok(!overlap(box, w), 'the widgets stay clear of the buttons and slots');
+  const inRing = (x, y) => Math.hypot(x - big.move.cx, y - big.move.cy) <= big.move.r + 0.5;
+  const o = big.move.over;
+  for (const [x, y] of [[o.x, o.y], [o.x, o.y + o.h - 1], [o.x + o.w - 1, big.move.cy]]) assert.ok(inRing(x, y), `the stick's press strip (${x}, ${y}) is on the ring`);
+  const p = big.turn.over;
+  assert.ok(p.x >= big.turn.cx - (big.turn.pw >> 1) && p.y >= big.turn.cy - (big.turn.ph >> 1) && p.y + p.h <= big.turn.cy + (big.turn.ph >> 1) + 1, 'the pill’s press strip is on the pill');
+  assert.deepEqual(hudRects(LAYOUTS.desktop, 8, { big: true }), hudRects(LAYOUTS.desktop, 8), 'the desktop has no sticks');
+});
+
 test('text the bitmap font cannot draw becomes something it can, and wraps to the width', () => {
   assert.equal(plain('Fire × 2 – café “quoted”'), 'Fire x 2 - cafe "quoted"');
   assert.equal(plain('☃'), '?');

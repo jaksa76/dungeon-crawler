@@ -3,7 +3,7 @@
 // same things sit in two 40x180 rails on either side of the scene, and the d-pad is a pair of drag widgets: a stick that
 // steps and strafes, and a pill that turns.
 //
-//   const hud = createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf, wallet, magic })
+//   const hud = createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf, wallet, magic, bigControls })
 //   hud.draw(state, layout)   // state: { tileX, tileZ, yaw } (the minimap's, which slides); layout: LAYOUTS.desktop | .mobile
 //   hud.rects(layout)         // where everything is, in canvas pixels (for tests)
 
@@ -17,7 +17,12 @@ export const MENU_ICONS = ['character', 'spell', 'search', 'journal', 'bag', 'fu
 const HOLD_MS = 350, REPEAT_MS = 220, DEAD = 5; // a stick repeats like a held button: after a pause, then steadily
 
 // Where everything is, in canvas pixels, for a layout.
-export function hudRects(layout, slotCount = 8) {
+// Settings -> Big controls, kept in the browser (like the icon style): a larger move stick and turn pill on a phone.
+export function savedBigControls() { try { return localStorage.getItem('bigControls') === 'true'; } catch { return false; } }
+export function saveBigControls(on) { try { localStorage.setItem('bigControls', String(on)); } catch { /* lasts until reload */ } }
+
+// `big` (Settings -> Big controls, phone only): the move stick and the turn pill grow and reach a few pixels into the scene.
+export function hudRects(layout, slotCount = 8, { big = false } = {}) {
   if (layout.name === 'mobile') {
     // Each rail has 38 pixels inside its rim (x 0-37 and 362-399). Everything in it fills the same 37-pixel column, one pixel
     // from the canvas edge and against the rim: two 18-pixel buttons or slots with a 1-pixel gap, the head, the bars, the minimap.
@@ -28,7 +33,12 @@ export function hudRects(layout, slotCount = 8) {
       hp: { x: COL.left, y: 36, w: COL.w, h: 9 }, mp: { x: COL.left, y: 46, w: COL.w, h: 9 }, xp: { x: COL.left, y: 56, w: COL.w, h: 4 },
       buttons: Array.from({ length: 6 }, (_, i) => left(i)), slots: Array.from({ length: slotCount }, (_, i) => right(i)),
       minimap: { x: COL.right, y: 2, w: COL.w, h: COL.w }, // square, one pixel above the first row of slots
-      move: { x: 0, y: 122, w: 40, h: 58, cx: COL.left + 18, cy: 150 }, turn: { x: 360, y: 122, w: 40, h: 58, cx: COL.right + 18, cy: 150 }, // the widgets centred on the columns
+      // The widgets, centred on the columns: the stick's ring radius `r`, the pill's size `pw` x `ph`. Big ones overflow the rails.
+      // A big widget's press area is its rail plus `over`, the strip where its shape reaches into the scene (and no more).
+      move: big ? { x: 0, y: 120, w: 40, h: 60, cx: COL.left + 21, cy: 150, r: 21, over: { x: 40, y: 139, w: 4, h: 23 } }
+        : { x: 0, y: 122, w: 40, h: 58, cx: COL.left + 18, cy: 150, r: 17 },
+      turn: big ? { x: 360, y: 120, w: 40, h: 60, cx: COL.right + 15, cy: 150, pw: 44, ph: 30, over: { x: 355, y: 135, w: 5, h: 31 } }
+        : { x: 360, y: 122, w: 40, h: 58, cx: COL.right + 18, cy: 150, pw: 36, ph: 24 },
       numbers: false,
     };
   }
@@ -45,7 +55,7 @@ export function hudRects(layout, slotCount = 8) {
   };
 }
 
-export function createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf = () => THEME.white, wallet = null, magic = false }) {
+export function createHud({ kit, icons, portrait, hero, world, quick, menus, command, say, colourOf = () => THEME.white, wallet = null, magic = false, bigControls = () => false }) {
   const g = kit.g;
   // The six menu buttons, in order. Without spells the second shows the help instead.
   const buttons = [
@@ -90,7 +100,7 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
   // The direction is where the finger is from the widget's centre; it repeats like a held button.
   const stickState = { move: null, turn: null }; // { dx, dy } while pressed
   function makeStick(name, rect, commandFor) {
-    return kit.hit(rect.x, rect.y, rect.w, rect.h, {
+    for (const box of [rect, rect.over].filter(Boolean)) kit.hit(box.x, box.y, box.w, box.h, {
       key: `stick:${name}`, title: name === 'move' ? 'Step and strafe' : 'Turn',
       press: pt => {
         let current = null, hold = 0, repeat = 0;
@@ -118,15 +128,16 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
       const d = Math.hypot(s.dx, s.dy), k = d > limit ? limit / d : 1;
       return { x: Math.round(s.dx * k), y: Math.round(s.dy * k) };
     };
-    const m = r.move, k1 = knob(stickState.move, 9), tri = (cx, cy, d, c) => {
+    const m = r.move, k1 = knob(stickState.move, m.r - 8), tri = (cx, cy, d, c) => {
       kit.fill(cx - (d === 'l' ? 1 : d === 'r' ? 0 : 2), cy - (d === 'u' ? 1 : d === 'd' ? 0 : 2), d === 'l' || d === 'r' ? 2 : 5, d === 'u' || d === 'd' ? 2 : 5, c); // a small chevron: two pixels thick
     };
-    kit.ring(m.cx, m.cy, 17, '#120d16', THEME.frame);
-    for (const [dx, dy, d] of [[0, -13, 'u'], [0, 13, 'd'], [-13, 0, 'l'], [13, 0, 'r']]) tri(m.cx + dx, m.cy + dy, d, THEME.frameHi);
+    kit.ring(m.cx, m.cy, m.r, '#120d16', THEME.frame);
+    const c = m.r - 4; // the chevrons, just inside the ring
+    for (const [dx, dy, d] of [[0, -c, 'u'], [0, c, 'd'], [-c, 0, 'l'], [c, 0, 'r']]) tri(m.cx + dx, m.cy + dy, d, THEME.frameHi);
     kit.ring(m.cx + k1.x, m.cy + k1.y, 7, '#46342c', THEME.frameHi); kit.disc(m.cx + k1.x, m.cy + k1.y, 3, '#7a5c48');
-    const t = r.turn, k2 = knob(stickState.turn && { dx: stickState.turn.dx, dy: 0 }, 9);
-    kit.capsule(t.cx - 18, t.cy - 12, 36, 24, '#120d16', THEME.frame);
-    kit.fill(t.cx - 15, t.cy - 1, 3, 2, THEME.frameHi); kit.fill(t.cx + 12, t.cy - 1, 3, 2, THEME.frameHi);
+    const t = r.turn, half = t.pw >> 1, k2 = knob(stickState.turn && { dx: stickState.turn.dx, dy: 0 }, half - 9);
+    kit.capsule(t.cx - half, t.cy - (t.ph >> 1), t.pw, t.ph, '#120d16', THEME.frame);
+    kit.fill(t.cx - half + 3, t.cy - 1, 3, 2, THEME.frameHi); kit.fill(t.cx + half - 6, t.cy - 1, 3, 2, THEME.frameHi);
     kit.ring(t.cx + k2.x, t.cy, 7, '#46342c', THEME.frameHi); kit.disc(t.cx + k2.x, t.cy, 3, '#7a5c48');
     makeStick('move', m, moveCommand); makeStick('turn', t, turnCommand);
   }
@@ -175,9 +186,9 @@ export function createHud({ kit, icons, portrait, hero, world, quick, menus, com
   }
 
   return {
-    rects: hudRects,
+    rects: (layout, slotCount = quick.size) => hudRects(layout, slotCount, { big: bigControls() }),
     draw(state, layout) {
-      const rects = hudRects(layout, quick.size);
+      const rects = hudRects(layout, quick.size, { big: bigControls() });
       kit.origin(0, 0);
       if (layout.name === 'mobile') {
         for (const x of [0, 360]) { kit.fill(x, 0, 40, 180, THEME.panel); }

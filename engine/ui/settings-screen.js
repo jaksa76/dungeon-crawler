@@ -1,18 +1,18 @@
 // Settings, and the save and load screens it leads to, drawn in the 320x180 panel.
 //
-//   createSettingsScreens({ kit, saves, sound, debug, say, toast, go, fullscreen, reload, close, mainMenu })
+//   createSettingsScreens({ kit, saves, sound, debug, say, toast, go, fullscreen, reload, close, mainMenu, controls })
 //     -> { settings, saves(mode) }  screens ({ kind, title, draw() })
 //
 // saves: { max, current(), list() -> [{ slot, savedAt, label }], save(slot) -> bool, load(slot) -> Promise<bool> }, or null to hide
 // Save and Load. `go`: { settings(), help(), saves(mode) } opens another screen. `close()` closes the menu. `mainMenu()`
 // leaves the game for the main menu (it saves first when the game is saving), or returns { ok: false, message } to stay;
-// null hides the button. It takes two presses.
+// null hides the button. It takes two presses. `controls`: { big(), setBig(on), shown() } for Big controls (phone only), or null.
 
 import { THEME, fitText } from './canvas.js';
 
 const stamp = time => { const d = new Date(time); return `${d.toLocaleDateString([], { day: 'numeric', month: 'short' })} ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`; };
 
-export function createSettingsScreens({ kit, saves = null, sound = null, debug = null, say = () => {}, toast = () => {}, go, fullscreen, reload, close, mainMenu = null }) {
+export function createSettingsScreens({ kit, saves = null, sound = null, debug = null, say = () => {}, toast = () => {}, go, fullscreen, reload, close, mainMenu = null, controls = null }) {
   let reloading = false, confirm = null; // confirm: { id, until } while "Overwrite?" waits for a second press
 
   const leaving = () => confirm?.id === 'main-menu' && confirm.until > kit.state.now;
@@ -24,6 +24,7 @@ export function createSettingsScreens({ kit, saves = null, sound = null, debug =
         ['Help', () => go.help()],
         sound && [`Sound: ${sound.muted ? 'off' : 'on'}`, () => sound.setMuted(!sound.muted)],
         ['Full screen', () => fullscreen()],
+        controls?.shown() && [`Big controls: ${controls.big() ? 'on' : 'off'}`, () => controls.setBig(!controls.big())],
         [reloading ? 'Refreshing game files...' : 'Reload without cache', async () => { if (reloading) return; reloading = true; await reload(); }],
         debug && [`Slot outlines: ${debug.get() ? 'on' : 'off'}`, () => debug.set(!debug.get())],
         mainMenu && [leaving() ? (saves ? 'Save and leave?' : 'Leave unsaved?') : 'Main menu', () => {

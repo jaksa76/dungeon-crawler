@@ -22,7 +22,7 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
   // Magic (null when the game has no spells): { spells(), cast(id), setReady(id), ready(), effectName(id) }.
   magic = null,
   // The quick bar adapter: { view(), has(ref), toggle(ref, name), ... } (see core/game.js).
-  quick = null, help = [], debug = null, reload = async () => {}, onFullscreen = () => {}, mainMenu = null }) {
+  quick = null, help = [], debug = null, reload = async () => {}, onFullscreen = () => {}, mainMenu = null, controls = null }) {
   let current = null, onClose = null, news = '', newsUntil = 0;
   const toast = text => { news = text; newsUntil = performance.now() + 4000; };
   const finish = () => { const done = onClose; onClose = null; done?.(); };
@@ -40,7 +40,7 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
   const character = createCharacterScreen({ kit, sprite, hero, damageTypes, onSpend, toast });
   const spells = magic ? createSpellScreen({ kit, icons, hero, magic, quick, damageTypes, say, toast }) : null;
   const go = { settings: () => open(settings), help: () => open(helpScreen), saves: mode => open(saveScreens[mode]) };
-  const { settings, saves: savesFor } = createSettingsScreens({ kit, saves, sound, debug, say, toast, go, fullscreen: () => toggleFullscreen(), reload, close, mainMenu });
+  const { settings, saves: savesFor } = createSettingsScreens({ kit, saves, sound, debug, say, toast, go, fullscreen: () => toggleFullscreen(), reload, close, mainMenu, controls });
   const saveScreens = saves ? { save: savesFor('save'), load: savesFor('load') } : {};
   const helpScreen = createHelpScreen({ kit, magic: !!magic, extra: help, back: () => open(settings) });
 
