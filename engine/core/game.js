@@ -2,10 +2,10 @@ import { arrangeActors } from '../render/actor-layout.js';
 import { createSceneInput } from './scene-input.js';
 import { createView } from '../render/view.js';
 import { loadImage, loadSlotImages, createCompositor } from '../render/compositor.js';
-import { createCanvasKit, THEME } from '../ui/canvas.js';
-import { createInput } from '../ui/input.js';
+import { THEME } from '../ui/canvas.js';
+import { createStage } from '../ui/stage.js';
 import { createSwipe } from '../ui/swipe.js';
-import { createScreen, VIEW_W, VIEW_H } from '../ui/screen.js';
+import { VIEW_W, VIEW_H } from '../ui/screen.js';
 import { createHud } from '../ui/hud.js';
 import { createMenus } from '../ui/menus.js';
 import { resolveLevel } from './levels.js';
@@ -40,13 +40,16 @@ import { createSound } from '../ui/sound.js';
 // `canvas` and a `status` line for debugging.
 export async function startGame(options) {
   // The menus before the game stay up (showing "Loading...") until the first level is on screen.
-  const screen = createTitleScreen({ title: options.title ?? 'Dungeon', ...options.menu });
-  try { const game = await runGame(options, screen); screen.close(); return game; }
+  // The canvas, its scale and its pointer come first: the menus before the game and the game itself draw on the same one.
+  const stage = createStage(options.canvas);
+  window.__stage = stage; // for tests: the regions of whatever is on the canvas before the game starts
+  const screen = createTitleScreen({ stage, title: options.title ?? 'Dungeon', ...options.menu });
+  try { const game = await runGame(options, screen, stage); screen.close(); return game; }
   catch (error) { screen.fail(error.message); throw error; }
 }
 
 async function runGame({ levels, start, worldMap, content = [], startingItems = [], respawn = { level: start },
-  canvas, status, inventorySize = 48, inventoryColumns = 8,
+  status, inventorySize = 48, inventoryColumns = 8,
   heroAttributes = { strength: 6, vitality: 6, intellect: 4, agility: 5 },
   // What the hero fights with bare-handed: { name, damage: [min, max], speed, damageType } (rules/combat.js FISTS).
   unarmed = FISTS,
@@ -61,7 +64,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   title = 'Dungeon', saveKey = 'dungeon-crawler', storage, maxSlots = 3, autosave = {}, persist = [],
   // Character creation on a new game: the player names the hero and adds `points` to the attributes. `false` skips it.
   // `menu` dresses the main menu: { logo, background } image URLs (without a logo the title is written out).
-  characterCreation = { points: 4 } }, screen) {
+  characterCreation = { points: 4 } }, screen, stage) {
   // Keep the complete asset list for a fresh reload; the browser's default
   // timing buffer holds only 250 entries, fewer than a full scene's images.
   performance.setResourceTimingBufferSize(4096);
@@ -205,9 +208,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   const g = viewCanvas.getContext('2d');
   const prev = document.createElement('canvas'); prev.width = cw; prev.height = ch;
   const next = document.createElement('canvas'); next.width = cw; next.height = ch;
-  const screen2d = createScreen(canvas);
-  const main = canvas.getContext('2d');
-  const kit = createCanvasKit(main);
+  const { screen: screen2d, ctx: main, kit, input, canvas } = stage;
   const icons = await loadIcons(new URL('../assets/icons/', import.meta.url).href, savedIconStyle(), Object.values(books.icons), books.materials);
   // The hero's full-body pixel sprite (48 x 96): the satchel and the character screen show it whole, the HUD the head.
   const portraitImage = await loadImage(new URL('../assets/ui/hero-sprite.png', import.meta.url).href);
@@ -291,11 +292,6 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape() });
   const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf,
     wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, magic: hasMagic });
-  const input = createInput(canvas, kit, { toLogical: screen2d.toLogical, enabled: () => !screen2d.rotate,
-    cursor: (cursor, title) => { uiCursor.cursor = cursor; uiCursor.title = title; applyCursor(); } });
-  // The pointer's shape and hover text: what the menus and HUD say, else what the scene says.
-  const uiCursor = { cursor: null, title: '' }, sceneCursor = { cursor: '', title: '' };
-  function applyCursor() { canvas.style.cursor = uiCursor.cursor ?? sceneCursor.cursor; canvas.title = uiCursor.cursor ? uiCursor.title : sceneCursor.title; }
   const gameOver = menus.gameOver;
 
   window.__game2d = { ui: { get layout() { return screen2d.name; }, get spec() { return screen2d.spec; }, get scale() { return screen2d.scale; }, rects: () => hud.rects(screen2d.spec, quickBar.size), regions: () => kit.regions(), menus, canvas,
@@ -597,7 +593,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     blocked: () => isDead() || transitioning || loading || menus.isOpen() || document.hidden || screen2d.rotate || !!(anim || drag || release),
     attack, interact: target => interactTarget(target, { say, game: api }),
     changed: () => render(next), cancelGesture: () => swipe.cancel(),
-    cursor: (cursor, title) => { sceneCursor.cursor = cursor; sceneCursor.title = title; applyCursor(); },
+    cursor: (shape, title) => { stage.cursor.scene = { shape, title }; stage.cursor.apply(); },
   });
   // A finger dragged across the scene moves the hero; a stick in a rail does the same (ui/hud.js).
   const swipe = createSwipe(canvas, { toLogical: screen2d.toLogical, view: () => screen2d.spec.view, kit, enabled: () => screen2d.name === 'mobile' && !screen2d.rotate,
@@ -687,6 +683,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     menus.draw(view, now);
     input.drawDrag();
   }
+  screen.close(); // the menus before the game give the canvas up to the game
   requestAnimationFrame(loop);
   return { persistence, flags, save, getState: label => persistence.snapshot({ label }), loadState: loadGame };
 }

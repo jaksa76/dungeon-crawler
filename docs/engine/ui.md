@@ -1,8 +1,8 @@
 # The screen: one canvas, one pixel grid
 
-Everything the player sees once the game has started is drawn on **one canvas**, on **one pixel grid**: the scene, the HUD,
-every menu, the message log. There is no DOM chrome. (The screens before the game, the main menu, the saves list and
-character creation, are still HTML: `engine/ui/title-screen.js`.)
+Everything the player sees is drawn on **one canvas**, on **one pixel grid**: the main menu, the saves list, character creation, the
+scene, the HUD, every menu, the message log. The only DOM left is the rotate overlay and a hidden text input for typing the hero's
+name (it brings up a phone's keyboard; the canvas draws what it holds).
 
 ```
 desktop 320 x 240                      phone, held sideways 400 x 180
@@ -51,7 +51,9 @@ a layout on the other kind of device. A phone in full screen is locked to landsc
 | `ui/hud.js` | the bar and the rails: head, bars, six menu buttons, the quick bar, the minimap, the two drag widgets |
 | `ui/menus.js` | the frame round every menu (window, title bar, Close, news line), the small screens, the defeat screen |
 | `ui/satchel.js`, `character-screen.js`, `spell-screen.js`, `settings-screen.js`, `help-screen.js`, `shop-screen.js`, `world-map.js` | the screens |
-| `core/game.js` | builds all of it, owns the scene, runs the loop |
+| `ui/stage.js` | made first by `startGame`: the canvas with its screen, kit and input, a frame loop for the screens before the game, and the name field |
+| `ui/title-screen.js` | the main menu, the saves list, character creation, loading and error screens |
+| `core/game.js` | builds the game on the stage, owns the scene, runs the loop |
 
 ### The canvas kit
 
@@ -97,6 +99,16 @@ Taps in the scene attack a creature or use an object (`rules/interaction.js`), a
 Attack, Cast or Use buttons**: attacking and using are taps in the scene, and a spell is cast from a
 quick slot (the first spell learned lands in the first free slot) or with **C**.
 
+## Before the game
+
+The screens before the game are drawn in a 320 × 180 area in the middle of the canvas (so the same ones fit the 320 × 240 and the
+400 × 180 layouts) on a dark background, or the campaign's `menu.background` picture if it gave one. The main menu is three
+buttons and the title (the campaign's `menu.logo`, or the name in letters three times the font). Up and down choose, Enter
+presses, Escape goes back, and everything can be tapped. The saves list has a Delete button on every row, and Delete and Replace
+ask twice. Character creation has a name field (tap it, or just type: the name starts selected, so the first key replaces it;
+a phone's keyboard comes up on a tap, and the canvas keeps its size while it is open), the attribute points and the stats they give.
+A phone held upright gets the rotate overlay here too.
+
 ## Menus
 
 Opened by the HUD buttons, the keys (**I** satchel, **P** character, **B** spells, **J** journal, **L** message log, **H** help,
@@ -120,7 +132,7 @@ only a blur.
 
 ## Tests
 
-`window.__game2d.ui` (in a browser) has `layout`, `scale`, `spec`, `rects()` (the HUD's rectangles), `regions()` (every region of the last
+`window.__stage` (from the start: `kit.regions()`, `screen`, `canvas`) and `window.__game2d.ui` (once the game has started) has `layout`, `scale`, `spec`, `rects()` (the HUD's rectangles), `regions()` (every region of the last
 frame, with its `title`), `client(x, y)` (a canvas pixel as a page point) and `menus` (`kind`, `isOpen()`). The browser tests
 in `tests/browser/` use them to click and drag on the canvas; `tests/engine/ui.test.mjs` covers the layout choice, the scale,
 the HUD rectangles, text wrapping and the regions without a browser.

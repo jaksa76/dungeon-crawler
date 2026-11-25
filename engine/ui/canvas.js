@@ -114,10 +114,10 @@ export function createCanvasKit(g, { font = font5x8 } = {}) {
       }
     },
     // Text with its top-left at (x, y); returns its width. `shadow` draws it with a dark outline (over the picture).
-    text(str, x, y, colour = THEME.text, { align = 'left', shadow = false } = {}) {
+    text(str, x, y, colour = THEME.text, { align = 'left', shadow = false, scale = 1 } = {}) {
       const s = plain(str, font);
-      drawText(g, font, s, R(ox + x), R(oy + y), colour, { align, outline: shadow ? THEME.outline : undefined });
-      return textWidth(font, s);
+      drawText(g, font, s, R(ox + x), R(oy + y), colour, { align, scale, outline: shadow ? THEME.outline : undefined });
+      return textWidth(font, s) * scale;
     },
     // Wrapped text in a column `w` wide; returns the height it took. `from` skips lines, `max` limits how many are drawn.
     paragraph(str, x, y, w, colour = THEME.text, { max = Infinity, from = 0, lineHeight = font.h + 1, shadow = false } = {}) {

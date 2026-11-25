@@ -63,12 +63,15 @@ These were the old DOM and painted-panel UI. Nothing loads them any more; delete
 | `engine/assets/ui/inventory-bg.png` | 1280 × 720 | the satchel's painted background |
 | `engine/assets/icons/atlas-hd.png` and `atlas-hd.json` | 768 × 768 | the "detailed" icon set (still loaded by `?icons=hd`, but it has no setting now) |
 | `art/engine/icons/png-hd/` and the `-hd` sheets | | sources of the above |
+| `engine/assets/ui/panel-stone.png` | 1254 × 1254 | the frame of the old HTML menus |
+| `engine/assets/ui/rpg-pixel.woff` | | the old HTML menus' font |
 
-### Still used, by the screens before the game
+### The screens before the game
 
-`engine/assets/ui/panel-stone.png` (1254 × 1254, the frame of the main menu and character creation, via `ui/pixel-skin.js`) and the
-campaign's `menu.logo` and `menu.background` are HTML, not canvas. They are not on the 320 × 180 grid. Moving those screens onto the canvas
-is the next step if the whole game should share one grid; then these would need rebaking too.
+The main menu, saves list and character creation are drawn on the canvas now, in a 320 × 180 area. What art they use: the hero sprite
+(native), and the campaign's optional `menu.logo` and `menu.background`. **Ravensmoor gives neither**, so its menu is text on a dark
+background. A logo is drawn at most 240 × 56 (enlarged only by a whole number, smoothed otherwise); a background is cover-fitted to the
+canvas (320 × 240 or 400 × 180) and darkened, so paint it at 400 × 240 to cover both.
 
 ## Optional: the HUD as art
 

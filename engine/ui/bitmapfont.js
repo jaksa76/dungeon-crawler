@@ -32,15 +32,16 @@ export function digitRows(font) {
 }
 
 // (x, y) is the top-left corner of the first character's cell. `outline` is an optional colour for a
-// one-pixel border on the four sides.
-export function drawText(g, font, str, x, y, color, { outline, align = 'left' } = {}) {
-  const w = textWidth(font, str);
+// one-pixel border on the four sides. `scale` (a whole number) draws it that many times larger, border included.
+export function drawText(g, font, str, x, y, color, { outline, align = 'left', scale = 1 } = {}) {
+  const w = textWidth(font, str) * scale;
   x = Math.round(align === 'center' ? x - w / 2 : align === 'right' ? x - w : x);
   y = Math.round(y);
   const p = pathFor(font, str);
   g.save();
   g.imageSmoothingEnabled = false;
   g.translate(x, y);
+  if (scale !== 1) g.scale(scale, scale);
   if (outline) {
     g.fillStyle = outline;
     for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) { g.translate(dx, dy); g.fill(p); g.translate(-dx, -dy); }

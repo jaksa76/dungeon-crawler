@@ -16,7 +16,7 @@ Points are chosen first and applied together: pressing `+` changes the numbers i
 point would give (`+5` mana), nothing is spent until **Apply**, and **Reset** or closing the screen drops the choice.
 
 It is its own module (`engine/ui/character-screen.js`, `createCharacterScreen({ kit, sprite, hero, damageTypes, onSpend })`), apart from
-character creation (`engine/ui/title-screen.js`): creation is the one-time choice of a name and a few starting points; this is
+character creation (`engine/ui/title-screen.js`, drawn on the canvas like everything else): creation is the one-time choice of a name and a few starting points; this is
 the hero as they are for the rest of the game. Each has its own list of attribute descriptions, so either can change
 without the other. A future class or skill tree belongs here. The satchel shows the level and a *Character* button.
 

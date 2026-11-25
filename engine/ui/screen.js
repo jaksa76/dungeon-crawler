@@ -59,9 +59,10 @@ export function createScreen(canvas, { reserve = 70, force = new URLSearchParams
   const coarse = matchMedia('(pointer: coarse)');
   const listeners = new Set();
   let name = null, scale = null;
-  const info = { get name() { return name; }, get spec() { return LAYOUTS[name === 'rotate' ? 'mobile' : name]; }, get scale() { return scale; }, get rotate() { return name === 'rotate'; } };
+  const info = { frozen: false, get name() { return name; }, get spec() { return LAYOUTS[name === 'rotate' ? 'mobile' : name]; }, get scale() { return scale; }, get rotate() { return name === 'rotate'; } };
 
   function resize() {
+    if (info.frozen) return; // a text field is open: the on-screen keyboard shrinks the window, and the canvas should not follow it
     const { w, h } = viewport();
     const full = !!document.fullscreenElement || matchMedia('(display-mode: fullscreen)').matches;
     document.documentElement.toggleAttribute('data-fullscreen', full);
