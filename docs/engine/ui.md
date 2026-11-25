@@ -51,6 +51,7 @@ a layout on the other kind of device. A phone in full screen is locked to landsc
 | `ui/hud.js` | the bar and the rails: head, bars, six menu buttons, the quick bar, the minimap, the two drag widgets |
 | `ui/menus.js` | the frame round every menu (window, title bar, Close, news line), the small screens, the defeat screen |
 | `ui/satchel.js`, `character-screen.js`, `spell-screen.js`, `settings-screen.js`, `help-screen.js`, `shop-screen.js`, `world-map.js` | the screens |
+| `ui/story-screen.js` | a story moment: full-screen pages over everything (screens.md) |
 | `ui/stage.js` | made first by `startGame`: the canvas with its screen, kit and input, a frame loop for the screens before the game, and the name field |
 | `ui/title-screen.js` | the main menu, the saves list, character creation, loading and error screens |
 | `core/game.js` | builds the game on the stage, owns the scene, runs the loop |
@@ -123,7 +124,8 @@ A phone held upright gets the rotate overlay here too.
 ## Menus
 
 Opened by the HUD buttons, the keys (**I** satchel, **P** character, **B** spells, **J** journal, **L** message log, **H** help,
-**F** full screen, **Esc** closes) or the game (a chest, a shop, a person, the world map, the ending). One is open at a time;
+**F** full screen, **Esc** closes) or the game (a chest, a shop, a person, the world map, an ending without a picture; one with a picture is a story moment,
+screens.md). One is open at a time;
 the game pauses while it is. The panel's title bar has a line of news (what was just said, for four seconds) and **Close**.
 
 | Screen | Notes |

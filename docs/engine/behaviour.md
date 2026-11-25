@@ -119,7 +119,13 @@ Campaign `quests` are keyed by ID. Each definition has `title`, a `start` stage 
 objective text or functions of `game`, `completed` text and an optional `reward(game)` callback. Use
 `game.quests.start(id)` to accept the quest, `advance(id, stage)` to change its active objective, and
 `complete(id)` to mark it complete and award its reward once. The field journal shows active and completed
-quests. Use `game.showEnding({ title, text })` to display a chapter ending and signal completion to bots.
+quests. Use `game.showEnding({ title, text, image? })` to display a chapter ending and signal completion to bots; with an
+`image` it is shown as a story page.
+
+A **story moment** is `game.showStory({ title?, pages: [{ image?, title?, text }] }, done?)`: full-screen pictures with text
+the player reads and advances (screens.md). Call it from anything that has the game: a trigger's `effect`, a dialogue
+choice's `effect`, a quest advancing, an `interact`. `done(game)` runs when the player closes it, for what follows; in a
+simulation there is no screen, so it runs at once and the `story` event is all bots see.
 
 A level can define `triggers` with an `on` event and an `effect(game, event)` callback. `enterTile` fires for a
 step or arrival and can match `x` and `z`. `faceSide` also runs after a turn and can match `side` (`N`, `E`, `S`

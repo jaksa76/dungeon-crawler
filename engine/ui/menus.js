@@ -13,6 +13,7 @@ import { createHelpScreen } from './help-screen.js';
 import { createSettingsScreens } from './settings-screen.js';
 import { createShopScreen } from './shop-screen.js';
 import { createWorldMap } from './world-map.js';
+import { createStory } from './story-screen.js';
 
 export function createMenus({ kit, icons, sprite, world, hero, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, saves = null,
   // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing a pack item would change.
@@ -122,6 +123,14 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
     } });
   }
 
+  // ---- a story moment (ui/story-screen.js): full screen, over everything, until the player has read it. A story asked for
+  // while one is showing waits its turn.
+  let story = null;
+  const waiting = [];
+  function showStory(pages, done = () => {}) {
+    if (story) { waiting.push([pages, done]); return; }
+    story = createStory({ kit, story: pages, done: () => { story = null; done(); if (!story && waiting.length) showStory(...waiting.shift()); } });
+  }
   // ---- the defeat screen: it covers the scene until the way back has opened. The button can skip the short pause; nothing
   // else closes it, so Escape cannot skip respawn.
   let over = null; // { text, label, busy, finish }
@@ -141,7 +150,8 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
 
   return {
     get kind() { return current?.kind ?? null; },
-    isOpen: () => !!current, isLogOpen: () => current?.kind === 'log', close, toast, gameOver,
+    isOpen: () => !!current || !!story, isLogOpen: () => current?.kind === 'log', close, toast, gameOver,
+    showStory, get story() { return story; },
     open: text, openJournal, openLog, openContainer, showDialogue,
     openWorldMap: (map, travel) => open(createWorldMap({ kit, map, travel, closeMenu: close })),
     openShop: shop => open(createShopScreen({ kit, icons, shop, items: itemDefs }), shop.close),
@@ -173,6 +183,7 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
         kit.hit(0, 0, 320, 180, { key: 'over:panel' });
         kit.button(70, 112, 180, 17, over.label, { primary: true, disabled: over.busy, tap: over.finish, key: 'over:button' });
       }
+      if (story && !over) story.draw(kit.g.canvas.width, kit.g.canvas.height);
       kit.origin(0, 0);
     },
   };

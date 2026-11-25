@@ -73,7 +73,8 @@ export const EVENTS = {
   quickbar: '{ slots }: the quick bar changed (slots: [null or { kind: "item" or "spell", id }])',
   equip: '{ item, slot, changes }: changes are words (rules/combat.js compareStats)', unequip: '{ item, slot, changes }',
   level: '{ from, to }: the player is on another level',
-  ending: '{ title, text }: the campaign chapter is complete',
+  ending: '{ title, text, image? }: the campaign chapter is complete',
+  story: '{ title, pages }: a story moment was shown (game.showStory; pages: how many)',
 };
 
 const TARGET_RANGE = 3; // how far down the line ahead the hero picks out a creature without pointing at it (session.targeted)
@@ -752,6 +753,12 @@ export function createSession({ levels: definitions, start, books, startingItems
     say, flags, quests, hero, inventory, equipment, items: itemDefs, random, learn, applyEffect,
     talk: (speaker, tree) => dialogue.talk(speaker, tree),
     showEnding(ending) { emit('ending', ending); hooks.showEnding?.(ending); },
+    // A story moment: { title?, pages: [{ image?, title?, text }] }, or one page. Shown full screen until read (the game's
+    // hook); in a simulation it is only the event. `done(game)` runs when the player closes it (at once without a screen).
+    showStory(story, done = null) {
+      emit('story', { title: story.title ?? story.pages?.[0]?.title ?? null, pages: story.pages?.length ?? 1 });
+      if (hooks.showStory) hooks.showStory(story, () => done?.(api)); else done?.(api);
+    },
     removeEffect: id => heroFx.remove(id),
     get level() { return session.levelId; },
     get player() { return { x: p.x, z: p.z, dir: p.dir }; },

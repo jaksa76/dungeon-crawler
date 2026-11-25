@@ -144,7 +144,9 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       },
       openShop: shop => menus.openShop(shop),
       showDialogue: line => menus.showDialogue(line, () => session.dialogue.close()),
-      showEnding: ending => { menus.open(ending.title, ending.text, 'ending'); save(); },
+      // An ending with a picture is a story page; without one, a text screen.
+      showEnding: ending => { if (ending.image) menus.showStory({ pages: [ending] }); else menus.open(ending.title, ending.text, 'ending'); save(); },
+      showStory: (story, done) => { settleDrag(); menus.showStory(story, done); },
       canTarget: target => !!comp.target(target.id),
     } });
   const { world, hero, inventory, equipment, flags, persistence, messages, api, player: p } = session;
@@ -643,8 +645,15 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       heldKeys.add(ev.code);
       if (blockedKeys.has(ev.code)) { ev.preventDefault(); return; }
     }
-    if (menus.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && menus.isLogOpen()))) { ev.preventDefault(); menus.close(); return; }
     if (ev.code === 'KeyF' && !ev.repeat && !ev.ctrlKey && !ev.metaKey && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); void menus.menu.fullscreen(); return; }
+    if (menus.story && !menus.gameOver.active) { // a story moment takes the keys: turn the page, or Escape for the rest
+      ev.preventDefault();
+      if (ev.repeat) return; // a held key must not reach the menu under it once the story has gone
+      if (['Enter', 'NumpadEnter', 'Space', 'ArrowRight'].includes(ev.code)) menus.story.next();
+      else if (ev.code === 'Escape') menus.story.skip();
+      return;
+    }
+    if (menus.isOpen() && (ev.code === 'Escape' || (ev.code === 'KeyL' && menus.isLogOpen()))) { ev.preventDefault(); if (!ev.repeat) menus.close(); return; } // a held key (one that just skipped a story) closes nothing
     if (ev.code === 'KeyJ' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.journal(); return; } // the journal, like I for the satchel
     if (ev.code === 'KeyI' && !ev.repeat && !isDead() && !transitioning && !/^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) { ev.preventDefault(); menus.menu.inventory(); return; } // opens, or closes when already open
     if (isDead() || transitioning || loading || menus.isOpen() || /^(INPUT|TEXTAREA|SELECT)$/.test(ev.target.tagName)) return;

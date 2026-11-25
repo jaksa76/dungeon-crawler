@@ -1,0 +1,11 @@
+$imagegen Paint a story illustration for a dark-fantasy dungeon crawler called Ravensmoor, as true PIXEL ART, and save it as quiet-bell.png in this directory.
+
+Attached: style-title.png (the game's title screen painting, 400x240 pixel art enlarged to blocks, framed by magenta). Match its pixel-art look and palette exactly: crisp chunky pixels, limited dusky palette, dark outlines.
+
+Requirements:
+- Canvas 1536x1024. The picture fills ONLY the 5:3 band from y=51 to y=972 (full width); paint the strips above and below flat solid magenta (#ff00ff).
+- Low-resolution pixel art: 400x240 art pixels, each enlarged to a hard square block about 3.84 screen pixels wide. No smooth gradients, no anti-aliasing, no blur, flat colour per block, at most 40 colours.
+- Scene ("The Quiet Bell"): dawn over the walled town of Greybridge across a river; a stone bridge and a bell tower whose bell has just rung. In the foreground on the left, seen from behind, a hooded stranger in a dark cloak holds up an open bronze case with a black wax seal shaped like a raven inside, faintly glowing. A single raven circles above the bell tower with a pale ribbon trailing from its feet. Cold dawn light, mist on the river, warm first light on the rooftops.
+- The bottom 30% of the picture will be covered by text: keep it dark and calm (river, mist, the stranger's cloak), with the important things in the upper 70%.
+- The outer 10% on the left and right, and 12% at the top and bottom, may be cropped on some screens: nothing important there.
+- NO text, letters, logo, UI, borders or frames.

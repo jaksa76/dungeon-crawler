@@ -38,3 +38,16 @@ returns to the one chosen. Both have *Back to settings*. They are hidden when th
 Settings → **Main menu** leaves the game for the main menu. The first press asks ("Save and leave?", or "Leave unsaved?" when the
 game is not saving); a second press within three seconds saves and opens the page again without `?new`, `?slot` or `?level`, so
 it starts at the main menu, where *Continue* resumes. If the save fails, the game stays open and says so.
+
+## Story moments
+
+`game.showStory(story, done)` (behaviour.md) covers the whole canvas, scene and HUD, with one page at a time: a picture,
+cover-fitted, and its text over the lower part on a dark band, the first page's title above it, and "Continue" (with the
+page number) or "Close". A tap anywhere, Enter, Space or the right arrow turns the page; Escape skips the rest. Text longer
+than the lower half of the screen carries on, over the same picture, on the next press. The game waits underneath, and a
+story asked for while another is showing waits its turn. Pictures load when the story opens: the text shows at once. Paint pictures at **400 × 240**: that covers the desktop (320 × 240) and phone (400 × 180)
+canvases at scale 1, crisp, losing 40 pixels at each side on the desktop and 30 at the top and bottom on a phone; keep the
+lower part calm for the text. `engine/ui/story-screen.js`; `tests/browser/story.browser.mjs`.
+
+Ravensmoor's ending, "The Quiet Bell", is one (`games/ravensmoor/assets/story/quiet-bell.png`, painted by Codex and reduced
+with `tools/pixelate.mjs`; the painting and the prompt are in `art/ravensmoor/painted/quiet-bell.*`).

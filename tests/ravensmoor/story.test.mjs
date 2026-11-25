@@ -70,3 +70,17 @@ test('tile, facing and flag triggers respond to play but do not replay on load',
   assert.equal(loaded.flags.get('test:fountain'), true);
   assert.deepEqual(observations, ['tile', 'flag', 'facing']);
 });
+
+test('a story moment can be shown from anything with the game: without a screen it is an event and its done runs at once', async () => {
+  const sim = await createSimulation({ campaign, scenario: { at: { x: 1, z: 1, dir: 0 } } });
+  let closed = null;
+  sim.session.api.showStory({ title: 'A dream', pages: [{ text: 'You dream of ravens.' }, { text: 'You wake.' }] }, game => { closed = game; });
+  assert.deepEqual(sim.events.filter(e => e.type === 'story').map(({ title, pages }) => ({ title, pages })), [{ title: 'A dream', pages: 2 }]);
+  assert.equal(closed, sim.session.api, 'done gets the game');
+});
+
+test('the Raven Seal ending is a picture: a 400 x 240 story image', async () => {
+  const { ravenSealEnding } = await import('../../games/ravensmoor/content/ending.js');
+  const fs = await import('node:fs'), head = fs.readFileSync(new URL(ravenSealEnding.image)).subarray(16, 24); // the PNG's IHDR
+  assert.deepEqual([head.readUInt32BE(0), head.readUInt32BE(4)], [400, 240]);
+});

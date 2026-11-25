@@ -94,8 +94,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The swipe code dropped a swipe in progress whenever any other finger touched the canvas; harmless with the sticks, but this mode is meant for two thumbs (strafe with one, swipe with the other). The review found it; a swipe now ignores other fingers.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-28 - Full-screen story images with text
+- [x] TODO-28 - Full-screen story images with text
   - As a player, I want story moments shown as a full-screen image with text that I advance, triggered by events, dialogue or quests.
+  - Note: **Iteration note**
+  - Note: Ravensmoor has one story moment so far, its ending ("The Quiet Bell", a Codex picture). The engine call works from triggers, dialogue choices and quests alike; more moments are a content task, one picture each.
+  - Note: The review found two stories asked for at once replaced each other, and a held Escape that skipped a story then closed the menu under it; both fixed (stories queue; a held Escape closes nothing). Pictures load when the story opens, so the first frame is text on black.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-31 - Increase view distance
   - As a player, I want to see further down streets in villages. Not needed for dungeons.
