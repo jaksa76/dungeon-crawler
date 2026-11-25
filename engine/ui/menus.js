@@ -14,6 +14,7 @@ import { createSettingsScreens } from './settings-screen.js';
 import { createShopScreen } from './shop-screen.js';
 import { createWorldMap } from './world-map.js';
 import { createStory } from './story-screen.js';
+import { loadImage } from '../render/compositor.js';
 
 export function createMenus({ kit, icons, sprite, world, hero, messages = [], inventory, equipment, inventoryColumns = 8, itemDefs = {}, say = () => {}, drop = () => {}, onUse = () => null, saves = null,
   // Wearing goes through these (the session's, so the message says what changes); `wouldChange(itemId)` lists what wearing a pack item would change.
@@ -85,12 +86,26 @@ export function createMenus({ kit, icons, sprite, world, hero, messages = [], in
     } });
   }
 
+  // A speaker's portrait (64 x 64, drawn 1:1 at the top left of the dialogue, the text beside it). Loaded once per URL.
+  const portraits = new Map(); // url -> undefined while loading, the image, or null when it could not be loaded
+  const portrait = url => {
+    if (!portraits.has(url)) { portraits.set(url, undefined); loadImage(url).then(img => portraits.set(url, img)); }
+    return portraits.get(url);
+  };
   function showDialogue(line, dismiss) {
     if (!line) { if (current?.kind === 'dialogue') close(); return; }
     open({ kind: 'dialogue', title: line.title, draw() {
-      const n = line.choices.length, room = 155 - (n ? n * 18 + 2 : 0);
-      kit.scroll('dialogue', 5, 20, 310, room, w => kit.paragraph(line.text, 4, 3, w - 8, THEME.text) + 6);
-      line.choices.forEach((choice, i) => kit.button(10, 175 - (n - i) * 18 + 1, 300, 16, choice.label, { tap: choice.choose, key: `choice:${i}` }));
+      const img = line.portrait ? portrait(line.portrait) : null; // a portrait that failed to load leaves the text the whole panel
+      const n = line.choices.length, room = 155 - (n ? n * 18 + 2 : 0), face = line.portrait && img !== null ? 70 : 0;
+      if (face) {
+        kit.frame(5, 20, 66, 66, { fill: THEME.well, edge: THEME.frameHi });
+        if (img) kit.image(img, 6, 21);
+      }
+      kit.scroll('dialogue', 5 + face, 20, 310 - face, room, w => kit.paragraph(line.text, 4, 3, w - 8, THEME.text) + 6);
+      line.choices.forEach((choice, i) => {
+        const y = 175 - (n - i) * 18 + 1, beside = face && y < 20 + 66 + 2; // many choices: the top ones sit beside the portrait
+        kit.button(beside ? 5 + face : 10, y, beside ? 305 - face : 300, 16, choice.label, { tap: choice.choose, key: `choice:${i}` });
+      });
     } }, dismiss);
   }
 

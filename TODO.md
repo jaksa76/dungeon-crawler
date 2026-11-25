@@ -120,11 +120,14 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The reviewer thought "depth" may have meant gameplay depth (restocking, buyback, more varied stock, comparing items). If so, that is still open: worth a new story.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-33 - Portraits in dialogue
+- [x] TODO-33 - Portraits in dialogue
   - As a player, I want to see the portrait of the person I'm talking to in dialogue.
-  - Note: Started and stopped before any code (usage limit). Findings so far: the dialogue screen is `showDialogue` in engine/ui/menus.js (text in a scroll area, choices as buttons); a line knows its speaker only through `dialogue.talk(speaker, tree)` in engine/core/dialogue.js (speaker = the entity, with `npc`/`art`/`assets`). Plan: an NPC content entry declares a portrait (e.g. 64 x 64 pixel art at `<assets>/portrait.png`), a tree may override it (`tree.portrait`), the line carries it, and the dialogue draws it at the left with the text beside it. Speakers: guard, villager, hooded (engine NPCs) and the alchemist's stall (campaign). Paint the four on one Codex sheet (4 columns, magenta), crop each column and reduce with tools/pixelate.mjs (see .claude/skills/pixel-art/pictures.md).
+  - Note: (Earlier, before implementing:) Findings so far: the dialogue screen is `showDialogue` in engine/ui/menus.js (text in a scroll area, choices as buttons); a line knows its speaker only through `dialogue.talk(speaker, tree)` in engine/core/dialogue.js (speaker = the entity, with `npc`/`art`/`assets`). Plan: an NPC content entry declares a portrait (e.g. 64 x 64 pixel art at `<assets>/portrait.png`), a tree may override it (`tree.portrait`), the line carries it, and the dialogue draws it at the left with the text beside it. Speakers: guard, villager, hooded (engine NPCs) and the alchemist's stall (campaign). Paint the four on one Codex sheet (4 columns, magenta), crop each column and reduce with tools/pixelate.mjs (see .claude/skills/pixel-art/pictures.md).
   
 - [ ] TODO-34 - The sprite for the loot dropped by monsters is missing
+  - Note: **Iteration note**
+  - Note: The review found that an inherited `portrait` resolved against the overriding book's art folder: a campaign repainting an engine NPC (experiments/pixel-slice does) would have asked for a portrait that is not there. mergeContent now resolves it against the book that names it.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-30 - Regenerate art at the correct resolution
   - As a player, I want facades, icons and other art made at the canvas resolution so they stay crisp instead of being scaled.
@@ -134,6 +137,14 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - As a game designer, I want more predefined NPCs to choose from.
 
 ## Engine polish
+
+- [ ] TODO-52 - Clicking the southern warded gate does not open it
+  - In the Undercrypt, take the Iron key from the Warden’s lockbox and stand directly in front of the locked southern warded gate. Clicking the gate fails to open it. Pressing Space from the same position unlocks and opens it.
+  - Clicking the gate with the key in the inventory should unlock and open it just as pressing Space does.
+
+- [ ] TODO-53 - Close a container after taking its last item
+  - As a player, I want the container window to close automatically when I take its last item, so I can return to exploring.
+  - This applies to both Take and Take All. If any items remain, the window stays open. Empty containers can still be opened.
 
 - [ ] TODO-35 - Level transitions
   - As a player, I want a short fade (or similar) when I change level, open the world map or switch screens, so the game never jumps from one scene to the next.

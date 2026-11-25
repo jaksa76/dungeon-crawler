@@ -10,6 +10,7 @@ const alchemistDialogue = {
 
 export const alchemist = {
   id: 'alchemist', prop: 'stall', name: 'the alchemist’s stall',
+  portrait: new URL('../assets/portraits/alchemist.png', import.meta.url).href, // who answers when you talk to the stall
   behavior: { type: 'talk', dialogue: alchemistDialogue },
   merchant: {
     title: 'Alchemist’s stall',

@@ -1,0 +1,14 @@
+$imagegen Paint four character portraits for a dark-fantasy dungeon crawler, as true PIXEL ART, on one sheet, and save it as npc-portraits.png in this directory.
+
+Attached: style.png (a finished shop picture from the game: match its pixel-art look and palette exactly: crisp chunky pixels, limited warm-and-dusky palette, dark outlines, warm light from the left), and the four people as they appear in the game: ref-guard.png, ref-villager.png, ref-hooded.png (seen from behind in the game), ref-alchemist.png. Keep each person's clothes and colours.
+
+Requirements:
+- Canvas 1536x1024, the whole background flat solid magenta (#ff00ff): no gradient, no texture, no glow. Never use magenta or hot pink inside a portrait.
+- Four square portraits side by side in four equal columns of 384 px, left to right: 1 the town guard, 2 the villager woman, 3 the hooded stranger, 4 the alchemist. Each portrait is 64x64 art pixels, each art pixel a hard 5x5 block, so exactly 320x320 screen pixels, centred in its column (x 32-352, 416-736, 800-1120, 1184-1504; y 352-672), with magenta all round.
+- No smooth gradients, no anti-aliasing, no blur, flat colour per block, at most 32 colours per portrait.
+- Each portrait: head and shoulders, facing the viewer (three-quarter view is fine), filling its square, on a dark plain background inside the square (a deep shade of the scene, not magenta):
+  1. Town guard: steel helmet with a red plume, stern face, short beard, chainmail and a red tabard with a gold cross.
+  2. Villager woman: white bonnet over brown curly hair, friendly face, brown bodice laced over a cream blouse.
+  3. Hooded stranger: deep green hood shadowing the face, only the lower face and a glint of eyes visible, weathered skin, a leather strap across the cloak.
+  4. Alchemist: thin old woman in a dark green hood, round spectacles, white hair, a knowing smile.
+- NO text, letters, labels, numbers, borders or frames.

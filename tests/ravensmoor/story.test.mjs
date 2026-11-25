@@ -84,3 +84,18 @@ test('the Raven Seal ending is a picture: a 400 x 240 story image', async () => 
   const fs = await import('node:fs'), head = fs.readFileSync(new URL(ravenSealEnding.image)).subarray(16, 24); // the PNG's IHDR
   assert.deepEqual([head.readUInt32BE(0), head.readUInt32BE(4)], [400, 240]);
 });
+
+test('people talk with a face: the engine’s NPCs and the alchemist’s stall have 64 x 64 portraits, which each line carries', async () => {
+  const fs = await import('node:fs');
+  const png = url => { const head = fs.readFileSync(new URL(url)).subarray(16, 24); return [head.readUInt32BE(0), head.readUInt32BE(4)]; };
+  const guard = await createSimulation({ campaign, scenario: { at: { x: 1, z: 1, dir: 0 } } });
+  guard.talk();
+  const line = guard.session.dialogue.current;
+  assert.match(line.portrait, /npcs\/guard\/portrait\.png$/);
+  assert.deepEqual(png(line.portrait), [64, 64]);
+  const stall = await createSimulation({ campaign, scenario: { at: { x: 2, z: 1, dir: 0 } } });
+  stall.talk();
+  assert.match(stall.session.dialogue.current.portrait, /portraits\/alchemist\.png$/);
+  assert.deepEqual(png(stall.session.dialogue.current.portrait), [64, 64]);
+  for (const id of ['villager', 'hooded']) assert.deepEqual(png(new URL(`../../engine/assets/npcs/${id}/portrait.png`, import.meta.url)), [64, 64]);
+});

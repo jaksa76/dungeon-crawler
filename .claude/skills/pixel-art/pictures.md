@@ -12,7 +12,7 @@ the painting's own palette).
 | Title background (`menu.background`) | 400 × 240 | full width, y 51-972 (5:3) | scale 1, cover-fitted, lightly darkened | desktop crops 40 px each side, phone 30 px top and bottom; the title and three buttons sit in the middle |
 | Story image (`game.showStory`, an ending's `image`) | 400 × 240 | as above | scale 1, cover-fitted | text on a dark band over the lower ~45% on a phone, ~35% on a desktop |
 | Shop interior (a merchant's `image`) | 120 × 150 | portrait 1024 × 1536 canvas, x 32-992, y 168-1368 (8 px blocks) | 1:1 on the left of the shop screen | the keeper's head and shoulders in the upper half, the counter across the lower quarter |
-| Portrait (dialogue, not built yet) | decide with the feature | | | add the row when it exists |
+| Portrait (an NPC's `portrait`, dialogue) | 64 × 64 | four per sheet: columns of 384, each 320 × 320 (5 px blocks) at y 352-672 | 1:1, top left of the dialogue | head and shoulders on a dark plain background; crop each column (`tools/crop.mjs`), then `pixelate.mjs ... 64 64` |
 
 ## Prompt shape
 
@@ -44,5 +44,7 @@ title background from the game screenshot and the pixel world map; the story ima
   successes with the prompt shape above (the general lessons are in SKILL.md).
 - 2026-11-25 · Shop interiors (TODO-32), smithy and alchemist, painted in parallel (two `codex exec` at once): both right
   first time on a portrait canvas with the picture rectangle given in screen pixels (x 32-992, y 168-1368).
+- 2026-11-25 · Portraits (TODO-33): four on one sheet, with each NPC's in-game sprite attached as a reference for its
+  clothes (the hooded stranger's is seen from behind: describing the face under the hood was enough). Right first time.
 - 2026-11-25 · `pixelate.mjs` reproduces the committed image exactly from the kept painting, so keep the painting
   (`art/<campaign>/painted/`) rather than the reduced image's history.

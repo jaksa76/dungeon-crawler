@@ -1,4 +1,11 @@
 // A conversation is a graph of named lines. Campaign choices can test or change the game before opening the next line.
+// A line carries the speaker's portrait (a URL, or null): the tree's `portrait`, else the speaker's (an NPC's content entry,
+// resolved by mergeContent, or its placement). A relative one is taken from the speaker's art folder.
+const portraitOf = (speaker, tree) => {
+  const file = tree.portrait ?? speaker?.portrait;
+  if (!file) return null;
+  try { return new URL(file, speaker?.assets).href; } catch { return null; }
+};
 export function createDialogue(game, show) {
   let current = null;
 
@@ -12,7 +19,7 @@ export function createDialogue(game, show) {
   function open(speaker, tree, id) {
     const node = Object.hasOwn(tree.nodes, id) && tree.nodes[id];
     if (!node) throw new Error(`Dialogue has no line "${id}"`);
-    const line = { title: tree.title ?? speaker.name ?? 'Conversation', text: node.text };
+    const line = { title: tree.title ?? speaker.name ?? 'Conversation', text: node.text, portrait: portraitOf(speaker, tree) };
     line.choices = (node.choices ?? []).filter(choice => !choice.when || choice.when(game)).map(choice => ({
       label: choice.label,
       choose() {

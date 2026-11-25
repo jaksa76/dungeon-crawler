@@ -56,3 +56,14 @@ test('recolouring repaints grey metal by its brightness and keeps outlines, colo
   assert.deepEqual(at(3), [0xb7, 0x64, 0x23, 255]);
   assert.deepEqual(at(4), [0x9b, 0x9c, 0x9c, 0]);
 });
+
+test('a portrait is taken from the book that names it: a campaign that repaints an NPC without one keeps the engine’s', async () => {
+  const { mergeContent, defineContent } = await import('../../engine/content/catalog.js');
+  const engine = defineContent('https://x/engine/assets/', { npcs: { guard: { w: 1, h: 1, portrait: 'portrait.png' } } });
+  const repaint = defineContent('https://x/game/assets/', { npcs: { guard: { art: 'guard' } } });
+  const own = defineContent('https://x/game/assets/', { npcs: { guard: { portrait: 'face.png' } } });
+  assert.equal(mergeContent(engine).npcs.guard.portrait, 'https://x/engine/assets/npcs/guard/portrait.png');
+  assert.equal(mergeContent(engine, repaint).npcs.guard.portrait, 'https://x/engine/assets/npcs/guard/portrait.png');
+  assert.equal(mergeContent(engine, repaint).npcs.guard.assets, 'https://x/game/assets/npcs/guard/');
+  assert.equal(mergeContent(engine, own).npcs.guard.portrait, 'https://x/game/assets/npcs/guard/face.png');
+});

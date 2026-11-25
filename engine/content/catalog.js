@@ -70,6 +70,11 @@ export function mergeContent(...books) {
     // A campaign that adds to a creature's `resist` keeps the engine's entries (its magic); `immune` lists add up.
     if (old?.resist && entry.resist) next.resist = { ...old.resist, ...entry.resist };
     if (old?.immune && entry.immune) next.immune = [...new Set([...old.immune, ...entry.immune])];
+    // An NPC's or prop's `portrait` (a file in its art folder) is resolved against the book that names it, so a campaign
+    // that repaints the engine's guard (its own `art`) without a portrait keeps the engine's.
+    if (typeof entry.portrait === 'string' && entry[BASE] && ART_FOLDERS[kind]) {
+      next.portrait = new URL(entry.portrait, new URL(`${ART_FOLDERS[kind]}/${entry.art ?? old?.art ?? id}/`, entry[BASE])).href;
+    }
     merged[kind][id] = Object.assign(next, { [BASE]: base });
   }
   for (const id of Object.keys(merged.props)) if (merged.npcs[id]) throw new Error(`content: "${id}" is both a prop and an NPC`);

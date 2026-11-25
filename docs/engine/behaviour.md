@@ -116,6 +116,11 @@ function that returns one, and a `nodes` object. Each node has `text` and option
 `label` and can include `when(game)`, `effect(game)` and a destination `to`. Choosing a line with no destination
 closes the conversation before its effect runs. A line with no choices has only the Close button.
 
+A line shows the speaker's **portrait** (64 × 64 pixel art) beside its text: the dialogue tree's `portrait`, else the
+speaker's, from the NPC's content entry (the engine's guard, villager and hooded stranger have one) or its placement (the
+alchemist's stall gives its keeper's). It is a file in the speaker's art folder or a full URL; without one the text uses the
+whole panel.
+
 Campaign `quests` are keyed by ID. Each definition has `title`, a `start` stage ID, `stages` mapping stage IDs to
 objective text or functions of `game`, `completed` text and an optional `reward(game)` callback. Use
 `game.quests.start(id)` to accept the quest, `advance(id, stage)` to change its active objective, and

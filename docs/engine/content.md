@@ -71,7 +71,7 @@ where `baseUrl` is the folder that holds its art (doors have none of their own: 
 
 ```
 <baseUrl>/monsters/<id>/       front|back|left|right-d0..d3.png, animation-d0..d3.png
-<baseUrl>/npcs/<id>/           one image per prop slot of the view
+<baseUrl>/npcs/<id>/           one image per prop slot of the view, and portrait.png (`portrait`)
 <baseUrl>/props/<id>/          one image per prop slot of the view
 <baseUrl>/walls/<id>/          one image per wall slot (a building)
 <baseUrl>/environments/<id>/   floor.png, and backdrop-<N|E|S|W>.png for an open sky
