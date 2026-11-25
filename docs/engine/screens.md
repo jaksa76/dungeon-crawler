@@ -32,3 +32,9 @@ Settings has **Save**, **Load** and **Help** buttons. Save lists every slot (an 
 two presses, "Overwrite?"), and says "Game saved." or "Your progress could not be saved.". Load lists the saved games only and
 returns to the one chosen. Both have *Back to settings*. They are hidden when the game is not saving (a page opened with
 `?level=` plays without saving).
+
+## Main menu
+
+Settings → **Main menu** leaves the game for the main menu. The first press asks ("Save and leave?", or "Leave unsaved?" when the
+game is not saving); a second press within three seconds saves and opens the page again without `?new`, `?slot` or `?level`, so
+it starts at the main menu, where *Continue* resumes. If the save fails, the game stays open and says so.

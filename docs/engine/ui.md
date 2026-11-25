@@ -121,7 +121,7 @@ the game pauses while it is. The panel's title bar has a line of news (what was 
 | Character | the figure, level and experience, the attribute points (Apply and Reset), stats with the change a point would make, resistances |
 | Spells | a list and the chosen spell: Cast, Make ready, Quick bar; drag the icon to a quick slot |
 | Journal, message log, help | scrolling text |
-| Settings, saves | save, load (two presses to overwrite), help, sound, full screen, reload, slot outlines |
+| Settings, saves | save, load (two presses to overwrite), help, sound, full screen, reload, slot outlines, main menu (two presses; saves first) |
 | Shop, container | a scrolling list of rows with Buy / Sell / Take, and Take all |
 | Dialogue | the text, then one button per choice |
 | World map | the campaign's map across the whole panel, under the title bar, with a marker per known place; tap one to travel |

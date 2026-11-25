@@ -236,6 +236,17 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
     return false;
   }
   if (persistent && (policy.intervalMs || policy.onHidden)) startAutosave(save, policy);
+  // Settings -> Main menu: save, then open the page afresh without what picked this game (a new game, a slot, a level to
+  // try), so it starts at the main menu. Not while travelling (save() would skip it), and a save that fails keeps the
+  // player in the game: { ok: false, message } for the settings screen to show.
+  function leaveForMainMenu() {
+    if (persistent && (transitioning || loading)) return { ok: false, message: 'Wait until you arrive, then leave.' };
+    if (persistent && !save()) return { ok: false, message: 'Your progress could not be saved, so the game stays open.' };
+    const url = new URL(location.href);
+    for (const key of ['new', 'slot', 'level']) url.searchParams.delete(key);
+    location.assign(url.href);
+    return { ok: true };
+  }
   // Saving by hand (the settings panel) into any slot, and loading one while playing.
   const saveMenu = persistent ? {
     max: maxSlots, current: () => slot, list: () => saves.list(),
@@ -289,7 +300,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
       effectName: id => books.effects[id]?.name ?? id,
     } : null, damageTypes: books.damageTypes,
     debug: { get: () => opts.outlines, set: value => { opts.outlines = value; show(); } },
-    reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape() });
+    reload: reloadFresh, onFullscreen: () => screen2d.lockLandscape(), mainMenu: leaveForMainMenu });
   const hud = createHud({ kit, icons, portrait: portraitImage, hero, world: mapView, quick: quickBar, menus, command: cmd => act(cmd), say, colourOf,
     wallet: Object.values(itemDefs).some(item => item.currency) ? session.wallet : null, magic: hasMagic });
   const gameOver = menus.gameOver;

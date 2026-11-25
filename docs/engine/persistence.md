@@ -55,8 +55,9 @@ Saves live in slots (`slot-1`, ...). The page opens on the main menu (engine/ui/
 newest save, Load game lists every save (load it, or delete it with two presses; Back or Escape returns), and New game
 goes to character creation and then starts in a free slot. When every slot is in use, New game first asks which save to
 replace (two presses). A campaign can dress the menu with `menu: { logo, background }`. Autosave is off by default (it made death cost nothing): the player saves and loads
-from the Save and Load screens (Settings → Save, Settings → Load), one row per slot (`maxSlots`); overwriting a save takes two presses. A new game is not written
-until the player saves it. A failed write says "Your progress could not be saved." in the message log, once.
+from the Save and Load screens (Settings → Save, Settings → Load), one row per slot (`maxSlots`); overwriting a save takes two presses. Settings → Main menu also saves the
+current slot before it leaves (two presses: "Save and leave?"). A new game is not written until the player saves it or
+leaves that way. A failed write says "Your progress could not be saved." in the message log, once.
 
 ## Loading while playing
 

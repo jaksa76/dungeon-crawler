@@ -62,6 +62,16 @@ try {
     await page.keyboard.press('Enter'); // Continue is the chosen button now
     await page.waitForFunction(() => window.__game2d, null, { timeout: 15000 });
     assert.equal(await heroName(page), 'Aldric', `${name}: Continue and Enter resumes the save`);
+    // Settings -> Main menu takes two presses, saves, and returns to the main menu with the save to continue.
+    await page.evaluate(() => __game2d.ui.menus.menu.settings()); await page.waitForTimeout(400);
+    await press(page, 'Main menu', mobile);
+    assert.ok(await find(page, 'Save and leave?'), `${name}: leaving asks first`);
+    await press(page, 'Save and leave?', mobile);
+    await page.waitForFunction(() => window.__stage && !window.__game2d, null, { timeout: 15000 }); await page.waitForTimeout(500);
+    assert.equal((await find(page, 'Continue')).disabled, false, `${name}: back at the main menu, with the save`);
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(() => window.__game2d, null, { timeout: 15000 });
+    assert.equal(await heroName(page), 'Aldric', `${name}: the save continues after leaving`);
     await page.context().close();
   }
   // A phone held upright is asked to rotate, on the menu too.

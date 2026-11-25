@@ -52,8 +52,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-22 - Title screen background
   - As a player, I want a painted background behind the title screen and main menu.
 
-- [ ] TODO-23 - Main menu button in the settings screen
+- [x] TODO-23 - Main menu button in the settings screen
   - As a player, I want to return to the main menu from Settings.
+  - Note: **Iteration note**
+  - Note: Chose "save, then leave" (two presses: "Save and leave?"). Autosave is off by design (persistence.md: death should cost something), so leaving overwrites the current slot without the Save screen's Overwrite? step, and there is no way to leave without saving to drop a bad run. If that matters, add a "Leave without saving" choice.
+  - Note: The review caught that save() silently skips while travelling between levels, so leaving then would not have saved; leaving now waits until arrival. The log is hidden while a menu is open, so failures show as the panel's news line.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-24 - Precisely align UI elements
   - As a player, I want HUD and screen elements aligned to the pixel grid on both layouts (320×240 desktop, 400×180 phone).
