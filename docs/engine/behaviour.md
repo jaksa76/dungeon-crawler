@@ -100,7 +100,8 @@ behaviour on the definition. A spawned creature that dies is gone for good (it i
 
 ## Merchants
 
-Give a prop or NPC a `merchant` definition with a `title`, optional `text`, and `stock` mapping item IDs to
+Give a prop or NPC a `merchant` definition with a `title`, optional `text`, an optional `image` (the shop seen across
+its counter with the keeper inside: 120 × 150 pixel art, shown beside the wares; the pixel-art skill's pictures.md), and `stock` mapping item IDs to
 `{ qty, price }`. Set `behavior: { type: 'shop' }` to open the shop on interaction. To open it from a dialogue
 choice, call `game.openShop(merchantId)` in the choice's effect. Stock and the purse are saved.
 

@@ -13,7 +13,7 @@
 //   passTravelTime(ms)          in a headless playthrough, advance the clock before entering.
 //   ensureArt(levelId)          async; something was spawned on a level: load its art before it shows.
 //   openContainer(box)          a container or pile was opened: { title, text, stacks }
-//   openShop(shop)              a merchant was opened: { title, text, view(), buy(id), sell(index, id) }
+//   openShop(shop)              a merchant was opened: { title, text, image, view(), buy(id), sell(index, id) }
 //   canTarget(monster)          may the player point at this creature? (game.js: is it drawn?). Default: it stands on
 //                               the player's tile or the one they face.
 //

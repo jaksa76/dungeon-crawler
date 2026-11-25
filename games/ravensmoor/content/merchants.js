@@ -13,7 +13,8 @@ export const alchemist = {
   behavior: { type: 'talk', dialogue: alchemistDialogue },
   merchant: {
     title: 'Alchemist’s stall',
-    text: 'The alchemist trades in healing and mana draughts.',
+    image: new URL('../assets/shops/alchemist.png', import.meta.url).href, // 120 x 150, painted by Codex (art/ravensmoor/painted/shop-*)
+    text: 'Healing and mana draughts; torches.',
     stock: {
       'health-potion': { qty: 8, price: 10 },
       'mana-potion': { qty: 6, price: 12 },
@@ -27,7 +28,8 @@ export const smithy = {
   behavior: { type: 'shop' },
   merchant: {
     title: 'Greybridge smithy',
-    text: 'Iron, a little steel, and one mithril blade.',
+    image: new URL('../assets/shops/smithy.png', import.meta.url).href,
+    text: 'Iron, some steel, one mithril blade.',
     stock: {
       'iron-sword': { qty: 2, price: 26 },
       'iron-mace': { qty: 1, price: 36 },

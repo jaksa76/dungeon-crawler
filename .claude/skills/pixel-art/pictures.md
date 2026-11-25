@@ -11,6 +11,7 @@ the painting's own palette).
 | World map (`worldMap.image`) | 320 × 180 | full width, y 80-944 (16:9) | 1:1 over the whole map panel | the title bar (y 5-18) covers the top 20 rows and the panel rim the outer 5 px: keep them calm; markers are percentages of the picture |
 | Title background (`menu.background`) | 400 × 240 | full width, y 51-972 (5:3) | scale 1, cover-fitted, lightly darkened | desktop crops 40 px each side, phone 30 px top and bottom; the title and three buttons sit in the middle |
 | Story image (`game.showStory`, an ending's `image`) | 400 × 240 | as above | scale 1, cover-fitted | text on a dark band over the lower ~45% on a phone, ~35% on a desktop |
+| Shop interior (a merchant's `image`) | 120 × 150 | portrait 1024 × 1536 canvas, x 32-992, y 168-1368 (8 px blocks) | 1:1 on the left of the shop screen | the keeper's head and shoulders in the upper half, the counter across the lower quarter |
 | Portrait (dialogue, not built yet) | decide with the feature | | | add the row when it exists |
 
 ## Prompt shape
@@ -41,5 +42,7 @@ title background from the game screenshot and the pixel world map; the story ima
 
 - 2026-11-25 · World map (TODO-21), title background (TODO-22), "The Quiet Bell" story image (TODO-28): all first-time
   successes with the prompt shape above (the general lessons are in SKILL.md).
+- 2026-11-25 · Shop interiors (TODO-32), smithy and alchemist, painted in parallel (two `codex exec` at once): both right
+  first time on a portrait canvas with the picture rectangle given in screen pixels (x 32-992, y 168-1368).
 - 2026-11-25 · `pixelate.mjs` reproduces the committed image exactly from the kept painting, so keep the painting
   (`art/<campaign>/painted/`) rather than the reduced image's history.

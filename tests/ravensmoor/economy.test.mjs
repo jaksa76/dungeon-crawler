@@ -63,3 +63,17 @@ test('both the purse and finite merchant stock survive saves, with zero gold for
   assert.deepEqual((await restored.load(saved)).issues, []);
   assert.equal(restored.wallet.amount, 0);
 });
+
+test('a shop can show its keeper: the smithy and the alchemist have 120 x 150 interiors, which the trade carries', async () => {
+  const fs = await import('node:fs');
+  const { smithy, alchemist } = await import('../../games/ravensmoor/content/merchants.js');
+  for (const merchant of [smithy, alchemist]) {
+    const head = fs.readFileSync(new URL(merchant.merchant.image)).subarray(16, 24);
+    assert.deepEqual([head.readUInt32BE(0), head.readUInt32BE(4)], [120, 150], merchant.id);
+  }
+  const session = play({ level: 'market' });
+  session.begin({ welcome: false });
+  Object.assign(session.player, { x: 3, z: 1, dir: 0 });
+  session.interact();
+  assert.equal(session.openShop.image, smithy.merchant.image);
+});

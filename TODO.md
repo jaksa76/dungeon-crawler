@@ -113,8 +113,12 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The village level's view also drives the art studio's sheet plan, so raising its maxDepth silently re-planned the painted sheets; the review caught it and the studio is now pinned to the painted depth. That coupling was undocumented.
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-32 - Better shops
+- [x] TODO-32 - Better shops
   - As a player, I want shops that have depth and show the NPC inside them.
+  - Note: **Iteration note**
+  - Note: Read as visual: the shop screen shows the shop's interior with its keeper behind the counter (a merchant's `image`, 120 x 150 pixel art; the smithy and the alchemist have one). Walk-in shops in the 3D scene would need new wall geometry and art.
+  - Note: The reviewer thought "depth" may have meant gameplay depth (restocking, buyback, more varied stock, comparing items). If so, that is still open: worth a new story.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-33 - Portraits in dialogue
   - As a player, I want to see the portrait of the person I'm talking to in dialogue.

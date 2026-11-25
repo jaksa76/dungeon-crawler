@@ -27,7 +27,7 @@ export function createWallet() {
   };
 }
 
-export function merchantTrade(entity, { title, text, stock }, inventory, items, wallet) {
+export function merchantTrade(entity, { title, text, image, stock }, inventory, items, wallet) {
   const entries = Object.entries(stock ?? {});
   for (const [id, { price, qty }] of entries) {
     if (!Object.hasOwn(items, id) || items[id].currency || !Number.isSafeInteger(price) || price < 1 || !Number.isSafeInteger(qty) || qty < 0)
@@ -44,7 +44,7 @@ export function merchantTrade(entity, { title, text, stock }, inventory, items, 
   };
   const fail = message => ({ ok: false, message });
   return {
-    title: title ?? entity.name ?? 'Merchant', text,
+    title: title ?? entity.name ?? 'Merchant', text, image: image ?? null,
     view: () => ({
       gold: wallet.amount,
       stock: entries.map(entry => ({ id: entry[0], price: entry[1].price, qty: stocked(entry) })),
