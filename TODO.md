@@ -53,6 +53,7 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 
 - [ ] TODO-25 - MP3 soundtrack and sound effects
   - As a player, I want recorded music and sound effects (mp3) instead of the synthesised sounds, per level and per event.
+  - Note: Source the music and sound effects from CC0 assets on OpenGameArt.org and similar sites (e.g. Freesound, itch.io CC0 packs); record each file's source and licence in the credits.
 
 - [ ] TODO-26 - Larger movement controls option on mobile
   - As a player on a phone, I want a setting that makes the movement controls slightly larger, overflowing their panel, so they are easier to hit.
