@@ -90,10 +90,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [ ] TODO-29 - More NPCs
   - As a game designer, I want more predefined NPCs to choose from.
 
-- [ ] TODO-30 - Regenerate art at the correct resolution
-  - As a player, I want facades, icons and other art made at the canvas resolution so they stay crisp instead of being scaled.
-  - Note: Before generating new art, look for CC0 pixel art on OpenGameArt.org and similar sites (e.g. itch.io CC0 packs, Kenney) that fits the style and resolution; record each file's source and licence in the credits.
-
 - [ ] TODO-31 - Increase view distance
   - As a player, I want to see further down streets in villages. Not needed for dungeons.
 
@@ -104,6 +100,10 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - As a player, I want to see the portrait of the person I'm talking to in dialogue.
   
 - [ ] TODO-34 - The sprite for the loot dropped by monsters is missing
+
+- [ ] TODO-30 - Regenerate art at the correct resolution
+  - As a player, I want facades, icons and other art made at the canvas resolution so they stay crisp instead of being scaled.
+  - Note: Before generating new art, look for CC0 pixel art on OpenGameArt.org and similar sites (e.g. itch.io CC0 packs, Kenney) that fits the style and resolution; record each file's source and licence in the credits.
 
 ## Engine polish
 
