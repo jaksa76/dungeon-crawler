@@ -94,9 +94,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [ ] TODO-28 - Full-screen story images with text
   - As a player, I want story moments shown as a full-screen image with text that I advance, triggered by events, dialogue or quests.
 
-- [ ] TODO-29 - More NPCs
-  - As a game designer, I want more predefined NPCs to choose from.
-
 - [ ] TODO-31 - Increase view distance
   - As a player, I want to see further down streets in villages. Not needed for dungeons.
 
@@ -111,6 +108,9 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [ ] TODO-30 - Regenerate art at the correct resolution
   - As a player, I want facades, icons and other art made at the canvas resolution so they stay crisp instead of being scaled.
   - Note: Before generating new art, look for CC0 pixel art on OpenGameArt.org and similar sites (e.g. itch.io CC0 packs, Kenney) that fits the style and resolution; record each file's source and licence in the credits.
+
+- [ ] TODO-29 - More NPCs
+  - As a game designer, I want more predefined NPCs to choose from.
 
 ## Engine polish
 
