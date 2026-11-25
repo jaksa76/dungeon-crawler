@@ -61,7 +61,7 @@ export const EVENTS = {
   'level-up': '{ level, points }: the hero reached a new level (health and mana are restored)',
   spend: '{ attribute, value, unspent }: a skill point went into an attribute',
   loot: '{ source, items, value, budget, at }: a creature left things behind (items: [{ item, qty }], on the floor where it fell)',
-  'damage-taken': '{ source, amount, hp }: a creature hurt the hero (source: { id, kind, name })',
+  'damage-taken': '{ source, amount, hp, effect? }: a creature hurt the hero (source: { id, kind, name }), or a status effect did (effect: its id)',
   evade: '{ source }: a creature missed the hero',
   death: '{ source }: the hero died',
   respawn: '{ to }: the hero woke at the respawn point',
@@ -468,9 +468,9 @@ export function createSession({ levels: definitions, start, books, startingItems
   }
 
   // Hurt the hero from something that is not a blow: an effect's tick. Death works as it does for a blow.
-  function hurtHero(amount, source) {
+  function hurtHero(amount, source, effect = undefined) {
     hero.hp = Math.max(0, hero.hp - amount);
-    emit('damage-taken', { source, amount, hp: hero.hp });
+    emit('damage-taken', { source, amount, hp: hero.hp, ...(effect ? { effect } : {}) });
     if (hero.hp <= 0 && !dead) { dead = true; swing.reset(); emit('death', { source }); }
   }
 
@@ -481,7 +481,7 @@ export function createSession({ levels: definitions, start, books, startingItems
       const def = books.effects[t.id];
       if (t.damage) {
         const amount = Math.round(t.damage * (hero.resist[def.magicType] ?? 1));
-        if (amount > 0) { say(`The ${def.name.toLowerCase()} hurts you for ${amount}.`); hurtHero(amount, { id: t.id, kind: t.id, name: def.name }); }
+        if (amount > 0) { say(`The ${def.name.toLowerCase()} hurts you for ${amount}.`); hurtHero(amount, { id: t.id, kind: t.id, name: def.name }, t.id); }
       }
       if (t.heal && !dead) hero.hp = Math.min(hero.maxHp, hero.hp + t.heal);
     }

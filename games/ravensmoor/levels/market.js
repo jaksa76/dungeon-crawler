@@ -6,7 +6,7 @@ export const market = {
   shortName: 'Greybridge',
   journal: 'Explore Greybridge. The southern gate leads back to the roads of Ravensmoor.',
   environment: 'town',
-  sound: { music: [57, 64, 67, null, 69, 67, 64, null], windTone: 570, windVolume: .06, interval: 1.5 },
+  sound: { track: new URL('../assets/music/greybridge.mp3', import.meta.url).href, music: [57, 64, 67, null, 69, 67, 64, null], windTone: 570, windVolume: .06, interval: 1.5 },
   backdrop: new URL('../assets/greybridge-backdrop.png', import.meta.url).href,
   legend: { '.': 'floor', H: 'house-a', J: 'house-b', D: 'house-door', B: 'shop-smith', '#': 'stone-wall' },
   tiles: [

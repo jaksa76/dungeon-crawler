@@ -66,9 +66,14 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
   - Note: The menu screens were checked by screenshot and already line up (frames at 5/20/310/155, bottoms at 175); only the empty spell list's text moved. The bigger misalignments were all in the HUD (hudRects).
   - Note: _Posted by microfactory implement-next._
 
-- [ ] TODO-25 - MP3 soundtrack and sound effects
+- [x] TODO-25 - MP3 soundtrack and sound effects
   - As a player, I want recorded music and sound effects (mp3) instead of the synthesised sounds, per level and per event.
   - Note: Source the music and sound effects from CC0 assets on OpenGameArt.org and similar sites (e.g. Freesound, itch.io CC0 packs); record each file's source and licence in the credits.
+  - Note: **Iteration note**
+  - Note: The tracks and samples were picked from licences, titles and durations; nobody has listened to them in the game. Worth a listen, especially Greybridge's 65 s loop (mp3 loops have a short gap at the loop point).
+  - Note: Credits live in CREDITS.md beside the files (engine/assets/sound/, games/ravensmoor/assets/music/) until the credits screen (TODO-39) can show them.
+  - Note: The review found damage events were shared by blows, spells and status-effect ticks, so poison and burns would have played the sword sounds; `damage-taken` now carries `effect` for ticks, and the hit sound follows the `attack` event.
+  - Note: _Posted by microfactory implement-next._
 
 - [ ] TODO-26 - Larger movement controls option on mobile
   - As a player on a phone, I want a setting that makes the movement controls slightly larger, overflowing their panel, so they are easier to hit.

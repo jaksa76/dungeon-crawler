@@ -4,7 +4,7 @@ export const undercrypt = {
   shortName: 'The Undercrypt',
   journal: 'The Undercrypt is full of creatures, from rats and kobolds near the door to an ogre, an owlbear and a troll deep inside: the stronger it looks, the stronger it is. They follow movement they spot down the corridors. Tap a creature to attack, hold to keep swinging (or face it and press X), and drink a potion (1) if the fight turns against you. Your light reaches only a few paces. The ironbound entrance door leads back to the village; your map records the passages you discover.',
   environment: 'dungeon',
-  sound: { music: [38, null, 45, 40, null, 41, null, 36], windTone: 145, windVolume: .15, interval: 2.7 },
+  sound: { track: new URL('../assets/music/undercrypt.mp3', import.meta.url).href, music: [38, null, 45, 40, null, 41, null, 36], windTone: 145, windVolume: .15, interval: 2.7 },
   legend: { '.': 'floor', '#': 'dungeon-stone', E: 'dungeon-door' },
   start: { x: 1, z: 1, dir: 2 },
   tiles: [

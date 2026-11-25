@@ -57,6 +57,8 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   progression, loot, startingSpells = [], quests = {},
   // The game's own sections of the help screen: [{ title, text }] (ui/help-screen.js).
   help = [],
+  // Recorded sound effects by event, replacing the engine's: { step: [mp3 URL, ...], door, hit, hurt, pickup, gold } (ui/sound.js).
+  sounds = {},
   // Persistence. `title` names the game (window title, start screen); `saveKey` keeps its saves apart from other games on the
   // same origin; `storage` is any Storage-like object (default localStorage); `maxSlots` limits save slots; `autosave` sets
   // when to save (see autosave.js); `persist` adds the game's own sections: a list, or a function that gets the engine's
@@ -83,7 +85,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   const soundKey = `${saveKey}.muted`;
   let initiallyMuted = false;
   try { initiallyMuted = store?.getItem(soundKey) === 'true'; } catch { /* Sound still works without storage. */ }
-  const sound = Object.values(levels).some(level => level.sound) ? createSound({ initiallyMuted, saveMuted(muted) {
+  const sound = Object.values(levels).some(level => level.sound) ? createSound({ initiallyMuted, samples: sounds, saveMuted(muted) {
     try { store?.setItem(soundKey, String(muted)); } catch { /* The setting still applies to this playthrough. */ }
   } }) : null;
   if (sound) {
@@ -308,7 +310,7 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   window.__game2d = { ui: { get layout() { return screen2d.name; }, get spec() { return screen2d.spec; }, get scale() { return screen2d.scale; }, rects: () => hud.rects(screen2d.spec, quickBar.size), regions: () => kit.regions(), menus, canvas,
       // A point on the canvas, in logical pixels, as a point on the page.
       client: (x, y) => { const r = canvas.getBoundingClientRect(); return { x: r.left + x * r.width / canvas.width, y: r.top + y * r.height / canvas.height }; } },
-    view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session,
+    view, images, level, levelId, p, world: mapView, things: world, game: api, monsters, hero, inventory, equipment, flags, persistence, save, loadState: loadGame, session, sound,
     get targets() { return comp.targets(); },
     get phase() { return isDead() ? 'game-over' : (transitioning || loading) ? 'loading' : 'playing'; } };
   document.addEventListener('visibilitychange', () => session.delayMonsters(monsters.stepMs));
@@ -489,9 +491,9 @@ async function runGame({ levels, start, worldMap, content = [], startingItems = 
   if (sound) {
     session.on('move', ({ cmd }) => { if (cmd !== 'left' && cmd !== 'right') sound.effect('step'); });
     session.on('door', () => sound.effect('door'));
-    session.on('damage-dealt', () => sound.effect('hit'));
-    session.on('damage-taken', () => sound.effect('hit'));
-    session.on('pickup', () => sound.effect('pickup'));
+    session.on('attack', ({ hit }) => { if (hit) sound.effect('hit'); }); // a blow, not a spell or a burn
+    session.on('damage-taken', ({ effect }) => { if (!effect) sound.effect('hurt'); }); // a creature's blow, not poison
+    session.on('pickup', ({ item }) => sound.effect(itemDefs[item]?.currency ? 'gold' : 'pickup'));
   }
 
   // Load a snapshot while playing: the saved level opens, every component is restored, creatures start over.

@@ -205,3 +205,11 @@ test('armour makes a fight safer: mail takes off defence and blunts blades', () 
   const cut = hero => strike({ ...goblin, attack: goblin.damage }, hero, seq(.1, .5)).damage;
   assert.ok(cut(armed('iron-mail', 'iron-helmet')) <= cut(armed()) / 2);
 });
+
+test('every recorded sound exists: the engine’s samples and each level’s music track', async () => {
+  const { SAMPLES } = await import('../../engine/ui/sound.js');
+  const urls = [...Object.values(SAMPLES).flat(), ...Object.values(campaign.levels).map(l => l.sound?.track).filter(Boolean)];
+  assert.ok(urls.length >= 16);
+  for (const url of urls) assert.ok(fs.existsSync(new URL(url)), url);
+  assert.equal(Object.values(campaign.levels).filter(l => l.sound?.track).length, 3, 'every Ravensmoor level has a track');
+});
