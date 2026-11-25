@@ -39,7 +39,8 @@ export const arms = {
   dagger: weapon('Dagger', 'dagger', 'pierce', [2, 4], 450, 20, ['rusty', 'iron', 'steel', 'silver'], 'A {material} dagger: little weight, many blows.', { enchants: ['venom'] }),
 
   helmet: armour('Helmet', 'iron-helmet', 'head', 1, 30, ['rusty', 'iron', 'steel'], 'A {material} helmet with a nose guard.'),
-  mail: armour('Mail shirt', 'chainmail', 'armour', 2, 80, ['rusty', 'iron', 'steel', 'mithril'],
+  // The mithril one is the Undercrypt's reward: no smith can pay for it (sold, it would buy the mithril sword).
+  mail: armour('Mail shirt', 'chainmail', 'armour', 2, 80, { rusty: {}, iron: {}, steel: {}, mithril: { sell: false } },
     'A shirt of {material} rings. Edges skid off it.', { resist: { blade: 0.8 }, enchants: ['flame', 'frost'] }),
   shield: armour('Shield', 'round-shield', 'shield', 1, 35, ['bronze', 'iron', 'steel'], 'A round wooden shield rimmed with {material}.',
     { aliases: { iron: ['shield'] }, enchants: ['flame', 'frost', 'storm'] }),

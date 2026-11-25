@@ -132,13 +132,26 @@ export function forgeFamilies(items, materials, enchantments = {}) {
   return out;
 }
 
+// When both the item (its material) and the enchantment limit drops, the stricter wins: `false` from either stays
+// false (mithril is never dropped, not even enchanted), the higher minLevel and lower maxLevel hold, and the weight is
+// the enchantment's when it has one.
+function stricterDrop(a, b) {
+  if (a === undefined || b === undefined) return a ?? b;
+  if (a === false || b === false) return false;
+  const [x, y] = [a, b].map(d => typeof d === 'number' ? { weight: d } : d);
+  const out = { ...x, ...y };
+  if (x.minLevel !== undefined && y.minLevel !== undefined) out.minLevel = Math.max(x.minLevel, y.minLevel);
+  if (x.maxLevel !== undefined && y.maxLevel !== undefined) out.maxLevel = Math.min(x.maxLevel, y.maxLevel);
+  return out;
+}
+
 // An item with an enchantment on it (see the notes at the top). Weapons get `elemental` and `onHit`, armour `resist`.
 export function enchanted(item, id, enchantment) {
   const out = { ...item, enchant: { id, type: enchantment.type, tier: enchantment.tier ?? 1 } };
   delete out.aliases;
   out.name = `${item.name} of ${enchantment.name.toLowerCase()}`;
   if (item.value !== undefined) out.value = Math.max(1, Math.round(item.value * (enchantment.value ?? 2)));
-  out.drop = enchantment.drop ?? item.drop;
+  out.drop = stricterDrop(item.drop, enchantment.drop);
   if (out.drop === undefined) delete out.drop;
   if (Array.isArray(item.damage) && enchantment.weapon) {
     if (enchantment.weapon.elemental) out.elemental = { type: enchantment.type, damage: enchantment.weapon.elemental };

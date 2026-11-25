@@ -5,6 +5,8 @@ import { createCharacter, strike } from '../../engine/rules/combat.js';
 import { createEquipment } from '../../engine/rules/equipment.js';
 import { createInventory, addToStacks, checkItems } from '../../engine/rules/inventory.js';
 import { resolveContents } from '../../engine/rules/loot.js';
+import { lootPool } from '../../engine/rules/generate-loot.js';
+import { smithy } from '../../games/ravensmoor/content/merchants.js';
 import { checkBehavior } from '../../engine/rules/interaction.js';
 import { campaign, books, engineBooks, levels, artFile, own, campaignWorld } from '../support.mjs';
 
@@ -178,6 +180,19 @@ test('weapons and armour come in materials: a rusty sword to start, an iron mace
   const hoard = levels.dungeon.level.entities.find(e => e.id === 'crypt-hoard');
   assert.ok(hoard.behavior.contents.some(c => c.item === 'iron-mace'));
   assert.ok(levels.village.level.entities.some(e => e.prop === 'crate' && e.behavior?.contents?.some(c => c.item === 'rusty-mail')));
+});
+
+test('steel and mithril are on the upgrade path: the smith sells both, the Undercrypt hides mithril mail, steel drops from level 3', () => {
+  const { stock } = smithy.merchant;
+  for (const id of ['steel-sword', 'steel-mace', 'steel-mail', 'mithril-sword']) assert.ok(stock[id] && itemDefs[id], id);
+  assert.ok(stock['mithril-sword'].price > stock['steel-sword'].price * 3, 'mithril is dear');
+  const cache = levels.dungeon.level.entities.find(e => e.id === 'knight-cache');
+  assert.deepEqual(cache.behavior.contents, [{ item: 'mithril-mail' }]);
+  assert.ok(itemDefs['mithril-mail'].defence > itemDefs['steel-mail'].defence);
+  assert.equal(itemDefs['mithril-mail'].sell, false, 'the mail cannot be sold to buy the mithril sword');
+  const pool = level => lootPool(itemDefs, level).map(entry => entry.id);
+  assert.ok(!pool(2).includes('steel-mail') && pool(3).includes('steel-mail'));
+  assert.ok(!pool(10).some(id => id.startsWith('mithril-')), 'mithril is never dropped');
 });
 
 test('a mace breaks skeletons that shrug off a sword, and a sword cuts zombies better than a spear', () => {

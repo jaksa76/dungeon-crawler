@@ -27,13 +27,16 @@ export const smithy = {
   behavior: { type: 'shop' },
   merchant: {
     title: 'Greybridge smithy',
-    text: 'The smith sets out ironwork, armour and a few pieces of steel.',
+    text: 'Iron, a little steel, and one mithril blade.',
     stock: {
       'iron-sword': { qty: 2, price: 26 },
       'iron-mace': { qty: 1, price: 36 },
       'iron-spear': { qty: 1, price: 34 },
       'iron-mail': { qty: 1, price: 55 },
+      'steel-sword': { qty: 1, price: 60 },
       'steel-mace': { qty: 1, price: 70 },
+      'steel-mail': { qty: 1, price: 110 },
+      'mithril-sword': { qty: 1, price: 240 },
     },
   },
 };

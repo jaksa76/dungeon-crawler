@@ -79,6 +79,8 @@ flame: { name: 'Flame', type: 'fire', tier: 2, value: 3, drop: { minLevel: 3, we
 A weapon with `elemental` adds that much damage of the type to every hit (scaled by the creature's resistance), and
 `onHit` may put an effect on what it hits. Armour with the enchantment resists the type. The item's `value` is the plain
 item's times the enchantment's, so the loot generator (progression.md) prices it, and `drop` says when it turns up.
+When the material limits drops too, the stricter rule holds: a material that never drops (`drop: false`) never drops
+enchanted either, and the higher `minLevel` wins.
 
 **The outline.** The colour of the outline on an enchanted item's icon is the colour of its kind of magic; its strength
 is the tier: 1 *faint* (a thin, half-solid line), 2 *clear* (a solid line and a little glow), 3 *strong* (a thick line and

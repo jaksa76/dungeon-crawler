@@ -18,6 +18,7 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-5 - M4 — Persistence and game state (docs/engine/persistence.md)
 - [x] TODO-6 - M5 — Combat interaction and monster animation
 - [x] TODO-7 - M6 — Automated test player (docs/engine/bots.md)
+- [x] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md): rusty → iron → steel → mithril, by loot and shops. Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure
 - [x] TODO-12 - M9 — World map and travel
 - [x] TODO-13 - M10 — Flags and dialogue
 - [x] TODO-14 - M11 — Quests
@@ -29,10 +30,6 @@ work ahead of the game work it unlocks. Task markers in descriptions show progre
 - [x] TODO-20 - Show a plus sign on the hero profile when skill points are available
 
 ## Open in finished milestones
-
-- [ ] TODO-8 - M7 — Weapons, armour and equipment (docs/engine/equipment.md)
-  - `[~]` Upgrade path: rusty sword → iron mace is in the game; steel and mithril still need placing by loot and shops.
-  - Deferred: rarity, ranged weapons and ammunition, equipment drawn on the hero figure.
 
 - [ ] TODO-9 - M8 — Loot, XP and progression (docs/engine/progression.md)
   - `[ ]` Monster respawn (needs a per-level state scope)

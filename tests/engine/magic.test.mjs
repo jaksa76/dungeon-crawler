@@ -113,6 +113,11 @@ test('an enchantment on a family makes an item per material with the effect on i
   assert.equal(plain.enchant, undefined);
   assert.equal(books.items['iron-sword-dawn'].enchant.tier, 4);
   assert.equal(books.items['iron-sword-dawn'].drop, false);
+  const drops = (material, enchantment) => forgeFamilies({ x: { name: 'X', value: 1, materials: ['m'], enchants: ['e'] } },
+    { m: { name: 'M', drop: material } }, { e: { name: 'E', type: 'fire', drop: enchantment } })['m-x-e'].drop;
+  assert.equal(drops(false, { minLevel: 3, weight: 0.5 }), false, 'a material that never drops stays out of loot when enchanted');
+  assert.deepEqual(drops({ minLevel: 4 }, { minLevel: 3, weight: 0.5 }), { minLevel: 4, weight: 0.5 });
+  assert.deepEqual(drops(undefined, { minLevel: 3 }), { minLevel: 3 });
   assert.throws(() => forgeFamilies({ x: { name: 'X', materials: ['iron'], enchants: ['nope'] } }, books.materials, books.enchantments), /unknown enchantment/);
 });
 

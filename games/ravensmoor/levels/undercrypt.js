@@ -58,6 +58,10 @@ export const undercrypt = {
     { id: 'crypt-hoard', prop: 'chest', name: 'an old chest', x: 3, z: 13, side: 'W', behavior: { type: 'open', title: 'Old chest',
       text: 'Dust and old bones, and beneath them a mace, a shield, a sword that glows faintly, a scroll and two corked vials.',
       contents: [{ item: 'iron-mace' }, { item: 'iron-shield' }, { item: 'iron-sword-flame' }, { item: 'scroll-mending' }, { item: 'health-potion', qty: 2 }] } },
+    // Mithril is never dropped (content/arms.js): this mail is the one piece in the Undercrypt, past the crypt gate.
+    { id: 'knight-cache', prop: 'chest', name: 'a dented strongbox', x: 9, z: 13, side: 'E', behavior: { type: 'open', title: 'Dented strongbox',
+      text: 'A fallen knight’s strongbox. Under a rotted surcoat lies a shirt of pale rings that has not tarnished at all.',
+      contents: [{ item: 'mithril-mail' }] } },
     { id: 'warden-lockbox', prop: 'chest', name: 'a lockbox', x: 11, z: 1, side: 'E', behavior: { type: 'open', title: 'Warden’s lockbox',
       text: 'A tarnished iron key marked with the warden’s seal lies inside.', contents: [{ item: 'key' }] } },
     { id: 'hidden-pay', prop: 'chest', name: 'a small coffer', x: 5, z: 17, side: 'E', behavior: { type: 'open', title: 'Hidden coffer',
