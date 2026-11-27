@@ -10,6 +10,9 @@ It establishes no main plot, chosen hero or central villain. Ravensmoor, Greybri
 Undercrypt are established locations; the additional names, connections and
 dungeon floor counts below are working choices.
 
+The [recurring character cast](characters.md) develops the people and
+relationships that can carry an episodic campaign across these places.
+
 ## Character of the world
 
 The inhabited countryside feels familiar: gardens, mills, wells, workshops,
