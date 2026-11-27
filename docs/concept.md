@@ -34,6 +34,9 @@ The objective is to achieve a beautiful, cohesive visual style without requiring
 
 ## World and Campaign System
 
+The Ravensmoor campaign's villages, woods, magic and dungeon geography are
+described in its [world setting](ravensmoor/setting.md).
+
 The world is organized as a **network of interconnected locations**. Each location has its own tile map, visual theme, NPCs, enemies, objects, events, and exits connecting it to other locations.
 
 Campaigns are data-driven and independent of the underlying engine.
